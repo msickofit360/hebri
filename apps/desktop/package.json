@@ -206,7 +206,7 @@
     "artifactName": "Hebri-${version}-${os}-${arch}.${ext}",
     "icon": "assets/icon",
     "directories": {
-      "output": "release3"
+      "output": "release4"
     },
     "files": [
       "dist/**",
