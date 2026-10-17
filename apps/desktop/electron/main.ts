@@ -1457,7 +1457,7 @@ if (IS_WINDOWS) {
 app.setAboutPanelOptions({
   applicationName: APP_NAME,
   applicationVersion: resolveHermesVersion(),
-  copyright: 'Copyright © 2026 Nous Research'
+  copyright: 'Copyright © 2026 Synapsek Labs'
 })
 
 // Custom scheme for streaming audio/video into the renderer. Local paths read
@@ -2612,7 +2612,7 @@ async function waitForUpdateToFinish() {
         .showMessageBox({
           type: 'error',
           title: 'Hermes update',
-          message: "Hermes couldn't finish updating",
+          message: "Hebri couldn't finish updating",
           detail:
             "You're still on the previous version and can keep using it. Try the update again, or open the update log to report the problem.\n\n" +
             `Details: ${result.message}`,
@@ -7856,7 +7856,7 @@ function getOauthSessionForUrl(url) {
 // hydrating from disk and return an empty array — even though the user is
 // signed in. That false-negative used to make hasLiveOauthSession() report
 // "not signed in", which on the initial boot path (startHermes → the renderer's
-// single-shot boot() with no retry) surfaced as the "Hermes couldn't start"
+// single-shot boot() with no retry) surfaced as the "Hebri couldn't start"
 // OAuth overlay that vanishes the instant the user clicks Retry.
 //
 // We force the store to hydrate once, up front: flushStorageData() then a
@@ -18299,7 +18299,7 @@ function showAboutPanelFresh() {
       applicationVersion: skew.outOfSync
         ? `${resolveHermesVersion()} — app build out of date, update the desktop app`
         : resolveHermesVersion(),
-      copyright: 'Copyright © 2026 Nous Research'
+      copyright: 'Copyright © 2026 Synapsek Labs'
     })
     app.showAboutPanel()
   })
