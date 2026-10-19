@@ -47,9 +47,9 @@ export const CONTROL_TEXT = 'text-xs'
 export const PROVIDER_GROUPS: ProviderPrefix[] = [
   {
     prefix: 'NOUS_',
-    name: 'Nous Portal',
-    description: 'Hosted Hebri & Nous-trained models',
-    docsUrl: 'https://synapseklabs.org',
+    name: 'Nous Portal (upstream)',
+    description: 'Optional third-party model provider; not a Synapsek Hebri service',
+    docsUrl: 'https://portal.nousresearch.com',
     priority: 0
   },
   {
