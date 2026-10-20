@@ -46,6 +46,21 @@ const dist = electronDistDir()
 // (only the repo root does) and no "repository" field in its package.json —
 // so it fails with "Cannot detect repository by .git/config". Pin publish to
 // "never" so electron-builder skips that lookup entirely.
+// Normalize caller-supplied publish flags before forcing local builds to
+// "never". Passing the flag twice makes electron-builder treat the value as
+// an array and can unexpectedly enable the configured GitHub publisher.
+const forwardedArgs = []
+const cliArgs = process.argv.slice(2)
+for (let index = 0; index < cliArgs.length; index += 1) {
+  const arg = cliArgs[index]
+  if (arg === "--publish") {
+    index += 1
+    continue
+  }
+  if (arg.startsWith("--publish=")) continue
+  forwardedArgs.push(arg)
+}
+
 const args = ["--publish", "never"]
 if (dist && fs.existsSync(distBinary(dist))) {
   args.push(`-c.electronDist=${dist}`)
@@ -55,7 +70,7 @@ if (dist && fs.existsSync(distBinary(dist))) {
       "via @electron/get (electronVersion + ELECTRON_MIRROR)."
   )
 }
-args.push(...process.argv.slice(2))
+args.push(...forwardedArgs)
 
 const result = spawnSync(process.execPath, [electronBuilderCli(), ...args], {
   stdio: "inherit",
