@@ -6,8 +6,10 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from hermes_cli.web_routers import team_chat
+from agent.inline_tool_executors import INLINE_TOOL_EXECUTORS
 from tools import bot_mode_probe
 from tools import bot_mode_team_context
+from tools.mcp_tool_agent import _reinject_authorized_dynamic_tools
 
 
 def _client(tmp_path: Path, monkeypatch) -> TestClient:
@@ -104,3 +106,13 @@ def test_bot_reads_but_cannot_mutate_human_team_context(tmp_path, monkeypatch):
     assert payload["work"][0]["title"] == "Verify installers"
     assert payload["messages"][0]["text"] == "Windows is ready"
     assert "mutation" not in bot_mode_team_context.team_context_tool_schema()["function"]["parameters"]
+
+    # The dynamic schema must survive both execution dispatch and the MCP
+    # registry rebuild path; otherwise the UI advertises Team context but the
+    # bot loses it after a tool refresh or cannot execute it.
+    assert "team_context" in INLINE_TOOL_EXECUTORS
+    rebuilt_tools = []
+    rebuilt_names = set()
+    _reinject_authorized_dynamic_tools(agent, rebuilt_tools, rebuilt_names)
+    assert "team_context" in rebuilt_names
+    assert any(tool.get("function", {}).get("name") == "team_context" for tool in rebuilt_tools)
