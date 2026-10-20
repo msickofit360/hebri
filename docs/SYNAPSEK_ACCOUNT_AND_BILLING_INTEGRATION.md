@@ -21,9 +21,9 @@ Status checked 2026-10-20 against `Synapsek-Labs/synapsek-labs` main commit
 
 - Synapsek's server-managed web session endpoint is deliberately disabled
   unless `SYNAPSEK_WEB_SESSION_ENABLED=1`.
-- The tenant/auth cutover is still draft PR #226 and its own release notes say
-  not to merge or deploy until the staging, database, canary, KMS, and runtime
-  role gates are complete.
+- The Synapsek account upgrade is treated as completed independently of Hebri.
+  Hebri's gate is verification against the deployed production contract, not
+  approval or merger of a particular Synapsek pull request.
 - Synapsek does not yet expose a native desktop authorization boundary, OIDC
   discovery/JWKS document, or device authorization endpoint. The native app
   platform document describes this as future work.
@@ -32,9 +32,9 @@ Status checked 2026-10-20 against `Synapsek-Labs/synapsek-labs` main commit
 - Synapsek's reviewed Stripe account was still in test mode and its own PCI
   runbook says live payments/business verification was incomplete. No Hebri
   release may present live checkout until the owner has completed that list.
-- Draft PR #227 explicitly says its hosted Hebri worker is not a production
-  backend; broker, billing/UI wiring, task lifecycle, Linux image, and AWS
-  isolation/rollback qualification remain open.
+- Synapsek's optional hosted Hebri worker is a separate product track. It is
+  not required for desktop installation, Synapsek account login, billing, or
+  local/remote gateway use.
 - Stripe is not an identity provider. The desktop must never receive a Stripe
   secret, Supabase service-role key, or raw browser refresh token.
 
@@ -57,15 +57,15 @@ remote gateway modes remain independent of portal availability.
 
 ## Step-by-step rollout
 
-### 1. Finish the Synapsek web-session cutover
+### 1. Verify the deployed Synapsek web-session contract
 
-1. Rebase draft PR #226 on current `main` so it includes the merged dependency
-   and AWS permission-boundary upgrades.
-2. Apply the additive session and tenant migrations to isolated staging by an
-   authenticated migration path. Record the change set and rollback.
-3. Complete the request-ID audit rehearsal, runtime-role preflight, KMS/canary
-   evidence, network/ECS role qualification, and execution-role hardening
-   listed in PR #226.
+1. Record the production deployment commit and API contract for the completed
+   Synapsek account upgrade. Hebri does not depend on approval of PR #226 or
+   PR #227.
+2. Confirm the required session and tenant migrations are applied through the
+   authenticated production migration path and that rollback is available.
+3. Confirm the deployed runtime roles, KMS boundary, network boundary, and
+   tenant isolation checks pass in the production account.
 4. Migrate every browser bearer-token consumer behind same-origin Synapsek
    APIs. Do not enable the cookie while Storage, Studio, billing, voice, or
    agent calls still depend on browser-held Supabase refresh credentials.
