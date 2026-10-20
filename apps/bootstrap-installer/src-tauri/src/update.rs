@@ -310,7 +310,7 @@ async fn run_update(app: AppHandle) -> Result<()> {
                 format!("{secs}s")
             };
             let msg = format!(
-                "Another Hermes update is already running (PID {}, started {} ago). \
+                "Another Hebri update is already running (PID {}, started {} ago). \
                  Wait for it to finish, or close the window or dashboard tab that \
                  started it, then try again.",
                 owner.pid, elapsed
@@ -337,7 +337,7 @@ async fn run_update(app: AppHandle) -> Result<()> {
 
     let hermes = resolve_hermes(&install_root).ok_or_else(|| {
         let msg = format!(
-            "Could not find the hermes CLI under {}. Is Hermes installed? \
+            "Could not find the legacy hermes CLI under {}. Is Hebri installed? \
              Re-run the installer to repair the install.",
             install_root.display()
         );
@@ -671,7 +671,7 @@ async fn run_update(app: AppHandle) -> Result<()> {
                 &app,
                 None,
                 LogStream::Stderr,
-                &format!("[update] could not auto-launch desktop: {err}. Launch Hermes manually."),
+                &format!("[update] could not auto-launch desktop: {err}. Launch Hebri manually."),
             );
         }
     } else if let Err(err) =
@@ -684,7 +684,7 @@ async fn run_update(app: AppHandle) -> Result<()> {
             &app,
             None,
             LogStream::Stdout,
-            &format!("[update] could not auto-launch desktop: {err}. Launch Hermes manually."),
+            &format!("[update] could not auto-launch desktop: {err}. Launch Hebri manually."),
         );
     }
 
@@ -715,7 +715,7 @@ pub(crate) async fn wait_for_install_locks_free(install_root: &Path, app: &AppHa
     let lock_targets = install_lock_probe_paths(install_root);
     let deadline = Instant::now() + DESKTOP_EXIT_WAIT;
 
-    emit_log(app, Some(stage), LogStream::Stdout, "[handoff] waiting for Hermes to exit…");
+    emit_log(app, Some(stage), LogStream::Stdout, "[handoff] waiting for Hebri to exit…");
 
     loop {
         let locked = locked_paths(&lock_targets);
@@ -726,13 +726,13 @@ pub(crate) async fn wait_for_install_locks_free(install_root: &Path, app: &AppHa
             // Last resort: a backend shim can still hold update-sensitive
             // files when the desktop's shutdown races a detached child. Only
             // target the shim at this install root: the desktop binary is also
-            // Hermes.exe, so an image-name kill would tear down the app itself.
+            // Hebri.exe, so an image-name kill would tear down the app itself.
             emit_log(
                 app,
                 Some(stage),
                 LogStream::Stdout,
                 &format!(
-                    "[handoff] Hermes still holding install files ({}); locating backend shims…",
+                    "[handoff] Hebri is still holding install files ({}); locating backend shims…",
                     format_locked_paths(&locked)
                 ),
             );
@@ -800,8 +800,8 @@ fn desktop_app_payload_paths(install_root: &Path) -> Vec<PathBuf> {
         ]
     } else if cfg!(target_os = "macos") {
         vec![
-            release.join("mac").join("Hermes.app").join("Contents").join("Resources").join("app.asar"),
-            release.join("mac-arm64").join("Hermes.app").join("Contents").join("Resources").join("app.asar"),
+            release.join("mac").join("Hebri.app").join("Contents").join("Resources").join("app.asar"),
+            release.join("mac-arm64").join("Hebri.app").join("Contents").join("Resources").join("app.asar"),
         ]
     } else {
         vec![release.join("linux-unpacked").join("resources").join("app.asar")]
@@ -818,7 +818,7 @@ fn format_locked_paths(paths: &[PathBuf]) -> String {
 
 /// Find processes running the exact `venv\Scripts\hermes.exe` shim for this
 /// installation. Windows image names are case-insensitive and the desktop is
-/// also Hermes.exe, so matching by image name alone is unsafe.
+/// also Hebri.exe, so matching by image name alone is unsafe.
 #[cfg(windows)]
 fn backend_shim_pids(shim: &Path) -> Vec<u32> {
     use std::ffi::OsString;
@@ -945,7 +945,7 @@ const STDOUT_TAIL_LINES: usize = 40;
 fn concurrent_update_message(stdout_tail: &[String]) -> String {
     match stdout_tail.iter().rposition(|l| l.trim_start().starts_with('✗')) {
         Some(start) => stdout_tail[start..].join("\n").trim().to_string(),
-        None => "Hermes is still running. Close all Hermes windows and try \
+        None => "Hebri is still running. Close all Hebri windows and try \
                  the update again."
             .to_string(),
     }
@@ -1160,7 +1160,7 @@ async fn install_macos_app_update(
 
     let rebuilt_app = crate::bootstrap::resolve_hermes_desktop_app(install_root).ok_or_else(|| {
         anyhow!(
-            "desktop rebuild succeeded but no Hermes.app was found under {}",
+            "desktop rebuild succeeded but no Hebri.app was found under {}",
             install_root.join("apps").join("desktop").join("release").display()
         )
     })?;
@@ -1459,7 +1459,7 @@ mod tests {
     #[test]
     fn same_windows_path_rejects_desktop_binary() {
         assert!(!same_windows_path(
-            Path::new(r"C:\Users\tester\.hermes\hermes-agent\apps\desktop\Hermes.exe"),
+            Path::new(r"C:\Users\tester\.hebri\hebri-agent\apps\desktop\Hebri.exe"),
             Path::new(r"C:\Users\tester\.hermes\hermes-agent\venv\Scripts\hermes.exe"),
         ));
     }
@@ -1475,19 +1475,19 @@ mod tests {
         let tail = lines(
             "→ Fetching updates...\n\
              ✓ Updated to 6b2c23ae42\n\
-             ✗ Another Hermes update is already running (started 3m 42s ago, process 65285).\n\
+             ✗ Another Hebri update is already running (started 3m 42s ago, process 65285).\n\
              \n  Wait for it to finish, then run `hermes update` again.\n",
         );
         assert_eq!(
             concurrent_update_message(&tail),
-            "✗ Another Hermes update is already running (started 3m 42s ago, process 65285).\n\
+            "✗ Another Hebri update is already running (started 3m 42s ago, process 65285).\n\
              \n  Wait for it to finish, then run `hermes update` again."
         );
     }
 
     #[test]
     fn concurrent_update_message_falls_back_without_a_refusal_block() {
-        let generic = "Hermes is still running. Close all Hermes windows and try the update again.";
+        let generic = "Hebri is still running. Close all Hebri windows and try the update again.";
         assert_eq!(concurrent_update_message(&[]), generic);
         assert_eq!(concurrent_update_message(&lines("→ Fetching updates...\n")), generic);
     }
@@ -1865,8 +1865,8 @@ mod tests {
     #[test]
     fn parses_only_app_targets() {
         assert_eq!(
-            target_app_from_args(["--update", "--target-app", "/Applications/Hermes.app"]),
-            Some(PathBuf::from("/Applications/Hermes.app"))
+            target_app_from_args(["--update", "--target-app", "/Applications/Hebri.app"]),
+            Some(PathBuf::from("/Applications/Hebri.app"))
         );
         assert_eq!(target_app_from_args(["--target-app", "/tmp/not-an-app"]), None);
     }
@@ -1893,9 +1893,9 @@ mod tests {
     #[tokio::test]
     async fn swap_installs_new_bundle_and_cleans_up() {
         let base = unique_tmp_dir("ok");
-        let target = base.join("Hermes.app");
-        let tmp = base.join("Hermes.app.hermes-update-new");
-        let old = base.join("Hermes.app.hermes-update-old");
+        let target = base.join("Hebri.app");
+        let tmp = base.join("Hebri.app.hebri-update-new");
+        let old = base.join("Hebri.app.hebri-update-old");
         write_marker(&target, "OLD");
         write_marker(&tmp, "NEW");
 
@@ -1923,9 +1923,9 @@ mod tests {
         //  - `old` is a NON-EMPTY dir  -> rename(target, old) fails
         //  - `tmp` does not exist       -> rename(tmp, target) fails
         let base = unique_tmp_dir("fail");
-        let target = base.join("Hermes.app");
-        let tmp = base.join("Hermes.app.hermes-update-new"); // intentionally absent
-        let old = base.join("Hermes.app.hermes-update-old");
+        let target = base.join("Hebri.app");
+        let tmp = base.join("Hebri.app.hebri-update-new"); // intentionally absent
+        let old = base.join("Hebri.app.hebri-update-old");
         write_marker(&target, "OLD");
         write_marker(&old, "OCCUPIED"); // non-empty => rename(target,old) fails
 
@@ -1946,9 +1946,9 @@ mod tests {
         // Move-aside succeeds but installing the staged bundle fails (tmp
         // absent). The original must be rolled back from `old` to `target`.
         let base = unique_tmp_dir("rollback");
-        let target = base.join("Hermes.app");
-        let tmp = base.join("Hermes.app.hermes-update-new"); // absent
-        let old = base.join("Hermes.app.hermes-update-old");
+        let target = base.join("Hebri.app");
+        let tmp = base.join("Hebri.app.hebri-update-new"); // absent
+        let old = base.join("Hebri.app.hebri-update-old");
         write_marker(&target, "OLD");
 
         let result = swap_in_new_bundle(&tmp, &target, &old).await;

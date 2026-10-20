@@ -1,7 +1,7 @@
 {
-  "name": "hermes-agent",
+  "name": "hebri-agent",
   "version": "1.0.0",
-  "description": "An AI agent with advanced tool-calling capabilities, featuring a flexible toolsets system for organizing and managing tools.",
+  "description": "Hebri is Synapsek Labs' collaborative, tool-using AI agent and desktop workspace.",
   "private": true,
   "workspaces": [
     "apps/*",
@@ -27,13 +27,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/NousResearch/Hermes-Agent.git"
+    "url": "git+https://github.com/satoshilove/hebri.git"
   },
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/NousResearch/Hermes-Agent/issues"
+    "url": "https://github.com/satoshilove/hebri/issues"
   },
-  "homepage": "https://github.com/NousResearch/Hermes-Agent#readme",
+  "homepage": "https://github.com/satoshilove/hebri#readme",
   "devDependencies": {
     "@eslint/js": "9.39.5",
     "typescript-eslint": "8.64.0",
@@ -46,16 +46,17 @@
     "lodash": "4.18.1",
     "yauzl": "^3.3.1",
     "protobufjs": "^8.7.1",
-    "brace-expansion": "5.0.9",
+    "brace-expansion": "5.0.12",
     "mermaid": "11.16.1",
-    "dompurify": "3.4.13",
-    "ip-address": "10.3.1",
+    "dompurify": "3.4.17",
+    "ip-address": "10.7.4",
     "nanoid@^3": "3.3.18",
     "nanoid@^6": "6.0.0",
     "js-yaml@^4": "4.3.1",
-    "undici@^6": "6.28.0",
+    "undici@^6": "6.29.1",
     "undici@^7": "7.29.0",
     "postcss": "8.5.23",
+    "postcss-selector-parser": "7.1.6",
     "tar": "7.5.22"
   },
   "engines": {

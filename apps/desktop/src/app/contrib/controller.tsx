@@ -5,6 +5,7 @@ import type { CSSProperties, ReactElement, PointerEvent as ReactPointerEvent } f
 import { SessionDraftTitle } from '@/app/chat/session-draft-title'
 import { SessionStatusDot } from '@/app/chat/session-status-dot'
 import { PALETTE_AREA, type PaletteContribution, paletteToggle } from '@/app/command-palette/contrib'
+import { TeamPane } from '@/app/right-sidebar/team'
 import { type StatusbarItem } from '@/app/shell/statusbar-controls'
 import { AskDirective } from '@/components/assistant-ui/ask-directive'
 import { InlinePreviewDirective } from '@/components/assistant-ui/inline-preview-directive'
@@ -111,7 +112,6 @@ import { $workspaceIsPage, WORKSPACE_PAGE_HEADER_AREA } from '../routes'
 import { BASIC_TREE, DEFAULT_TREE, registerLayoutPresets } from './layout-presets'
 import { bindLayoutSides } from './layout-sides'
 import { FilesPane, LogsPane, ReviewPaneContent } from './panes'
-import { TeamPane } from '@/app/right-sidebar/team'
 import { ContribWiring, WiredPane } from './wiring'
 
 /**
@@ -274,17 +274,18 @@ registry.registerMany([
   {
     id: 'team',
     area: 'panes',
-    // Hebri team chat: local rooms + presence, visible by default on the
-    // right like the file browser; collapsible, re-adopts beside main.
+    // Hebri Team is human collaboration, not a Bot/agent identity. Keep it as
+    // its own top-level tab beside Sessions and Bots. Anchoring to Sessions
+    // keeps it discoverable even when a saved layout has no Files/right-side
+    // zone, while the separate pane id and content preserve the human/agent
+    // boundary.
     title: 'Team',
     data: {
-      placement: 'right',
+      placement: 'left',
       collapsible: true,
-      dock: { pane: 'workspace', pos: 'right' },
+      hideOnly: true,
+      dock: { pane: 'sessions', pos: 'center', enforce: true },
       revealAliases: ['team-chat'],
-      width: FILE_BROWSER_DEFAULT_WIDTH,
-      minWidth: FILE_BROWSER_MIN_WIDTH,
-      maxWidth: FILE_BROWSER_MAX_WIDTH,
       tabTitleText: () => 'Team'
     },
     render: () => idle(<TeamPane />)
@@ -833,7 +834,7 @@ export function ContribController() {
       <ContribWiring>
         <AppContextMenu />
         <div
-          className="flex h-screen min-h-0 w-screen flex-col bg-(--ui-bg-chrome) text-(--ui-text-primary)"
+          className="synapsek-desktop-shell flex h-screen min-h-0 w-screen flex-col bg-(--ui-bg-chrome) text-(--ui-text-primary)"
           // Window-glass hook: this div and the sidebar-wrapper above it are
           // the app shell's two full-window opaque painters; the
           // [data-hermes-glass] rules in styles.css clear them so the tint
