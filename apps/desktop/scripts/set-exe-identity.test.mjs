@@ -10,6 +10,7 @@ function makeDesktopRoot() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-exe-identity-'))
   fs.mkdirSync(path.join(root, 'assets'))
   fs.writeFileSync(path.join(root, 'assets', 'icon.ico'), 'icon')
+  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ version: '1.2.3' }))
   const exe = path.join(root, 'Hermes.exe')
   fs.writeFileSync(exe, 'exe')
   return { exe, root }
@@ -31,6 +32,26 @@ test('retries transient rcedit commit failures with bounded backoff', async () =
 
     assert.equal(attempts, 3)
     assert.equal(delays.length, 2)
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('stamps the Hebri package version into Windows file metadata', async () => {
+  const { exe, root } = makeDesktopRoot()
+  let options
+
+  try {
+    await stampExeIdentity(exe, root, {
+      rcedit: async (_path, received) => {
+        options = received
+      },
+      sleep: async () => {}
+    })
+
+    assert.equal(options['file-version'], '1.2.3')
+    assert.equal(options['product-version'], '1.2.3')
+    assert.equal(options['version-string'].ProductName, 'Hebri')
   } finally {
     fs.rmSync(root, { recursive: true, force: true })
   }

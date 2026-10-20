@@ -36,7 +36,7 @@
 // otherwise-good build (worst case: stock icon, not a broken app).
 
 import { resolve, join } from 'node:path'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 
 import { rcedit } from 'rcedit'
 
@@ -80,11 +80,19 @@ async function stampExeIdentity(
     throw new Error(`icon not found: ${icon}`)
   }
 
+  const packageJson = JSON.parse(readFileSync(join(desktopRoot, 'package.json'), 'utf8'))
+  const version = String(packageJson.version || '').trim()
+  if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)) {
+    throw new Error(`invalid desktop package version: ${version || '(empty)'}`)
+  }
+
   console.log(`[set-exe-identity] stamping ${exe}`)
   console.log(`[set-exe-identity] icon: ${icon}`)
 
   const options = {
     icon,
+    'file-version': version,
+    'product-version': version,
     'version-string': {
       ProductName: 'Hebri',
       FileDescription: 'Hebri — the Synapsek agent desktop app',
