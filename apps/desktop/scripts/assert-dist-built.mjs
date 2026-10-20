@@ -24,6 +24,7 @@ const ROUTER_CONTEXT_ERROR = "may be used only in the context of a"
 // packaged app error-boundaries on launch (#95560). Same single-instance
 // invariant as the react-router check above, same failure class.
 const QUERY_CLIENT_CONTEXT_ERROR = "No QueryClient set, use QueryClientProvider to set one"
+const INHERITED_PRODUCT_WORDMARK = "HERMES AGENT"
 
 // Pure check — returns { ok: true } or { ok: false, error: "..." }.
 // Kept side-effect-free so it can be unit tested without spawning a process.
@@ -74,6 +75,19 @@ export function checkDistBuilt(distDir) {
         `${queryClientContextAssets.join(", ")} — duplicate react-query runtimes make the ` +
         `QueryClientProvider's context invisible to useQuery in other chunks (` +
         `"No QueryClient set" on launch, #95560)`
+    }
+  }
+
+  const inheritedBrandAssets = readdirSync(assetsDir)
+    .filter(name => name.endsWith(".js"))
+    .filter(name => readFileSync(join(assetsDir, name), "utf8").includes(INHERITED_PRODUCT_WORDMARK))
+
+  if (inheritedBrandAssets.length > 0) {
+    return {
+      ok: false,
+      error:
+        `inherited product wordmark found in built renderer: ${inheritedBrandAssets.join(", ")} — ` +
+        `Hebri release bundles must not render \"${INHERITED_PRODUCT_WORDMARK}\"`
     }
   }
 
