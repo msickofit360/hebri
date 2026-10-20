@@ -5,8 +5,8 @@
  * ("what I'm working on"), rooms, message tail with 3s polling, bounded
  * history. Zero impact on the agent session path.
  *
- * Cross-machine mode: one machine hosts a shared room (mints a 6-char code);
- * peers on other machines join with host URL + code and receive an
+ * Cross-machine mode: one machine hosts a shared room (mints a high-entropy invite);
+ * peers on other machines join with host URL + invite and receive an
  * HMAC-signed peer grant. When a relay join is active this pane talks ONLY
  * to the relay endpoints; "Leave" restores the local view.
  */
@@ -15,22 +15,30 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
   createTeamRoom,
+  createTeamWork,
   getTeamPresence,
   listTeamMessages,
   listTeamRooms,
+  listTeamWork,
   normalizeRelayBase,
+  relayCreateWork,
   relayGetPresence,
   relayListMessages,
+  relayListWork,
   relayRegister,
   relaySendMessage,
   relayUpdatePresence,
+  relayUpdateWork,
   sendTeamMessage,
   shareTeamRoom,
   type TeamMessage,
   type TeamPresence,
   type TeamRelay,
   type TeamRoom,
-  updateTeamPresence
+  type TeamWorkItem,
+  type TeamWorkStatus,
+  updateTeamPresence,
+  updateTeamWork
 } from '@/api/team'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -46,10 +54,10 @@ const ROOM_KEY = 'hebri.team.room'
 
 const RELAY_KEYS = {
   base: 'hebri.relay.base',
-  code: 'hebri.relay.code',
   peer: 'hebri.relay.peer',
   grant: 'hebri.relay.grant',
-  room: 'hebri.relay.room'
+  room: 'hebri.relay.room',
+  roomId: 'hebri.relay.room-id'
 } as const
 
 function readLocal(key: string): string | null {
@@ -76,33 +84,60 @@ function removeLocal(key: string): void {
   }
 }
 
+function readSession(key: string): string | null {
+  try {
+    return sessionStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+function writeSession(key: string, value: string): void {
+  try {
+    sessionStorage.setItem(key, value)
+  } catch {
+    /* private mode */
+  }
+}
+
 function loadRelay(): TeamRelay | null {
   const base = readLocal(RELAY_KEYS.base)
-  const code = readLocal(RELAY_KEYS.code)
   const peer = readLocal(RELAY_KEYS.peer)
-  const grant = readLocal(RELAY_KEYS.grant)
+  const grant = readSession(RELAY_KEYS.grant)
+  const roomId = readLocal(RELAY_KEYS.roomId)
 
-  if (!base || !code || !peer || !grant) {return null}
+  if (!base || !peer || !grant || !roomId) {return null}
 
-  return {
-    base: normalizeRelayBase(base),
-    code: code.toUpperCase(),
-    peer,
-    grant,
-    roomName: readLocal(RELAY_KEYS.room) ?? code
+  try {
+    return {
+      base: normalizeRelayBase(base),
+      peer,
+      grant,
+      roomId,
+      roomName: readLocal(RELAY_KEYS.room) ?? 'Team room'
+    }
+  } catch {
+    return null
   }
 }
 
 function saveRelay(r: TeamRelay): void {
   writeLocal(RELAY_KEYS.base, r.base)
-  writeLocal(RELAY_KEYS.code, r.code)
   writeLocal(RELAY_KEYS.peer, r.peer)
-  writeLocal(RELAY_KEYS.grant, r.grant)
+  writeSession(RELAY_KEYS.grant, r.grant)
   writeLocal(RELAY_KEYS.room, r.roomName)
+  writeLocal(RELAY_KEYS.roomId, r.roomId)
 }
 
 function clearRelay(): void {
   for (const k of Object.values(RELAY_KEYS)) {removeLocal(k)}
+  removeLocal('hebri.relay.code') // remove invite persisted by pre-hardening builds
+
+  try {
+    sessionStorage.removeItem(RELAY_KEYS.grant)
+  } catch {
+    /* ignore */
+  }
 }
 
 function fmtTime(ts: number): string {
@@ -120,6 +155,8 @@ export function TeamPane() {
   const [roomId, setRoomId] = useState<string>(() => readLocal(ROOM_KEY) ?? 'general')
   const [messages, setMessages] = useState<TeamMessage[]>([])
   const [online, setOnline] = useState<TeamPresence[]>([])
+  const [work, setWork] = useState<TeamWorkItem[]>([])
+  const [newWork, setNewWork] = useState('')
   const [draft, setDraft] = useState('')
   const [error, setError] = useState('')
   const [shared, setShared] = useState<{ roomId: string; code: string } | null>(null)
@@ -127,11 +164,13 @@ export function TeamPane() {
   // Cross-machine relay state.
   const [relay, setRelay] = useState<TeamRelay | null>(() => loadRelay())
   const [relayOpen, setRelayOpen] = useState(false)
-  const [joinBase, setJoinBase] = useState('http://')
+  const [joinBase, setJoinBase] = useState('https://')
   const [joinCode, setJoinCode] = useState('')
   const [joinPeer, setJoinPeer] = useState<string>(() => readLocal(NAME_KEY) ?? '')
   const [joining, setJoining] = useState(false)
 
+  const messageStreamKey = relay ? `relay:${relay.base}:${relay.roomId}` : `local:${roomId}`
+  const activeMessageStream = useRef(messageStreamKey)
   const sinceSeq = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -166,6 +205,13 @@ export function TeamPane() {
   }, [relay])
 
   const loadMessages = useCallback(async () => {
+    if (activeMessageStream.current !== messageStreamKey) {
+      activeMessageStream.current = messageStreamKey
+      sinceSeq.current = 0
+      setMessages([])
+      setError('')
+    }
+
     if (relay) {
       try {
         const data = await relayListMessages(relay, sinceSeq.current)
@@ -203,7 +249,7 @@ export function TeamPane() {
     } catch {
       /* transient; next tick retries */
     }
-  }, [relay, roomId])
+  }, [messageStreamKey, relay, roomId])
 
   const loadPresence = useCallback(async () => {
     try {
@@ -217,12 +263,21 @@ export function TeamPane() {
     }
   }, [relay])
 
+  const loadWork = useCallback(async () => {
+    try {
+      const data = relay ? await relayListWork(relay) : await listTeamWork()
+      setWork(data.items ?? [])
+    } catch {
+      /* transient; next tick retries */
+    }
+  }, [relay])
+
   useEffect(() => {
     let cancelled = false
 
     const tick = async () => {
       if (cancelled) {return}
-      await Promise.all([loadRooms(), loadMessages(), loadPresence()])
+      await Promise.all([loadRooms(), loadMessages(), loadPresence(), loadWork()])
     }
 
     void tick()
@@ -232,18 +287,7 @@ export function TeamPane() {
       cancelled = true
       window.clearInterval(id)
     }
-  }, [loadRooms, loadMessages, loadPresence])
-
-  // sinceSeq is a transport cursor, not mirrored render state. Reset it when
-  // switching rooms so the next poll cannot skip the new room's history.
-  // eslint-disable-next-line no-restricted-syntax
-  useEffect(() => {
-    sinceSeq.current = 0
-    setMessages([])
-    setError('')
-    void loadMessages()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [relay ? 'relay' : roomId])
+  }, [loadRooms, loadMessages, loadPresence, loadWork])
 
   // Presence heartbeat: who I am + what I'm working on.
   useEffect(() => {
@@ -329,12 +373,21 @@ export function TeamPane() {
   }
 
   const joinRelay = async () => {
-    const base = normalizeRelayBase(joinBase)
-    const code = joinCode.trim().toUpperCase()
+    let base = ''
+
+    try {
+      base = normalizeRelayBase(joinBase)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Invalid host URL')
+
+      return
+    }
+
+    const code = joinCode.trim()
     const peer = joinPeer.trim().slice(0, 32)
 
-    if (!base || code.length !== 6 || !peer) {
-      setError('Need a host URL, a 6-character room code, and your name.')
+    if (!base || code.length < 20 || !peer) {
+      setError('Need an HTTPS host URL, the complete room invite, and your name.')
 
       return
     }
@@ -347,9 +400,9 @@ export function TeamPane() {
 
       const info: TeamRelay = {
         base,
-        code,
         peer,
         grant: data.grant,
+        roomId: data.room.id,
         roomName: data.room?.name ?? code
       }
 
@@ -367,6 +420,43 @@ export function TeamPane() {
     clearRelay()
     setRelay(null)
     setError('')
+  }
+
+  const addWork = async () => {
+    const title = newWork.trim()
+
+    if (!title) {return}
+    setError('')
+
+    try {
+      if (relay) {
+        await relayCreateWork(relay, title)
+      } else {
+        await createTeamWork(title, name.trim())
+      }
+
+      setNewWork('')
+      await loadWork()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not add work item')
+    }
+  }
+
+  const setWorkStatus = async (item: TeamWorkItem, status: TeamWorkStatus) => {
+    setWork(rows => rows.map(row => row.id === item.id ? { ...row, status } : row))
+
+    try {
+      if (relay) {
+        await relayUpdateWork(relay, item.id, { status })
+      } else {
+        await updateTeamWork(item.id, { status })
+      }
+
+      await loadWork()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not update work item')
+      await loadWork()
+    }
   }
 
   return (
@@ -434,6 +524,48 @@ export function TeamPane() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Shared human work board. Bots can read this feed through their
+          gated team_context tool, but cannot silently edit it. */}
+      <div className="flex shrink-0 flex-col gap-1.5">
+          <RightSidebarSectionHeader>Current work</RightSidebarSectionHeader>
+          <div className="flex max-h-36 flex-col gap-1 overflow-y-auto">
+            {work.length === 0 && <div className="text-muted-foreground">No work items yet.</div>}
+            {work.map(item => (
+              <div className="flex items-center gap-1.5 rounded border border-border px-1.5 py-1" key={item.id}>
+                <select
+                  aria-label={`Status for ${item.title}`}
+                  className="max-w-24 rounded border border-border bg-background px-1 py-0.5 text-[0.65rem]"
+                  onChange={event => void setWorkStatus(item, event.target.value as TeamWorkStatus)}
+                  value={item.status}
+                >
+                  <option value="backlog">Backlog</option>
+                  <option value="in_progress">Doing</option>
+                  <option value="blocked">Blocked</option>
+                  <option value="done">Done</option>
+                </select>
+                <span className={cn('min-w-0 flex-1 truncate', item.status === 'done' && 'text-muted-foreground line-through')}>
+                  {item.title}
+                </span>
+                {item.owner && <span className="max-w-20 truncate text-[0.65rem] text-muted-foreground">{item.owner}</span>}
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-1.5">
+            <Input
+              maxLength={160}
+              onChange={event => setNewWork(event.target.value)}
+              onKeyDown={event => {
+                if (event.key === 'Enter') {void addWork()}
+              }}
+              placeholder="Add team work…"
+              value={newWork}
+            />
+            <Button disabled={!newWork.trim()} onClick={() => void addWork()} size="sm">
+              Add
+            </Button>
+          </div>
       </div>
 
       {/* Rooms (local mode only) */}
@@ -523,18 +655,18 @@ export function TeamPane() {
             <div className="flex flex-col gap-1.5 rounded border border-border bg-muted/10 p-2">
               <Input
                 onChange={e => setJoinBase(e.target.value)}
-                placeholder="Host URL, e.g. http://192.168.1.20:9119"
+                placeholder="HTTPS host URL"
                 value={joinBase}
               />
               <div className="flex gap-1.5">
                 <Input
-                  className="flex-1 font-mono uppercase tracking-widest"
-                  maxLength={6}
-                  onChange={e => setJoinCode(e.target.value.toUpperCase().slice(0, 6))}
+                  className="flex-1 font-mono"
+                  maxLength={128}
+                  onChange={e => setJoinCode(e.target.value.trim().slice(0, 128))}
                   onKeyDown={e => {
                     if (e.key === 'Enter') {void joinRelay()}
                   }}
-                  placeholder="room code"
+                  placeholder="room invite"
                   value={joinCode}
                 />
                 <Input
@@ -551,7 +683,8 @@ export function TeamPane() {
               <p className="text-[0.65rem] leading-snug text-muted-foreground">
                 Ask the host to share a room code. The host dashboard must be
                 reachable from your machine (bound past loopback). You get a
-                signed peer grant — no shared dashboard password.
+                short-lived signed grant. Remote connections require HTTPS;
+                messages are protected in transit but stored on the host.
               </p>
             </div>
           )}

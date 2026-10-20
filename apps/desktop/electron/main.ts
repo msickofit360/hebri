@@ -8686,16 +8686,6 @@ async function freshGatewayWsUrl(profile) {
 //     with that agent's session cookie — no prompt. Each agent still completes
 //     its own PKCE exchange; SSO removes the human click, not a security check.
 
-function resolvePortalBaseUrl() {
-  // Hebri builds must never silently authenticate against the upstream Nous
-  // service. The legacy names remain explicit compatibility overrides for
-  // self-managed installs, but there is deliberately no Nous default.
-  const raw =
-    process.env.HEBRI_PORTAL_BASE_URL || process.env.HERMES_PORTAL_BASE_URL || process.env.NOUS_PORTAL_BASE_URL || ''
-
-  return String(raw).trim().replace(/\/+$/, '')
-}
-
 function requirePortalBaseUrl() {
   const portalBaseUrl = resolvePortalBaseUrl()
 
