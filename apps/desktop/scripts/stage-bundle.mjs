@@ -41,7 +41,7 @@ const EXCLUDE_TOP = new Set([
 ]);
 
 // Directory names skipped anywhere in the tree.
-const EXCLUDE_DIRS = new Set(["node_modules", "__pycache__", ".pytest_cache", ".venv", ".git"]);
+const EXCLUDE_DIRS = new Set(["node_modules", "__pycache__", ".pytest_cache", ".tmp", ".venv", ".git"]);
 
 // apps/desktop-specific build artifacts (the packaged app already ships its
 // own renderer; the installed agent rebuilds on demand if ever needed).
