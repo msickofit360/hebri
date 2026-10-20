@@ -34,6 +34,8 @@ const EXCLUDE_TOP = new Set([
   ".venv",
   "__pycache__",
   ".pytest_cache",
+  ".tmp",
+  "tmp",
   ".git",
   "release2",
 ]);
