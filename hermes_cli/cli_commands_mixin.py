@@ -172,9 +172,9 @@ _BUSY_MODE_SHORT = {
     "queue": "queues for next turn", "steer": "steers into current run (after next tool call)",
     "interrupt": "redirects current run immediately"}
 _BUSY_MODE_LONG = {
-    "queue": "Enter will queue follow-up input while Hermes is busy.",
+    "queue": "Enter will queue follow-up input while Hebri is busy.",
     "steer": "Enter will steer your message into the current run (after the next tool call).",
-    "interrupt": "Enter will redirect the current run while Hermes is busy; /stop still cancels it.",
+    "interrupt": "Enter will redirect the current run while Hebri is busy; /stop still cancels it.",
 }
 
 # /fast argument -> (service_tier value, persisted config value)
@@ -2248,7 +2248,7 @@ class CLICommandsMixin:
         _cp(f"  ♥ Heartbeat set (every {format_interval(state.interval_seconds)}): {state.prompt}",
             _dim_line("Fires as a normal turn whenever the session is idle and the interval has "
                       "elapsed. /heartbeat pause | resume | clear to manage; lives only while this "
-                      "Hermes process runs — use `hermes cron` for durable schedules."))
+                      "Hebri process runs — use `hebri cron` for durable schedules."))
 
     def _handle_refine_command(self, cmd: str) -> None:
         """Dispatch /refine — run the memory/skill review fork on demand (same machinery as the
@@ -2697,10 +2697,10 @@ class CLICommandsMixin:
         prompt_toolkit restores terminal modes), False when cancelled."""
         from hermes_cli.config import is_managed, format_managed_message
         if is_managed():
-            print(f"  ✗ {format_managed_message('update Hermes Agent')}")
+            print(f"  ✗ {format_managed_message('update Hebri')}")
             return False
         # prompt_toolkit-native modal: renders above the composer, no raw input() races.
-        choices = [("once", "Update Now", "exit the current session and update Hermes Agent"),
+        choices = [("once", "Update Now", "exit the current session and update Hebri"),
                    ("cancel", "Cancel", "keep the current session")]
         raw = self._prompt_text_input_modal(
             title="☤  Update Hebri",

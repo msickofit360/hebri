@@ -339,7 +339,7 @@ export function BootFailureOverlay() {
       {
         key: 'portal',
         label: copy.cloudDownCheckPortal,
-        onClick: () => openExternalLink('https://portal.nousresearch.com'),
+        onClick: () => openExternalLink('https://synapseklabs.org'),
         icon: <ExternalLink />
       },
       localAction,

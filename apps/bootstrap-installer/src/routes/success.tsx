@@ -48,7 +48,7 @@ export default function Success() {
           }
         >
           <span>
-            <span>Hermes is ready</span>
+            <span>Hebri is ready</span>
           </span>
           <span aria-hidden="true">Hebri is ready</span>
         </p>

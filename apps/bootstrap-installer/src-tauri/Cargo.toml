@@ -1,17 +1,17 @@
 [package]
 name = "hermes-bootstrap"
 version = "0.21.1"
-description = "Hermes Setup — signed installer that drives scripts/install.ps1"
-authors = ["Nous Research <info@nousresearch.com>"]
+description = "Hebri Setup — signed installer that drives scripts/install.ps1"
+authors = ["Synapsek Labs <support@synapseklabs.org>"]
 edition = "2021"
 rust-version = "1.77"
 
 # Rename the output binary so the distributed artifact is literally
-# `Hermes-Setup.exe` on disk — not `hermes-bootstrap.exe`. Grandma sees
+# `Hebri-Setup.exe` on disk — not `hermes-bootstrap.exe`. Users see
 # what we hand her, period. Tauri honors [[bin]] over [package].name
 # for the produced executable name.
 [[bin]]
-name = "Hermes-Setup"
+name = "Hebri-Setup"
 path = "src/main.rs"
 
 # The library target name MUST match the `withGlobalTauri` binding name that

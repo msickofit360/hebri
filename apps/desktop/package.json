@@ -7,7 +7,7 @@
   "author": "Synapsek",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/NousResearch/hermes-agent.git"
+    "url": "git+https://github.com/satoshilove/hebri.git"
   },
   "type": "module",
   "main": "dist/electron-main.mjs",
@@ -117,7 +117,7 @@
     "d3-force": "3.0.0",
     "dbus-native": "0.15.2",
     "dnd-core": "14.0.1",
-    "dompurify": "3.4.13",
+    "dompurify": "3.4.17",
     "driver.js": "1.8.0",
     "emojibase-data": "16.0.3",
     "fflate": "0.8.3",
@@ -143,7 +143,7 @@
     "remark-math": "6.0.0",
     "remend": "1.3.0",
     "shiki": "4.3.1",
-    "simple-git": "3.36.0",
+    "simple-git": "4.0.2",
     "streamdown": "2.5.0",
     "tailwind-merge": "3.6.0",
     "tailwindcss": "4.3.3",
@@ -199,11 +199,19 @@
       {
         "name": "Hebri Protocol",
         "schemes": [
+          "hebri",
           "hermes"
         ]
       }
     ],
     "artifactName": "Hebri-${version}-${os}-${arch}.${ext}",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "satoshilove",
+        "repo": "hebri"
+      }
+    ],
     "icon": "assets/icon",
     "directories": {
       "output": "release"
@@ -301,7 +309,7 @@
     "linux": {
       "category": "Development",
       "maintainer": "Synapsek <support@synapsek.ai>",
-      "synopsis": "Hebri — the Synapsek agent desktop app, built on the open-source Hermes agent.",
+      "synopsis": "Hebri — the Synapsek agent desktop app with an open-source agent core.",
       "target": [
         "AppImage",
         "deb",

@@ -81,7 +81,7 @@ export function SidebarLoadErrorState({ onRetry }: { onRetry: () => void }) {
 }
 
 const SESSION_STORAGE_RECOVERY_URL =
-  'https://hermes-agent.nousresearch.com/docs/user-guide/session-storage-recovery#when-the-three-steps-do-not-work'
+  'https://github.com/satoshilove/hebri#troubleshooting'
 
 // A structurally corrupt state.db empties (or thins out) the list below it,
 // which reads as deleted history (#72046). Persistent while the backend

@@ -411,17 +411,17 @@ export const en: Translations = {
     // Plain causes for a local backend boot failure (`classifyBootFailure`);
     // the raw output stays behind "Show recent logs".
     causes: {
-      exitedEarly: "Hebri' background service stopped right after starting.",
-      timedOut: "Hebri' background service didn't answer in time.",
+      exitedEarly: "Hebri's background service stopped right after starting.",
+      timedOut: "Hebri's background service didn't answer in time.",
       permission: "Hebri couldn't write to its data folder (permission problem).",
       diskFull: 'The disk is full, so Hebri could not start.',
       portInUse: 'Another program is using the network port Hebri needs.',
-      installMissing: "Part of Hebri' installation is missing. Choose Repair install to put it back."
+      installMissing: "Part of Hebri's installation is missing. Choose Repair install to put it back."
     },
     failure: {
       title: "Hebri couldn't start",
       description:
-        "Hebri' background service didn't come up. Try one of the recovery steps below. Nothing here deletes your chats or settings.",
+        "Hebri's background service didn't come up. Try one of the recovery steps below. Nothing here deletes your chats or settings.",
       details: 'Details',
       remoteTitle: 'Remote gateway sign-in required',
       remoteDescription:
@@ -495,7 +495,7 @@ export const en: Translations = {
       gatewayAuthFailed:
         'This Hebri no longer accepts your saved sign-in. Open Gateways and sign in again (or paste a new access token), then retry.',
       methodNotAllowed:
-        "Hebri' background service is out of step with the app, probably after an update. Restart it to fix this.",
+        "Hebri's background service is out of step with the app, probably after an update. Restart it to fix this.",
       microphonePermission: 'Microphone permission was denied.',
       openaiRejectedApiKey: "OpenAI didn't accept your API key. Update it in Settings → Keys, then try again.",
       openaiTtsNeedsKey: 'Voice needs an OpenAI key. Add one in Settings → Keys.',
@@ -1529,7 +1529,7 @@ export const en: Translations = {
       cloudLoadingAgents: 'Loading your agents…',
       cloudNoAgents: {
         before: 'No agents found on this account. Create one in the ',
-        linkText: 'Nous portal',
+        linkText: 'Synapsek portal',
         after: ', then refresh.'
       },
       cloudRefresh: 'Refresh',
@@ -1625,7 +1625,7 @@ export const en: Translations = {
       sshKeyTitle: 'Identity file',
       sshKeyDesc: 'Private key path. Blank = ssh-agent or ~/.ssh/config.',
       sshHermesPathTitle: 'Hebri path (optional)',
-      sshHermesPathDesc: 'Full path to the remote hermes binary. Blank = auto-detect.',
+      sshHermesPathDesc: 'Full path to the remote hebri binary (legacy hermes command is also supported). Blank = auto-detect.',
       sshHermesPathPlaceholder: 'auto-detect',
       sshTestConnection: 'Test SSH',
       sshConnect: 'Connect',
@@ -1638,7 +1638,7 @@ export const en: Translations = {
       sshErrHostKey:
         'The host key has CHANGED since you last connected. Verify this is expected, then run ssh-keygen -R <host> and reconnect.',
       sshErrNotInstalled:
-        'Hebri is not installed on the remote host. Install it there (curl -fsSL https://hermes-agent.nousresearch.com/install.sh | sh) or set the Hebri path.',
+        'Hebri is not installed on the remote host. Install it there (curl -fsSL https://raw.githubusercontent.com/satoshilove/hebri/main/scripts/install.sh | sh) or set the Hebri path.',
       sshErrPlatform:
         'Unsupported remote platform. Hebri Desktop SSH mode supports Linux, macOS, and Windows remote hosts.',
       sshErrTimeout: 'SSH connection timed out. The host may be unreachable or asleep.',
