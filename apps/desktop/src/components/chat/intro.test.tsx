@@ -30,6 +30,14 @@ afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
 })
+it('renders the Hebri product wordmark without inherited agent branding', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0)
+  const { container } = render(<Fixture />)
+  const wordmark = container.querySelector('[data-slot="aui_intro"] [aria-label]')
+
+  expect(wordmark?.getAttribute('aria-label')).toBe('HEBRI')
+  expect(wordmark?.textContent).not.toContain('HERMES AGENT')
+})
 it('translates every shipped stock body at the same personality and rotation position', async () => {
   vi.spyOn(Math, 'random').mockReturnValue(0)
 

@@ -162,3 +162,18 @@ test('checkDistBuilt fails when the QueryClient context invariant is in multiple
     fs.rmSync(tempRoot, { recursive: true, force: true })
   }
 })
+
+test('checkDistBuilt rejects the inherited Hermes product wordmark', () => {
+  const { tempRoot, distDir } = makeDist(d => {
+    fs.writeFileSync(path.join(d, 'index.html'), '<!doctype html>', 'utf8')
+    fs.mkdirSync(path.join(d, 'assets'))
+    fs.writeFileSync(path.join(d, 'assets', 'index-abc123.js'), 'const wordmark = "HERMES AGENT"', 'utf8')
+  })
+  try {
+    const result = checkDistBuilt(distDir)
+    assert.equal(result.ok, false)
+    assert.match(result.error, /inherited product wordmark/)
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true })
+  }
+})

@@ -35,6 +35,18 @@ describe('ThemeProvider ← backend skin sync', () => {
     expect(cssVar('--theme-background-seed')).toBe('#000000')
   })
 
+  it('migrates the inherited Nous appearance to the Synapsek production skin', () => {
+    window.localStorage.setItem('hermes-desktop-theme-v2', 'nous')
+
+    render(
+      <ThemeProvider>
+        <div />
+      </ThemeProvider>
+    )
+
+    expect(window.document.documentElement.dataset.hermesTheme).toBe('synapsek')
+  })
+
   it('repaints an in-place edit of the ACTIVE skin (same name, new palette)', () => {
     render(
       <ThemeProvider>

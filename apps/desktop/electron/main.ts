@@ -18319,7 +18319,11 @@ ipcMain.handle('hermes:version', async () => {
   const skew = await detectRendererSkew()
 
   return {
-    appVersion: resolveHermesVersion(),
+    // The client row and About page describe the installed desktop package,
+    // not the independently updated Python runtime. Reporting the runtime here
+    // made a 0.17.9 MSI appear to be desktop v0.21.5.
+    appVersion: app.getVersion(),
+    runtimeVersion: resolveHermesVersion(),
     electronVersion: process.versions.electron,
     nodeVersion: process.versions.node,
     platform: process.platform,

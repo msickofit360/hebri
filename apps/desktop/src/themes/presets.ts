@@ -37,6 +37,61 @@ const SYSTEM_MONO = 'Menlo, Monaco, "SF Mono", "Courier Prime", monospace, ' + E
 export const DEFAULT_TYPOGRAPHY: DesktopThemeTypography = { fontSans: SYSTEM_SANS, fontMono: SYSTEM_MONO }
 
 /**
+ * Synapsek — Hebri's production desktop identity. Green signals active work,
+ * while blue is reserved for focus and navigation. The matching shell rules
+ * in styles.css are keyed to this exact preset name.
+ */
+export const synapsekTheme: DesktopTheme = {
+  name: 'synapsek',
+  label: 'Synapsek',
+  description: 'Hebri workstation — signal green and focus blue',
+  ...THEME_PRESET_PALETTES.synapsek,
+  typography: {
+    fontSans: SYSTEM_SANS,
+    fontMono: `"JetBrains Mono", ${SYSTEM_MONO}`,
+    fontUrl: 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap'
+  },
+  terminal: {
+    foreground: '#17211c',
+    black: '#17211c',
+    red: '#b42318',
+    green: '#397a46',
+    yellow: '#8a6418',
+    blue: '#315fbe',
+    magenta: '#7450a8',
+    cyan: '#247a7a',
+    white: '#d7ded9',
+    brightBlack: '#5c6b62',
+    brightRed: '#d92d20',
+    brightGreen: '#4c9a5b',
+    brightYellow: '#a9791c',
+    brightBlue: '#4676d7',
+    brightMagenta: '#8a63bf',
+    brightCyan: '#329493',
+    brightWhite: '#ffffff'
+  },
+  darkTerminal: {
+    foreground: '#d7dde7',
+    black: '#151d25',
+    red: '#f7768e',
+    green: '#9ece6a',
+    yellow: '#e0af68',
+    blue: '#7aa2f7',
+    magenta: '#bb9af7',
+    cyan: '#7dcfff',
+    white: '#c0caf5',
+    brightBlack: '#82909f',
+    brightRed: '#ff899d',
+    brightGreen: '#b5e47f',
+    brightYellow: '#f0c57c',
+    brightBlue: '#8db0ff',
+    brightMagenta: '#c9a9ff',
+    brightCyan: '#91dcff',
+    brightWhite: '#ffffff'
+  }
+}
+
+/**
  * Nous — the canonical Hebri desktop identity, forked from the GitHub VS Code
  * theme (github.github-vscode-theme). Light is GitHub Light Default, dark is
  * GitHub Dark Default, both converted through the same path a Marketplace
@@ -388,12 +443,11 @@ export const slateTheme: DesktopTheme = {
 }
 
 export const BUILTIN_THEMES: Record<string, DesktopTheme> = {
-  nous: nousTheme,
+  synapsek: synapsekTheme,
   github: githubTheme,
   catppuccin: catppuccinTheme,
   everforest: everforestTheme,
   solarized: solarizedTheme,
-  'nous-alt': nousAltTheme,
   midnight: midnightTheme,
   ember: emberTheme,
   mono: monoTheme,
@@ -404,4 +458,4 @@ export const BUILTIN_THEMES: Record<string, DesktopTheme> = {
 export const BUILTIN_THEME_LIST = Object.values(BUILTIN_THEMES)
 
 /** Skin used when nothing is persisted or the persisted name is retired. */
-export const DEFAULT_SKIN_NAME = 'nous'
+export const DEFAULT_SKIN_NAME = 'synapsek'

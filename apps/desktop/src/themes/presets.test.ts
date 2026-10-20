@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest'
 
-import { BUILTIN_THEME_LIST, DEFAULT_TYPOGRAPHY } from './presets'
+import { BUILTIN_THEME_LIST, DEFAULT_SKIN_NAME, DEFAULT_TYPOGRAPHY, synapsekTheme } from './presets'
+
+describe('Hebri production appearance', () => {
+  it('ships Synapsek as a real preset and the default skin', () => {
+    expect(DEFAULT_SKIN_NAME).toBe('synapsek')
+    expect(BUILTIN_THEME_LIST).toContain(synapsekTheme)
+    expect(synapsekTheme.name).toBe('synapsek')
+  })
+
+  it('does not expose inherited Nous presets in the desktop picker', () => {
+    expect(BUILTIN_THEME_LIST.map(theme => theme.name)).not.toEqual(expect.arrayContaining(['nous', 'nous-alt']))
+  })
+})
 
 // #40364: none of the UI text/mono fonts carry emoji glyphs, so every font
 // stack must end with a color-emoji fallback or emoji render as tofu on

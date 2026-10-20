@@ -668,6 +668,8 @@ export interface HermesTerminalExit {
 
 export interface DesktopVersionInfo {
   appVersion: string
+  /** Version of the separately managed local Hebri agent runtime. */
+  runtimeVersion?: string
   electronVersion: string
   nodeVersion: string
   platform: string
