@@ -443,6 +443,8 @@ import { createSshProbeConnection, pickLocalPort, redactSecrets, SshConnection }
 import { createSshIsolatedKeepaliveRegistry } from './ssh-isolated-keepalive'
 import { createSshTeardownTracker } from './ssh-teardown'
 import { createStreamThrottle } from './stream-throttle'
+import { registerSynapsekAccountIpc } from './synapsek-account-ipc'
+import { synapsekBackendEnvironment } from './synapsek-account-runtime'
 import { registerTerminalIpc } from './terminal-ipc'
 import { nativeOverlayWidth as computeNativeOverlayWidth, titleBarOverlayOptions } from './titlebar-overlay-width'
 import {
@@ -12744,6 +12746,7 @@ async function runPoolBackendStart(
           // Marks this dashboard backend as desktop-spawned so it runs the cron
           // scheduler tick loop (the gateway isn't running under the app).
           HERMES_DESKTOP: '1',
+          ...await synapsekBackendEnvironment(),
           // Exact parent identity lets the backend self-exit after an unclean
           // Desktop death without mistaking a reused PID for its owner. If the
           // optional marker probe fails, retain legacy PID-only tracking.
@@ -13534,6 +13537,7 @@ async function runHermesStart({ supervisorRecovery = false }: { supervisorRecove
             // Marks this dashboard backend as desktop-spawned so it runs the cron
             // scheduler tick loop (the gateway isn't running under the app).
             HERMES_DESKTOP: '1',
+            ...await synapsekBackendEnvironment(),
             // Exact parent identity lets the backend self-exit after an unclean
             // Desktop death without mistaking a reused PID for its owner. If the
             // optional marker probe fails, retain legacy PID-only tracking.
@@ -18314,6 +18318,8 @@ function showAboutPanelFresh() {
     app.showAboutPanel()
   })
 }
+
+registerSynapsekAccountIpc(() => DEV_SERVER || pathToFileURL(resolveRendererIndex()).href)
 
 ipcMain.handle('hermes:version', async () => {
   const skew = await detectRendererSkew()
