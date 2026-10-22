@@ -57,6 +57,84 @@ export function requireAcceptedNotarization(stdout) {
   return result
 }
 
+export function requireNotarizationSubmission(stdout) {
+  let result
+  try {
+    result = JSON.parse(String(stdout || ''))
+  } catch {
+    throw new Error('Apple notarization submission returned an unreadable response')
+  }
+
+  if (!result?.id) {
+    throw new Error('Apple notarization submission did not return a submission ID')
+  }
+
+  return result
+}
+
+export async function waitForAcceptedNotarization(
+  submissionId,
+  credentialArgs,
+  {
+    runCommand = run,
+    delay = ms => new Promise(resolve => setTimeout(resolve, ms)),
+    attempts = 150,
+    delayMs = 30_000
+  } = {}
+) {
+  let lastError
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    let stdout
+    try {
+      const response = await runCommand('xcrun', [
+        'notarytool',
+        'info',
+        submissionId,
+        ...credentialArgs,
+        '--output-format',
+        'json'
+      ])
+      stdout = response.stdout
+    } catch (error) {
+      // `notarytool submit --wait` holds one connection for the full analysis
+      // window. GitHub's macOS runners can temporarily lose their DNS/network
+      // route during that wait even though Apple later accepts the upload. A
+      // short-lived `info` request on each attempt can reconnect without
+      // uploading the same binary again.
+      lastError = error
+      console.log(
+        `Unable to read Apple notarization status; reconnecting (${attempt}/${attempts}, submission ${submissionId})...`
+      )
+      if (attempt < attempts) await delay(delayMs)
+      continue
+    }
+
+    let result
+    try {
+      result = JSON.parse(String(stdout || ''))
+    } catch {
+      lastError = new Error('Apple notarization status returned an unreadable response')
+      console.log(
+        `Unable to parse Apple notarization status; retrying (${attempt}/${attempts}, submission ${submissionId})...`
+      )
+      if (attempt < attempts) await delay(delayMs)
+      continue
+    }
+
+    if (result?.status === 'Accepted') return result
+    if (result?.status && result.status !== 'In Progress') {
+      return requireAcceptedNotarization(stdout)
+    }
+    lastError = new Error(`Apple notarization is still in progress (submission ${submissionId})`)
+    if (attempt < attempts) await delay(delayMs)
+  }
+
+  throw new Error(
+    `Apple notarization did not reach Accepted after ${attempts} status checks (submission ${submissionId})`,
+    { cause: lastError }
+  )
+}
+
 export async function assertDeveloperIdSignature(appPath, runCommand = run) {
   await runCommand('codesign', ['--verify', '--deep', '--strict', '--verbose=2', appPath])
   const { stdout, stderr } = await runCommand('codesign', ['-dv', '--verbose=4', appPath])
@@ -95,17 +173,28 @@ export async function stapleWithRetry(
   throw lastError
 }
 
-export async function submitAndStaple({ submissionPath, staplePath, credentialArgs, runCommand = run }) {
+export async function submitAndStaple({
+  submissionPath,
+  staplePath,
+  credentialArgs,
+  runCommand = run,
+  pollOptions = {},
+  stapleOptions = {}
+}) {
   const { stdout } = await runCommand('xcrun', [
     'notarytool',
     'submit',
     submissionPath,
     ...credentialArgs,
-    '--wait',
     '--output-format',
     'json'
   ])
-  const result = requireAcceptedNotarization(stdout)
+  const submission = requireNotarizationSubmission(stdout)
+  console.log(`Apple notarization submitted (submission ${submission.id})`)
+  const result = await waitForAcceptedNotarization(submission.id, credentialArgs, {
+    runCommand,
+    ...pollOptions
+  })
   console.log(`Apple notarization accepted (submission ${result.id || 'unknown'})`)
-  await stapleWithRetry(staplePath, { runCommand })
+  await stapleWithRetry(staplePath, { runCommand, ...stapleOptions })
 }
