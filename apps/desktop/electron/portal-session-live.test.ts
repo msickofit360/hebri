@@ -30,7 +30,7 @@ const displayPrefix = (() => {
 test.skipIf(displayPrefix === null)(
   'real portal windows handle both providers, transitions and expired/rejected access',
   async () => {
-    const root = await mkdtemp(join(tmpdir(), 'hermes-portal-session-'))
+    const root = await mkdtemp(join(tmpdir(), 'hebri-portal-session-'))
 
     try {
       const bundle = join(root, 'main.cjs')
