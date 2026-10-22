@@ -11,7 +11,7 @@ on:
     branches: [main]
   push:
     branches: [main]
-    tags: ["v*"]
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
@@ -19,7 +19,9 @@ permissions:
 
 concurrency:
   group: hebri-desktop-${{ github.ref }}
-  cancel-in-progress: false
+  # A PR synchronization supersedes its older test build. Preserve main/tag
+  # releases so a production publish can never be canceled by a later push.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   CI: 1
@@ -29,7 +31,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Require tag to match desktop package version
         shell: bash
         run: |
@@ -39,30 +41,120 @@ jobs:
             exit 1
           }
 
-  windows:
+  quality:
     needs: [validate-version]
     if: always() && (needs.validate-version.result == 'success' || needs.validate-version.result == 'skipped')
-    runs-on: windows-2025
-    timeout-minutes: 45
+    runs-on: ubuntu-24.04
+    # A cold Node 26 install can take 5+ minutes and the inherited 8,500-test
+    # renderer suite takes another 12–15 on hosted Linux. Keep a hard ceiling,
+    # but leave enough room for the complete gate to finish instead of being
+    # canceled while tests are still passing.
+    timeout-minutes: 35
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
           cache: npm
       - name: Install workspace dependencies
         run: npm ci
+      - name: Review dependency changes
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+      - name: Reject high or critical production dependency vulnerabilities
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          npm_config_fetch_retries: 1
+          npm_config_fetch_retry_mintimeout: 1000
+          npm_config_fetch_retry_maxtimeout: 10000
+          npm_config_fetch_timeout: 30000
+        run: |
+          for attempt in 1 2 3; do
+            set +e
+            output="$(npm audit --omit=dev --audit-level=high 2>&1)"
+            status=$?
+            set -e
+            printf '%s\n' "$output"
+            test "$status" -eq 0 && exit 0
+
+            if ! grep -Eqi 'audit endpoint returned an error|5[0-9][0-9] (Service Unavailable|Internal Server Error|Bad Gateway)|ECONNRESET|ETIMEDOUT|EAI_AGAIN' <<<"$output"; then
+              exit "$status"
+            fi
+
+            test "$attempt" -lt 3 || {
+              echo 'npm audit service remained unavailable after 3 attempts; production remains fail-closed.' >&2
+              exit "$status"
+            }
+            sleep $((attempt * 5))
+          done
+      - name: Type-check desktop application
+        working-directory: apps/desktop
+        run: npm run typecheck
+      - name: Test desktop main process and platform integrations
+        working-directory: apps/desktop
+        run: npm run test:desktop:platforms
+      - name: Test desktop renderer
+        working-directory: apps/desktop
+        run: npm run test:ui
+
+  windows:
+    needs: [validate-version, quality]
+    if: always() && needs.quality.result == 'success' && (needs.validate-version.result == 'success' || needs.validate-version.result == 'skipped')
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+          cache: npm
+      - name: Install workspace dependencies
+        run: npm ci
+      - name: Require Windows signing credentials for release tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:CSC_LINK) -or [string]::IsNullOrWhiteSpace($env:CSC_KEY_PASSWORD)) {
+            throw 'Release tags require WINDOWS_CSC_LINK and WINDOWS_CSC_KEY_PASSWORD repository secrets.'
+          }
       - name: Build Windows installers (NSIS + MSI)
         working-directory: apps/desktop
         run: npm run dist:win -- --publish never
         env:
+          CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
           NODE_OPTIONS: --max-old-space-size=16384
+      - name: Validate packaged Windows application
+        working-directory: apps/desktop
+        shell: pwsh
+        run: |
+          $env:HERMES_DESKTOP_SKIP_BUILD = '1'
+          npm run test:desktop:all
+      - name: Verify Windows signatures for release tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: apps/desktop
+        shell: pwsh
+        run: |
+          $files = @(
+            (Get-ChildItem release\win-unpacked\Hebri.exe -ErrorAction Stop),
+            (Get-ChildItem release\Hebri-*-win-*.exe -ErrorAction Stop),
+            (Get-ChildItem release\Hebri-*-win-*.msi -ErrorAction Stop)
+          )
+          foreach ($file in $files) {
+            $signature = Get-AuthenticodeSignature -LiteralPath $file.FullName
+            if ($signature.Status -ne 'Valid') {
+              throw "Invalid Authenticode signature on $($file.Name): $($signature.Status) $($signature.StatusMessage)"
+            }
+          }
       - name: List artifacts
         working-directory: apps/desktop
         shell: pwsh
         run: |
           Get-ChildItem release -File | Where-Object { $_.Name -match '\.(exe|msi|blockmap)$' } | ForEach-Object { Write-Host "$($_.Name)  $([math]::Round($_.Length/1MB,1)) MB" }
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: hebri-windows
           path: |
@@ -73,8 +165,8 @@ jobs:
           if-no-files-found: error
 
   macos:
-    needs: [validate-version]
-    if: always() && (needs.validate-version.result == 'success' || needs.validate-version.result == 'skipped')
+    needs: [validate-version, quality]
+    if: always() && needs.quality.result == 'success' && (needs.validate-version.result == 'success' || needs.validate-version.result == 'skipped')
     strategy:
       fail-fast: false
       matrix:
@@ -84,15 +176,39 @@ jobs:
           - os: macos-15-intel
             artifact-name: hebri-macos-x64
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    # Apple's notary service typically completes within an hour, but first-time
+    # submissions can be held for deeper analysis. Leave room for --wait to
+    # return an authoritative status instead of cancelling a healthy upload.
+    timeout-minutes: 90
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
           cache: npm
       - name: Install workspace dependencies
         run: npm ci
+      - name: Validate macOS entitlement property lists
+        working-directory: apps/desktop
+        run: plutil -lint electron/entitlements.mac.plist electron/entitlements.mac.inherit.plist
+      - name: Require Apple signing and notarization credentials for release tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          missing=()
+          for name in CSC_LINK CSC_KEY_PASSWORD APPLE_API_KEY APPLE_API_KEY_ID APPLE_API_ISSUER; do
+            test -n "${!name}" || missing+=("$name")
+          done
+          test "${#missing[@]}" -eq 0 || {
+            printf 'Release tags require configured Apple secrets; missing: %s\n' "${missing[*]}" >&2
+            exit 1
+          }
       - name: Build macOS installers (DMG + ZIP)
         working-directory: apps/desktop
         env:
@@ -101,30 +217,57 @@ jobs:
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          # electron-builder intentionally skips signing pull requests. Same-repository
+          # branches are trusted collaborator code; forks receive neither this opt-in nor secrets.
+          CSC_FOR_PULL_REQUEST: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && 'true' || '' }}
           NODE_OPTIONS: --max-old-space-size=16384
         run: npm run dist:mac -- --publish never
+      - name: Validate packaged macOS application
+        working-directory: apps/desktop
+        run: HERMES_DESKTOP_SKIP_BUILD=1 npm run test:desktop:all
+      - name: Verify macOS signature and notarization for release tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: apps/desktop
+        shell: bash
+        run: |
+          mapfile -d '' apps < <(find release -maxdepth 2 -type d -name Hebri.app -print0)
+          test "${#apps[@]}" -eq 1 || {
+            printf 'Expected one packaged Hebri.app, found %s\n' "${#apps[@]}" >&2
+            exit 1
+          }
+          app="${apps[0]}"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          spctl --assess --type execute --verbose=2 "$app"
+          xcrun stapler validate "$app"
       - name: List artifacts
         working-directory: apps/desktop
         run: ls -lh release/*.dmg release/*.zip 2>/dev/null || ls -lh release/
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ matrix.artifact-name }}
           path: |
             apps/desktop/release/Hebri-*-mac-*.dmg
             apps/desktop/release/Hebri-*-mac-*.zip
+            apps/desktop/release/Hebri-*-mac-*.dmg.blockmap
+            apps/desktop/release/Hebri-*-mac-*.zip.blockmap
+            apps/desktop/release/latest-mac.yml
           if-no-files-found: error
 
   linux:
-    needs: [validate-version]
-    if: always() && (needs.validate-version.result == 'success' || needs.validate-version.result == 'skipped')
+    needs: [validate-version, quality]
+    if: always() && needs.quality.result == 'success' && (needs.validate-version.result == 'success' || needs.validate-version.result == 'skipped')
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
           cache: npm
+      - name: Install Linux desktop build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libx11-dev libxi-dev
       - name: Install workspace dependencies
         run: npm ci
       - name: Build Linux packages (AppImage + DEB + RPM)
@@ -132,10 +275,13 @@ jobs:
         run: npm run dist:linux -- --publish never
         env:
           NODE_OPTIONS: --max-old-space-size=16384
+      - name: Validate packaged Linux application
+        working-directory: apps/desktop
+        run: HERMES_DESKTOP_SKIP_BUILD=1 npm run test:desktop:all
       - name: List artifacts
         working-directory: apps/desktop
         run: ls -lh release/Hebri-* || ls -lh release/
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: hebri-linux
           path: |
@@ -153,7 +299,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: hebri-*
           merge-multiple: true

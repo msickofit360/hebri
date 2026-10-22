@@ -16,15 +16,37 @@ import {
   applyVoiceStopPhraseFromConfig
 } from './voice-prefs'
 
+const AUTO_SPEAK_KEY = 'hermes.desktop.autoSpeakReplies'
+
+function resetAutoSpeakStorage() {
+  // Clear only the preference this suite owns. The test deliberately replaces
+  // window.Storage.prototype.setItem, so scoped cleanup avoids coupling later
+  // matrix cases to origin-wide jsdom storage state left by an earlier write.
+  // Keep this explicitly on `window`: Node 26 exposes a separate experimental
+  // global localStorage whose state is not the browser storage used by the app.
+  window.localStorage.removeItem(AUTO_SPEAK_KEY)
+}
+
+function spyOnAutoSpeakStorageWrite() {
+  const storage = window.localStorage
+  // Node 26 can make vitest.setup install a plain in-memory Storage shim,
+  // whose methods live directly on the object. In ordinary jsdom, Storage is
+  // a Proxy and the effective method lives on Storage.prototype. Spy on the
+  // surface this runtime actually calls so the failure matrix is deterministic.
+  const target = Object.prototype.hasOwnProperty.call(storage, 'setItem')
+    ? storage
+    : window.Storage.prototype
+
+  return vi.spyOn(target, 'setItem')
+}
+
 it('keeps the desktop toggle local across config refreshes', async () => {
   for (const fails of [false, true]) {
     for (const enabled of [false, true]) {
-      localStorage.clear()
+      resetAutoSpeakStorage()
       vi.resetModules()
       const prefs = await import('./voice-prefs')
-      // Spy on the prototype: this runtime's Storage is a Proxy, so instance
-      // spies (vi.spyOn(localStorage, 'setItem')) are silently bypassed.
-      const write = vi.spyOn(Storage.prototype, 'setItem')
+      const write = spyOnAutoSpeakStorageWrite()
 
       if (fails) {
         write.mockImplementation(() => {
@@ -39,7 +61,7 @@ it('keeps the desktop toggle local across config refreshes', async () => {
         prefs.applyAutoSpeakFromConfig({ voice: { auto_tts: !enabled } })
         expect(prefs.$autoSpeakReplies.get()).toBe(enabled)
         expect(saveHermesConfig).not.toHaveBeenCalled()
-        expect(localStorage.getItem('hermes.desktop.autoSpeakReplies')).toBe(fails ? null : String(enabled))
+        expect(window.localStorage.getItem(AUTO_SPEAK_KEY)).toBe(fails ? null : String(enabled))
       } finally {
         write.mockRestore()
       }
@@ -50,12 +72,10 @@ it('keeps the desktop toggle local across config refreshes', async () => {
 it('migrates the legacy preference once, not on every refresh', async () => {
   for (const fails of [false, true]) {
     for (const enabled of [false, true]) {
-      localStorage.clear()
+      resetAutoSpeakStorage()
       vi.resetModules()
       const prefs = await import('./voice-prefs')
-      // Spy on the prototype: this runtime's Storage is a Proxy, so instance
-      // spies (vi.spyOn(localStorage, 'setItem')) are silently bypassed.
-      const write = vi.spyOn(Storage.prototype, 'setItem')
+      const write = spyOnAutoSpeakStorageWrite()
 
       if (fails) {
         write.mockImplementation(() => {
@@ -65,11 +85,11 @@ it('migrates the legacy preference once, not on every refresh', async () => {
 
       try {
         prefs.applyAutoSpeakFromConfig(null)
-        expect(localStorage.getItem('hermes.desktop.autoSpeakReplies')).toBeNull()
+        expect(window.localStorage.getItem(AUTO_SPEAK_KEY)).toBeNull()
         prefs.applyAutoSpeakFromConfig({ voice: { auto_tts: enabled } })
         prefs.applyAutoSpeakFromConfig({ voice: { auto_tts: !enabled } })
         expect(prefs.$autoSpeakReplies.get()).toBe(enabled)
-        expect(localStorage.getItem('hermes.desktop.autoSpeakReplies')).toBe(fails ? null : String(enabled))
+        expect(window.localStorage.getItem(AUTO_SPEAK_KEY)).toBe(fails ? null : String(enabled))
       } finally {
         write.mockRestore()
       }

@@ -22,7 +22,10 @@ Download the package for your platform from [GitHub Releases](https://github.com
 - Fedora/RHEL: `.rpm` or AppImage.
 - macOS: `.dmg` or `.zip`, with separate Apple Silicon and Intel builds when published.
 
-Windows and macOS builds remain unsigned until Synapsek Labs configures platform signing. Testers should verify the SHA-256 checksum published with the release and expect the operating system's normal unsigned-app warning.
+Pull-request and branch artifacts are unsigned test builds. Tagged production
+releases fail closed unless Synapsek Labs' Windows signing certificate and Apple
+Developer ID/notarization credentials are configured; published releases also
+include SHA-256 checksums.
 
 ### Source install
 
