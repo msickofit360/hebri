@@ -55,7 +55,31 @@ jobs:
       - name: Install workspace dependencies
         run: npm ci
       - name: Reject high or critical production dependency vulnerabilities
-        run: npm audit --omit=dev --audit-level=high
+        shell: bash
+        env:
+          npm_config_fetch_retries: 1
+          npm_config_fetch_retry_mintimeout: 1000
+          npm_config_fetch_retry_maxtimeout: 10000
+          npm_config_fetch_timeout: 30000
+        run: |
+          for attempt in 1 2 3; do
+            set +e
+            output="$(npm audit --omit=dev --audit-level=high 2>&1)"
+            status=$?
+            set -e
+            printf '%s\n' "$output"
+            test "$status" -eq 0 && exit 0
+
+            if ! grep -Eqi 'audit endpoint returned an error|5[0-9][0-9] (Service Unavailable|Internal Server Error|Bad Gateway)|ECONNRESET|ETIMEDOUT|EAI_AGAIN' <<<"$output"; then
+              exit "$status"
+            fi
+
+            test "$attempt" -lt 3 || {
+              echo 'npm audit service remained unavailable after 3 attempts; failing closed.' >&2
+              exit "$status"
+            }
+            sleep $((attempt * 5))
+          done
       - name: Type-check desktop application
         working-directory: apps/desktop
         run: npm run typecheck
