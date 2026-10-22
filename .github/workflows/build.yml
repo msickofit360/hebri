@@ -214,6 +214,9 @@ jobs:
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          # electron-builder intentionally skips signing pull requests. Same-repository
+          # branches are trusted collaborator code; forks receive neither this opt-in nor secrets.
+          CSC_FOR_PULL_REQUEST: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && 'true' || '' }}
           NODE_OPTIONS: --max-old-space-size=16384
         run: npm run dist:mac -- --publish never
       - name: Validate packaged macOS application

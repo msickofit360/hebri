@@ -1,53 +1,6 @@
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
-import { execFile } from 'node:child_process'
-
-function run(command, args) {
-  return new Promise((resolve, reject) => {
-    execFile(command, args, (error, stdout, stderr) => {
-      if (error) {
-        reject(
-          new Error(
-            `${command} ${args.join(' ')} failed: ${stderr?.trim() || stdout?.trim() || error.message}`
-          )
-        )
-        return
-      }
-      resolve({ stdout, stderr })
-    })
-  })
-}
-
-function inlineKeyLooksValid(value) {
-  return value.includes('BEGIN PRIVATE KEY') && value.includes('END PRIVATE KEY')
-}
-
-function resolveApiKeyPath(rawValue) {
-  const value = String(rawValue || '').trim()
-  if (!value) return { keyPath: '', cleanup: () => {} }
-
-  if (fs.existsSync(value)) {
-    return { keyPath: value, cleanup: () => {} }
-  }
-
-  if (!inlineKeyLooksValid(value)) {
-    throw new Error('APPLE_API_KEY must be a file path or inline .p8 key content')
-  }
-
-  const tempPath = path.join(os.tmpdir(), `hermes-notary-${Date.now()}-${process.pid}.p8`)
-  fs.writeFileSync(tempPath, value, 'utf8')
-  return {
-    keyPath: tempPath,
-    cleanup: () => {
-      try {
-        fs.rmSync(tempPath, { force: true })
-      } catch {
-        // Best-effort cleanup.
-      }
-    }
-  }
-}
+import { assertDeveloperIdSignature, resolveApiKeyPath, run, submitAndStaple } from './notarization.mjs'
 
 export default async function notarize(context) {
   const { electronPlatformName, appOutDir, packager } = context
@@ -60,41 +13,28 @@ export default async function notarize(context) {
   }
 
   const profile = String(process.env.APPLE_NOTARY_PROFILE || '').trim()
-  if (profile) {
-    const zipPath = path.join(appOutDir, `${appName}.zip`)
-    await run('ditto', ['-c', '-k', '--sequesterRsrc', '--keepParent', appPath, zipPath])
-    await run('xcrun', ['notarytool', 'submit', zipPath, '--keychain-profile', profile, '--wait'])
-    await run('xcrun', ['stapler', 'staple', '-v', appPath])
-    try {
-      fs.rmSync(zipPath, { force: true })
-    } catch {
-      // Best-effort cleanup.
-    }
-    return
-  }
-
   const keyId = String(process.env.APPLE_API_KEY_ID || '').trim()
   const issuer = String(process.env.APPLE_API_ISSUER || '').trim()
   const rawApiKey = process.env.APPLE_API_KEY
-  if (!rawApiKey || !keyId || !issuer) {
+  if (!profile && (!rawApiKey || !keyId || !issuer)) {
     console.log(
       'Skipping notarization: APPLE_API_KEY, APPLE_API_KEY_ID, and APPLE_API_ISSUER are not fully configured.'
     )
     return
   }
 
-  const { keyPath, cleanup } = resolveApiKeyPath(rawApiKey)
+  await assertDeveloperIdSignature(appPath)
+
+  const { keyPath, cleanup } = profile ? { keyPath: '', cleanup: () => {} } : resolveApiKeyPath(rawApiKey)
   const zipPath = path.join(appOutDir, `${appName}.zip`)
   try {
     await run('ditto', ['-c', '-k', '--sequesterRsrc', '--keepParent', appPath, zipPath])
-    await run('xcrun', ['notarytool', 'submit', zipPath, '--key', keyPath, '--key-id', keyId, '--issuer', issuer, '--wait'])
-    await run('xcrun', ['stapler', 'staple', '-v', appPath])
+    const credentialArgs = profile
+      ? ['--keychain-profile', profile]
+      : ['--key', keyPath, '--key-id', keyId, '--issuer', issuer]
+    await submitAndStaple({ submissionPath: zipPath, staplePath: appPath, credentialArgs })
   } finally {
-    try {
-      fs.rmSync(zipPath, { force: true })
-    } catch {
-      // Best-effort cleanup.
-    }
+    fs.rmSync(zipPath, { force: true })
     cleanup()
   }
 }
