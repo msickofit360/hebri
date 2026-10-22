@@ -14,13 +14,24 @@ const RELEASE_ROOT = path.join(DESKTOP_ROOT, 'release')
 const PLATFORM = process.platform
 const PRODUCT_NAME = PACKAGE_JSON.build?.productName || PACKAGE_JSON.productName || 'Hebri'
 
+function resolveMacAppPath() {
+  const fallback = path.join(RELEASE_ROOT, `mac-${ARCH}`, `${PRODUCT_NAME}.app`)
+  if (!fs.existsSync(RELEASE_ROOT)) return fallback
+  const candidates = fs
+    .readdirSync(RELEASE_ROOT, { withFileTypes: true })
+    .filter(entry => entry.isDirectory() && entry.name.startsWith('mac'))
+    .map(entry => path.join(RELEASE_ROOT, entry.name, `${PRODUCT_NAME}.app`))
+    .filter(fs.existsSync)
+  return candidates.find(candidate => path.basename(path.dirname(candidate)).includes(ARCH)) ?? candidates[0] ?? fallback
+}
+
 // Platform-specific packaged-app layout. The thin installer ships an Electron
 // app shell plus extraResources (install-stamp.json + native-deps/) -- it
 // no longer bundles the Hermes Agent Python payload (that's fetched at first
 // launch via install.ps1 / install.sh, per the Phase 1 thin-installer flow).
 const APP = (() => {
   if (PLATFORM === 'darwin') {
-    const appPath = path.join(RELEASE_ROOT, `mac-${ARCH}`, `${PRODUCT_NAME}.app`)
+    const appPath = resolveMacAppPath()
     return {
       appPath,
       binary: path.join(appPath, 'Contents', 'MacOS', PRODUCT_NAME),
@@ -104,6 +115,19 @@ function expectedNativeDepPaths() {
     buildReleaseDir,
     libIndex: path.join(root, 'lib', 'index.js')
   }
+}
+
+function expectedHudModifierPath() {
+  const platformArch = PLATFORM === 'darwin' ? 'darwin-universal' : `${PLATFORM}-${ARCH}`
+  const executable = PLATFORM === 'win32' ? 'hud-modifier-monitor.exe' : 'hud-modifier-monitor'
+  return path.join(
+    APP.resourcesPath,
+    'app.asar.unpacked',
+    'dist',
+    'native',
+    platformArch,
+    executable
+  )
 }
 
 function ensurePlatformBuilds() {
@@ -361,9 +385,19 @@ function validateBundle() {
     }
   }
 
+  // The floating HUD relies on a tiny native modifier-key monitor. Packaging
+  // used to continue when Linux build headers were absent, producing a green
+  // workflow and an AppImage whose HUD gesture could never work. Validate the
+  // shipped payload on every supported target so a release cannot silently
+  // lose the feature.
+  const hudModifier = expectedHudModifierPath()
+  if (!exists(hudModifier)) {
+    die(`Missing HUD modifier monitor for ${PLATFORM}-${ARCH}: ${hudModifier}`)
+  }
+
   // Renderer payload check (either unpacked or in the asar)
   if (exists(APP.unpackedDistIndex)) {
-    return { stamp, nodeBinaries }
+    return { stamp, nodeBinaries, hudModifier }
   }
   if (!exists(APP.asarPath)) {
     die(`Missing renderer payload: neither ${APP.unpackedDistIndex} nor ${APP.asarPath} exists`)
@@ -376,7 +410,7 @@ function validateBundle() {
   if (!normalized.includes('dist/index.html')) {
     die(`Missing renderer payload file in app.asar: ${APP.asarPath} (expected dist/index.html)`)
   }
-  return { stamp, nodeBinaries }
+  return { stamp, nodeBinaries, hudModifier }
 }
 
 function printArtifacts(options = {}) {
@@ -397,6 +431,9 @@ function printArtifacts(options = {}) {
   }
   if (options.nodeBinaries && options.nodeBinaries.length > 0) {
     console.log(`  node-pty binaries: ${options.nodeBinaries.join(', ')}`)
+  }
+  if (options.hudModifier) {
+    console.log(`  HUD modifier monitor: ${options.hudModifier}`)
   }
 }
 

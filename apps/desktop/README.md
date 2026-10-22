@@ -100,11 +100,21 @@ npm run dist:linux   # AppImage + deb + rpm
 npm run pack         # unpacked app under release/ (no installer)
 ```
 
-Installers are built by the release workflows. macOS notarization runs when
-`APPLE_API_KEY`, `APPLE_API_KEY_ID`, and `APPLE_API_ISSUER` (or an
-`APPLE_NOTARY_PROFILE`) are configured. Windows packages are currently
-unsigned and will show the normal SmartScreen warning until release signing is
-configured; do not describe an unsigned artifact as signed.
+Installers are built by the release workflow. Pull-request and `main` artifacts
+are unsigned test builds. A tagged production release fails closed unless these
+encrypted repository secrets are present:
+
+| Platform | Required secrets |
+| --- | --- |
+| Windows | `WINDOWS_CSC_LINK`, `WINDOWS_CSC_KEY_PASSWORD` |
+| macOS | `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_API_KEY`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER` |
+
+The workflow verifies the packaged payload on every operating system, validates
+Authenticode signatures for tagged Windows builds, and validates Developer ID,
+Gatekeeper, and notarization stapling for tagged macOS builds. The Linux job
+installs the X11/XInput headers required to ship the HUD modifier monitor used
+by Omarchy and other X11 desktops. A release tag must exactly match the desktop
+package version (for example, package `0.17.12` requires tag `v0.17.12`).
 
 ### How it works
 
