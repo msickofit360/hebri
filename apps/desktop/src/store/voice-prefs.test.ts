@@ -27,15 +27,26 @@ function resetAutoSpeakStorage() {
   window.localStorage.removeItem(AUTO_SPEAK_KEY)
 }
 
+function spyOnAutoSpeakStorageWrite() {
+  const storage = window.localStorage
+  // Node 26 can make vitest.setup install a plain in-memory Storage shim,
+  // whose methods live directly on the object. In ordinary jsdom, Storage is
+  // a Proxy and the effective method lives on Storage.prototype. Spy on the
+  // surface this runtime actually calls so the failure matrix is deterministic.
+  const target = Object.prototype.hasOwnProperty.call(storage, 'setItem')
+    ? storage
+    : window.Storage.prototype
+
+  return vi.spyOn(target, 'setItem')
+}
+
 it('keeps the desktop toggle local across config refreshes', async () => {
   for (const fails of [false, true]) {
     for (const enabled of [false, true]) {
       resetAutoSpeakStorage()
       vi.resetModules()
       const prefs = await import('./voice-prefs')
-      // Spy on the prototype: this runtime's Storage is a Proxy, so instance
-      // spies (vi.spyOn(localStorage, 'setItem')) are silently bypassed.
-      const write = vi.spyOn(window.Storage.prototype, 'setItem')
+      const write = spyOnAutoSpeakStorageWrite()
 
       if (fails) {
         write.mockImplementation(() => {
@@ -64,9 +75,7 @@ it('migrates the legacy preference once, not on every refresh', async () => {
       resetAutoSpeakStorage()
       vi.resetModules()
       const prefs = await import('./voice-prefs')
-      // Spy on the prototype: this runtime's Storage is a Proxy, so instance
-      // spies (vi.spyOn(localStorage, 'setItem')) are silently bypassed.
-      const write = vi.spyOn(window.Storage.prototype, 'setItem')
+      const write = spyOnAutoSpeakStorageWrite()
 
       if (fails) {
         write.mockImplementation(() => {
