@@ -58,7 +58,13 @@ jobs:
           cache: npm
       - name: Install workspace dependencies
         run: npm ci
+      - name: Review dependency changes
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
       - name: Reject high or critical production dependency vulnerabilities
+        if: github.event_name != 'pull_request'
         shell: bash
         env:
           npm_config_fetch_retries: 1
@@ -79,7 +85,7 @@ jobs:
             fi
 
             test "$attempt" -lt 3 || {
-              echo 'npm audit service remained unavailable after 3 attempts; failing closed.' >&2
+              echo 'npm audit service remained unavailable after 3 attempts; production remains fail-closed.' >&2
               exit "$status"
             }
             sleep $((attempt * 5))
