@@ -19,7 +19,9 @@ permissions:
 
 concurrency:
   group: hebri-desktop-${{ github.ref }}
-  cancel-in-progress: false
+  # A PR synchronization supersedes its older test build. Preserve main/tag
+  # releases so a production publish can never be canceled by a later push.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   CI: 1
