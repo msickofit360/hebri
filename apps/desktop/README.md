@@ -116,6 +116,14 @@ installs the X11/XInput headers required to ship the HUD modifier monitor used
 by Omarchy and other X11 desktops. A release tag must exactly match the desktop
 package version (for example, package `0.17.12` requires tag `v0.17.12`).
 
+Packaged builds use `electron-updater` with the generated `app-update.yml` to
+check the official `satoshilove/hebri` GitHub Releases feed after launch and
+every four hours. **Check for Updates…** performs the same check on demand.
+Branch/PR artifacts are never update candidates: only a published versioned
+GitHub Release has the required metadata and production signatures. Use the
+Windows `.exe` for the normal self-updating install; the `.msi` remains the
+managed-deployment option when an administrator distributes upgrades.
+
 ### How it works
 
 The packaged app ships the Electron shell and a native React chat surface. On

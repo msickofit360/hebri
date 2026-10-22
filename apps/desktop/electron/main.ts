@@ -30,6 +30,7 @@ import {
   shell,
   systemPreferences
 } from 'electron'
+import { autoUpdater as releaseAutoUpdater } from 'electron-updater'
 
 import { classifyActiveRuntime } from './active-runtime-state'
 import {
@@ -395,6 +396,7 @@ import { createQuitFinalization } from './quit-finalization'
 import { type ActiveWork, backendOwnedByApp, mergeActiveWork, normalizeActiveWork, quitPromptFor } from './quit-guard'
 import { backendQuitNeedsWait, createQuitTeardownCoordinator } from './quit-teardown'
 import * as remoteLifecycle from './remote-lifecycle'
+import { createReleaseUpdater, type ReleaseUpdaterController } from './release-updater'
 import {
   attachPowerResumeRemoteRevalidation,
   ensureHealthyPooledRemoteBackendForDispatch,
@@ -1525,6 +1527,7 @@ function registerMediaProtocol() {
 }
 
 let mainWindow = null
+let releaseUpdater: ReleaseUpdaterController | null = null
 const backendConnectionState = createBackendConnectionState<ReturnType<typeof spawn>, any>()
 
 const localBackendLifecycle = createLocalBackendLifecycle<ReturnType<typeof spawn>>({
@@ -7275,7 +7278,13 @@ function buildApplicationMenu() {
 
   const checkForUpdatesItem = {
     label: 'Check for Updates…',
-    click: () => sendOpenUpdatesRequested()
+    click: () => {
+      if (releaseUpdater) {
+        void releaseUpdater.check(true)
+      } else {
+        sendOpenUpdatesRequested()
+      }
+    }
   }
 
   if (IS_MAC) {
@@ -18908,12 +18917,21 @@ app.whenReady().then(() => {
   // its worker waits for the install marker to clear, then reopens every scope
   // captured by the original transaction before removing the journal entry.
   void resumeManagedSshRecoveries()
+  releaseUpdater = createReleaseUpdater({
+    getWindow: () => mainWindow,
+    isPackaged: app.isPackaged,
+    log: rememberLog,
+    showMessageBox: (window, options) =>
+      window && !window.isDestroyed() ? dialog.showMessageBox(window, options) : dialog.showMessageBox(options),
+    updater: releaseAutoUpdater
+  })
   installApplicationMenuAfterFirstWindow({
     isMac: IS_MAC,
     buildMenu: buildApplicationMenu,
     setApplicationMenu: menu => Menu.setApplicationMenu(menu),
     createWindow
   })
+  releaseUpdater?.start()
 
   // Win/Linux cold start: the launching hermes:// URL is in our own argv.
   const _coldStartLink = _extractDeepLink(process.argv)
