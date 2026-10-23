@@ -104,7 +104,7 @@ jobs:
     needs: [validate-version, quality]
     if: always() && needs.quality.result == 'success' && (needs.validate-version.result == 'success' || needs.validate-version.result == 'skipped')
     runs-on: windows-2025
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -113,6 +113,9 @@ jobs:
           cache: npm
       - name: Install workspace dependencies
         run: npm ci
+      - name: Test Windows managed-Python bootstrap recovery
+        shell: pwsh
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/tests/test-install-ps1-managed-python-venv.ps1
       - name: Require Windows signing credentials for release tags
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
@@ -133,6 +136,9 @@ jobs:
         run: |
           $env:HERMES_DESKTOP_SKIP_BUILD = '1'
           npm run test:desktop:all
+      - name: Verify fresh Windows bootstrap reaches backend health
+        shell: pwsh
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/ci/test_windows_desktop_bootstrap.ps1 -SourceDir apps/desktop/build/hebri-source
       - name: Verify Windows signatures for release tags
         if: startsWith(github.ref, 'refs/tags/v')
         working-directory: apps/desktop

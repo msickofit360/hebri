@@ -1327,6 +1327,79 @@ function Repair-MinorVersionLinks {
     return $created
 }
 
+function Test-ManagedPythonExecutable {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$ExpectedMinor
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
+
+    $process = $null
+    try {
+        # Probe the executable itself instead of trusting the directory name or
+        # uv's registry. On affected Windows 11 hosts uv extracts a completely
+        # usable python.exe and then fails only while creating its convenience
+        # minor-version junction (WinError 448).
+        $process = New-Object System.Diagnostics.Process
+        $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+        $startInfo.FileName = $Path
+        $startInfo.Arguments = "--version"
+        $startInfo.UseShellExecute = $false
+        $startInfo.CreateNoWindow = $true
+        $startInfo.RedirectStandardOutput = $true
+        $startInfo.RedirectStandardError = $true
+        $process.StartInfo = $startInfo
+        if (-not $process.Start()) { return $null }
+        $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+        $stderrTask = $process.StandardError.ReadToEndAsync()
+        if (-not $process.WaitForExit($PythonFindTimeoutMs)) {
+            try { $process.Kill() } catch { }
+            $process.WaitForExit()
+            return $null
+        }
+        $versionText = (($stdoutTask.Result + "`n" + $stderrTask.Result).Trim())
+        if ($process.ExitCode -ne 0 -or $versionText -notmatch 'Python\s+(\d+\.\d+\.\d+)') {
+            return $null
+        }
+        $fullVersion = $Matches[1]
+        if (-not $fullVersion.StartsWith($ExpectedMinor + ".", [System.StringComparison]::Ordinal)) {
+            return $null
+        }
+        return $fullVersion
+    } catch {
+        return $null
+    } finally {
+        if ($process) { $process.Dispose() }
+    }
+}
+
+function Find-ExtractedManagedPython {
+    param(
+        [Parameter(Mandatory = $true)][string]$ManagedRoot,
+        [Parameter(Mandatory = $true)][string]$MinorVersion
+    )
+
+    # uv's exact-version directory is authoritative and does not depend on the
+    # minor-version junction/registry that Windows may refuse to create. Probe
+    # every matching extraction and prefer the newest usable patch release.
+    $escapedMinor = [regex]::Escape($MinorVersion)
+    $usable = @()
+    foreach ($dir in @(Get-ChildItem -LiteralPath $ManagedRoot -Directory -ErrorAction SilentlyContinue)) {
+        if ($dir.Name -notmatch "^cpython-$escapedMinor\.(\d+)(?:[-+].*)?$") { continue }
+        $pythonPath = Join-Path $dir.FullName "python.exe"
+        $fullVersion = Test-ManagedPythonExecutable -Path $pythonPath -ExpectedMinor $MinorVersion
+        if ($fullVersion) {
+            $usable += [PSCustomObject]@{
+                Path = [System.IO.Path]::GetFullPath($pythonPath)
+                Version = $MinorVersion
+                FullVersion = [version]$fullVersion
+            }
+        }
+    }
+    return ($usable | Sort-Object FullVersion -Descending | Select-Object -First 1)
+}
+
 function Resolve-AvailablePythonVersion {
     # Return the path and minor version of the first Hermes-managed interpreter
     # uv can find, preferring the requested version and then fallback minors.
@@ -1342,6 +1415,18 @@ function Resolve-AvailablePythonVersion {
     foreach ($ver in $candidates) {
         if (-not $ver -or $seen.ContainsKey($ver)) { continue }
         $seen[$ver] = $true
+
+        # First use the fully versioned extraction directly. This is the
+        # critical WinError 448 recovery rung: it remains valid even when uv's
+        # minor-version junction and `uv python find 3.x` are both broken.
+        $extracted = Find-ExtractedManagedPython -ManagedRoot $managedRoot -MinorVersion $ver
+        if ($extracted) {
+            return [PSCustomObject]@{
+                Path = $extracted.Path
+                Version = $ver
+            }
+        }
+
         $process = $null
         try {
             # PowerShell 5.1 can lose a nested native command's stdout when
@@ -1371,7 +1456,8 @@ function Resolve-AvailablePythonVersion {
             [string]$foundPath = ($stdout.Trim() -split "`r?`n") | Select-Object -Last 1
             if ($foundPath) {
                 $absolute = [System.IO.Path]::GetFullPath($foundPath)
-                if ($absolute.StartsWith($managedPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+                $fullVersion = Test-ManagedPythonExecutable -Path $absolute -ExpectedMinor $ver
+                if ($fullVersion -and $absolute.StartsWith($managedPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
                     return [PSCustomObject]@{
                         Path = $absolute
                         Version = $ver
@@ -1379,7 +1465,9 @@ function Resolve-AvailablePythonVersion {
                 }
             }
         } catch {
-            throw "Failed to resolve Hebri-managed Python $ver`: $_"
+            # Resolution is an ordered ladder. A corrupt/missing uv registry or
+            # one failed candidate must not hide another extracted fallback.
+            continue
         } finally {
             if ($process) { $process.Dispose() }
         }
@@ -2968,7 +3056,9 @@ function Install-Venv {
                 Write-Warn "Could not enumerate gateway scheduled tasks: $($_.Exception.Message)"
             }
             # The launcher CLI (hermes.exe) plus its child tree.
-            & taskkill /F /T /IM hermes.exe /FI "PID ne $myPid" 2>$null | Out-Null
+            Invoke-NativeWithRelaxedErrorAction {
+                & taskkill /F /T /IM hermes.exe /FI "PID ne $myPid" 2>$null | Out-Null
+            }
             # taskkill /IM hermes.exe is NOT enough: the gateway/agent that a
             # scheduled task or watchdog autostarts runs as
             # `pythonw.exe -m hermes_cli.main gateway run` straight out of
@@ -3005,7 +3095,9 @@ function Install-Venv {
                             $found++
                             $treePid = [string]$_.ProcessId
                             Write-Info "  stopping process tree at PID $treePid ($($_.Name)) running from venv"
-                            & taskkill /F /T /PID $treePid 2>$null | Out-Null
+                            Invoke-NativeWithRelaxedErrorAction {
+                                & taskkill /F /T /PID $treePid 2>$null | Out-Null
+                            }
                         }
                 } catch {
                     Write-Warn "Could not enumerate venv processes: $($_.Exception.Message)"
@@ -3037,15 +3129,16 @@ function Install-Venv {
         }
     }
     
-    # Pass the already-validated private interpreter path and prohibit uv from
-    # resolving or downloading a different Python during venv creation. Use
-    # ProcessStartInfo because the desktop bootstrapper redirects this script;
-    # Windows PowerShell 5.1 can otherwise lose nested native output/exit state.
+    # Create the venv through the exact, already-probed python.exe. Do NOT ask
+    # `uv venv` to resolve it: uv's Windows launcher can bind back to the broken
+    # minor-version junction and fail with WinError 448 even though this exact
+    # interpreter runs correctly. The standard-library venv path is independent
+    # of that registry/junction and is what repairs affected installations.
     $venvProcess = New-Object System.Diagnostics.Process
     try {
         $venvStartInfo = New-Object System.Diagnostics.ProcessStartInfo
-        $venvStartInfo.FileName = $UvCmd
-        $venvStartInfo.Arguments = "venv venv --python `"$($resolvedPython.Path)`" --managed-python --no-python-downloads --no-config"
+        $venvStartInfo.FileName = $resolvedPython.Path
+        $venvStartInfo.Arguments = "-m venv --copies `"$(Join-Path $InstallDir 'venv')`""
         $venvStartInfo.WorkingDirectory = $InstallDir
         $venvStartInfo.UseShellExecute = $false
         $venvStartInfo.CreateNoWindow = $true
@@ -3053,7 +3146,7 @@ function Install-Venv {
         $venvStartInfo.RedirectStandardError = $true
         $venvProcess.StartInfo = $venvStartInfo
         if (-not $venvProcess.Start()) {
-            throw "Failed to start uv while creating the virtual environment"
+            throw "Failed to start the managed Python interpreter while creating the virtual environment"
         }
         $venvStdoutTask = $venvProcess.StandardOutput.ReadToEndAsync()
         $venvStderrTask = $venvProcess.StandardError.ReadToEndAsync()
@@ -3066,17 +3159,17 @@ function Install-Venv {
     } finally {
         $venvProcess.Dispose()
     }
-    # Fail fast so the stage cannot report ok=true when uv failed.
+    # Fail fast so the stage cannot report ok=true when stdlib venv failed.
     if ($venvExitCode -ne 0) {
-        throw "Failed to create virtual environment (uv venv exited with $venvExitCode)"
+        throw "Failed to create virtual environment (managed Python -m venv exited with $venvExitCode)"
     }
 
-    # uv can return success without leaving the interpreter expected by the
-    # installer (for example after an interrupted filesystem operation). Treat
+    # A terminated Python process can leave a partial directory without the
+    # interpreter expected by the installer. Treat
     # that as a failed transaction so the previous venv can be restored.
     $venvPythonExe = Join-Path $InstallDir "venv\Scripts\python.exe"
     if (-not (Test-Path -LiteralPath $venvPythonExe -PathType Leaf)) {
-        throw "uv reported success but venv interpreter is missing at $venvPythonExe"
+        throw "Python reported success but venv interpreter is missing at $venvPythonExe"
     }
 
     # The replacement has a working interpreter, but the transaction is only
@@ -3154,7 +3247,9 @@ function Install-Venv {
         # gateway resume path handles the immediate restart.
         if ($gatewayTasksDisabled -and $gatewayTasksDisabled.Count -gt 0) {
             foreach ($tn in $gatewayTasksDisabled) {
-                schtasks /Change /TN $tn /ENABLE 2>$null | Out-Null
+                Invoke-NativeWithRelaxedErrorAction {
+                    schtasks /Change /TN $tn /ENABLE 2>$null | Out-Null
+                }
             }
             Write-Info "Re-enabled gateway autostart task(s): $($gatewayTasksDisabled -join ', ')"
         }
