@@ -312,7 +312,26 @@ jobs:
           app="${apps[0]}"
           codesign --verify --deep --strict --verbose=2 "$app"
           spctl --assess --type execute --verbose=2 "$app"
-          xcrun stapler validate "$app"
+          stapler_attempt=1
+          while true; do
+            stapler_output=""
+            stapler_status=0
+            stapler_output="$(xcrun stapler validate "$app" 2>&1)" || stapler_status=$?
+            printf '%s\n' "$stapler_output"
+            if [ "$stapler_status" -eq 0 ]; then
+              break
+            fi
+            if ! printf '%s\n' "$stapler_output" | grep -Eq 'NSURLErrorDomain|CloudKit.*response'; then
+              exit "$stapler_status"
+            fi
+            if [ "$stapler_attempt" -ge 6 ]; then
+              printf 'Stapler validation still failed after %s attempts.\n' "$stapler_attempt" >&2
+              exit "$stapler_status"
+            fi
+            printf 'Apple ticket lookup failed transiently; retrying stapler validation (%s/6)...\n' "$stapler_attempt" >&2
+            stapler_attempt=$((stapler_attempt + 1))
+            sleep 15
+          done
       - name: List artifacts
         working-directory: apps/desktop
         run: ls -lh release/*.dmg release/*.zip 2>/dev/null || ls -lh release/
