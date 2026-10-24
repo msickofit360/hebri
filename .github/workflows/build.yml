@@ -301,7 +301,10 @@ jobs:
         working-directory: apps/desktop
         shell: bash
         run: |
-          mapfile -d '' apps < <(find release -maxdepth 2 -type d -name Hebri.app -print0)
+          apps=()
+          while IFS= read -r -d '' app_path; do
+            apps+=("$app_path")
+          done < <(find release -maxdepth 2 -type d -name Hebri.app -print0)
           test "${#apps[@]}" -eq 1 || {
             printf 'Expected one packaged Hebri.app, found %s\n' "${#apps[@]}" >&2
             exit 1
