@@ -4,35 +4,35 @@
 // wherever it landed. Dist present → -c.electronDist=<abs>/dist; absent → let
 // electron-builder fetch via @electron/get (electronVersion + ELECTRON_MIRROR).
 
-import fs from "node:fs"
-import path from "node:path"
-import { spawnSync } from "node:child_process"
-import { createRequire } from "node:module"
+import fs from 'node:fs'
+import path from 'node:path'
+import { spawnSync } from 'node:child_process'
+import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
 
 function electronDistDir() {
   try {
-    return path.join(path.dirname(require.resolve("electron/package.json")), "dist")
+    return path.join(path.dirname(require.resolve('electron/package.json')), 'dist')
   } catch {
     return null
   }
 }
 
 function distBinary(dist) {
-  if (process.platform === "darwin") {
-    return path.join(dist, "Electron.app", "Contents", "MacOS", "Electron")
+  if (process.platform === 'darwin') {
+    return path.join(dist, 'Electron.app', 'Contents', 'MacOS', 'Electron')
   }
-  if (process.platform === "win32") {
-    return path.join(dist, "electron.exe")
+  if (process.platform === 'win32') {
+    return path.join(dist, 'electron.exe')
   }
-  return path.join(dist, "electron")
+  return path.join(dist, 'electron')
 }
 
 function electronBuilderCli() {
-  const pkgJson = require.resolve("electron-builder/package.json")
+  const pkgJson = require.resolve('electron-builder/package.json')
   const bin = require(pkgJson).bin
-  const rel = typeof bin === "string" ? bin : bin["electron-builder"]
+  const rel = typeof bin === 'string' ? bin : bin['electron-builder']
   return path.join(path.dirname(pkgJson), rel)
 }
 
@@ -53,21 +53,38 @@ const forwardedArgs = []
 const cliArgs = process.argv.slice(2)
 for (let index = 0; index < cliArgs.length; index += 1) {
   const arg = cliArgs[index]
-  if (arg === "--publish") {
+  if (arg === '--publish') {
     index += 1
     continue
   }
-  if (arg.startsWith("--publish=")) continue
+  if (arg.startsWith('--publish=')) continue
   forwardedArgs.push(arg)
 }
 
-const args = ["--publish", "never"]
+const args = ['--publish', 'never']
 if (dist && fs.existsSync(distBinary(dist))) {
   args.push(`-c.electronDist=${dist}`)
 } else {
   console.warn(
-    "[run-electron-builder] no local electron dist; electron-builder will fetch " +
-      "via @electron/get (electronVersion + ELECTRON_MIRROR)."
+    '[run-electron-builder] no local electron dist; electron-builder will fetch ' +
+      'via @electron/get (electronVersion + ELECTRON_MIRROR).'
+  )
+}
+
+// Release-tag builds authenticate to Azure with GitHub OIDC and opt in here.
+// Keep this conditional so pull requests and ordinary main builds remain
+// unsigned and cannot accidentally request or depend on production signing
+// credentials. The values identify the public Artifact Signing resources; no
+// certificate private key or long-lived client secret is stored in the repo.
+if (process.env.HEBRI_WINDOWS_AZURE_SIGN === '1') {
+  args.push(
+    '-c.win.azureSignOptions.publisherName=Synapsek Labs Pty Ltd',
+    '-c.win.azureSignOptions.endpoint=https://jpe.codesigning.azure.net/',
+    '-c.win.azureSignOptions.certificateProfileName=hebri-public-trust',
+    '-c.win.azureSignOptions.codeSigningAccountName=synapsekhebrisigning',
+    '-c.win.azureSignOptions.fileDigest=SHA256',
+    '-c.win.azureSignOptions.timestampDigest=SHA256',
+    '-c.win.azureSignOptions.timestampRfc3161=http://timestamp.acs.microsoft.com'
   )
 }
 args.push(...forwardedArgs)
@@ -79,19 +96,19 @@ args.push(...forwardedArgs)
 // to pass through unchanged.
 const builderEnv = { ...process.env }
 for (const key of [
-  "CSC_LINK",
-  "CSC_KEY_PASSWORD",
-  "APPLE_API_KEY",
-  "APPLE_API_KEY_ID",
-  "APPLE_API_ISSUER",
-  "APPLE_NOTARY_PROFILE",
+  'CSC_LINK',
+  'CSC_KEY_PASSWORD',
+  'APPLE_API_KEY',
+  'APPLE_API_KEY_ID',
+  'APPLE_API_ISSUER',
+  'APPLE_NOTARY_PROFILE'
 ]) {
-  if (!String(builderEnv[key] || "").trim()) delete builderEnv[key]
+  if (!String(builderEnv[key] || '').trim()) delete builderEnv[key]
 }
 
 const result = spawnSync(process.execPath, [electronBuilderCli(), ...args], {
-  stdio: "inherit",
-  env: builderEnv,
+  stdio: 'inherit',
+  env: builderEnv
 })
 if (result.error) {
   console.error(`[run-electron-builder] spawn failed: ${result.error.message}`)
