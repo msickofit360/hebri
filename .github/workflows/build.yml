@@ -420,9 +420,9 @@ jobs:
           copy_one 'Hebri-*-mac-x64.zip' 'Hebri-macOS-Intel.zip'
           copy_one 'Hebri-*-mac-arm64.dmg' 'Hebri-macOS-Apple-Silicon.dmg'
           copy_one 'Hebri-*-mac-arm64.zip' 'Hebri-macOS-Apple-Silicon.zip'
-          copy_one 'Hebri-*-linux-x64.AppImage' 'Hebri-Linux-x64.AppImage'
-          copy_one 'Hebri-*-linux-x64.deb' 'Hebri-Linux-x64.deb'
-          copy_one 'Hebri-*-linux-x64.rpm' 'Hebri-Linux-x64.rpm'
+          copy_one 'Hebri-*-linux-*.AppImage' 'Hebri-Linux-x64.AppImage'
+          copy_one 'Hebri-*-linux-*.deb' 'Hebri-Linux-x64.deb'
+          copy_one 'Hebri-*-linux-*.rpm' 'Hebri-Linux-x64.rpm'
       - name: Generate SHA-256 checksums
         shell: bash
         run: |
