@@ -119,23 +119,50 @@ const LINUX_PASSWORD_STORES = new Set(['gnome-libsecret', 'kwallet', 'kwallet5',
  * (or reads `desktop.password_store` from config.yaml) and bridges the value
  * in via HERMES_DESKTOP_PASSWORD_STORE.
  *
+ * AppImage/desktop-entry launches skip that Python launcher. Chromium does not
+ * recognize Hyprland (including Omarchy) as a Secret Service desktop, so select
+ * libsecret there before app ready. This selects a backend, not an availability
+ * guarantee: Synapsek still rejects missing/locked keyrings and basic_text.
+ * Explicit command-line selection wins over the CLI bridge and auto-detection.
+ *
  * Returns `{ store, warning }`: `store` is the validated backend to apply (or
  * null to leave Chromium's default), `warning` is a message to log for
  * unrecognized values. Pure + dependency-free so it can be unit-tested and
  * called before app ready.
  */
-function resolveLinuxPasswordStore(options: { env?: NodeJS.ProcessEnv; platform?: NodeJS.Platform } = {}) {
+function resolveLinuxPasswordStore(
+  options: {
+    env?: NodeJS.ProcessEnv
+    platform?: NodeJS.Platform
+    passwordStoreSwitch?: string
+  } = {}
+) {
   const env = options.env ?? process.env
   const platform = options.platform ?? process.platform
 
-  const requested = String(env.HERMES_DESKTOP_PASSWORD_STORE || '').trim()
-
-  if (platform !== 'linux' || !requested) {
+  if (platform !== 'linux') {
     return { store: null, warning: null }
   }
 
+  const commandLineStore = String(options.passwordStoreSwitch || '').trim()
+  const requested = commandLineStore || String(env.HERMES_DESKTOP_PASSWORD_STORE || '').trim()
+
+  if (!requested) {
+    const desktops = [env.XDG_CURRENT_DESKTOP, env.XDG_SESSION_DESKTOP, env.DESKTOP_SESSION].flatMap(value =>
+      String(value || '')
+        .toLowerCase()
+        .split(':')
+    )
+
+    const hyprland = desktops.some(value => ['hyprland', 'hyprland-uwsm'].includes(value.trim()))
+
+    return { store: hyprland ? 'gnome-libsecret' : null, warning: null }
+  }
+
   if (!LINUX_PASSWORD_STORES.has(requested)) {
-    return { store: null, warning: `ignoring unknown HERMES_DESKTOP_PASSWORD_STORE value: ${requested}` }
+    const source = commandLineStore ? '--password-store' : 'HERMES_DESKTOP_PASSWORD_STORE'
+
+    return { store: null, warning: `ignoring unknown ${source} value: ${requested}` }
   }
 
   return { store: requested, warning: null }

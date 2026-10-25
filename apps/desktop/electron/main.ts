@@ -646,7 +646,7 @@ if (IS_WSL && !REMOTE_DISPLAY_REASON && fs.existsSync('/dev/dxg')) {
 // it). The value arrives via HERMES_DESKTOP_PASSWORD_STORE, bridged by the
 // `hermes desktop` launcher from detection or `desktop.password_store` in
 // config.yaml. Must run before app `ready` — the switch only applies pre-launch.
-const PASSWORD_STORE = resolveLinuxPasswordStore()
+const PASSWORD_STORE = resolveLinuxPasswordStore({ passwordStoreSwitch: app.commandLine.getSwitchValue('password-store') })
 
 if (PASSWORD_STORE.warning) {
   console.warn(`[hermes] ${PASSWORD_STORE.warning}`)
