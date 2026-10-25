@@ -473,7 +473,7 @@ export default {
       render: () => <BotsPane />
     })
 
-    // Team Chat — human-to-human encrypted messaging pane.
+    // Team Chat shares the durable local/hosted team surface.
     // Registered alongside Bots: the zone's tab strip becomes
     // SESSIONS | TEAM CHAT | BOTS.
     ctx.register({

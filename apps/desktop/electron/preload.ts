@@ -19,6 +19,12 @@ const launchFlags = ipcRenderer.sendSync('hermes:launch-flags')
 contextBridge.exposeInMainWorld('hermesDesktop', {
   synapsekAccount: (operation: 'status' | 'signIn' | 'signOut' | 'openBilling' | 'forgetLocal') =>
     ipcRenderer.invoke('hebri:synapsek-account', operation),
+  synapsekTeams: (command: unknown) => ipcRenderer.invoke('hebri:synapsek-account', 'teams', command),
+  onSynapsekAccountChanged: (callback: () => void) => {
+    const listener = () => callback()
+    ipcRenderer.on('hebri:synapsek-account-changed', listener)
+    return () => ipcRenderer.removeListener('hebri:synapsek-account-changed', listener)
+  },
   glassSupported: translucencySupport?.glass === true,
   translucencySupported: translucencySupport?.translucency === true,
   // Launch-flag fact: the app was started with --local, so the renderer may

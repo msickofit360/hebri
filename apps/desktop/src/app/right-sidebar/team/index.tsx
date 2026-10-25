@@ -49,6 +49,8 @@ import { cn } from '@/lib/utils'
 import { RightSidebarSectionHeader } from '../index'
 
 import { teamHelp } from './help-copy'
+import { HostedTeamPane } from './hosted'
+import { hostedCopy } from './hosted-copy'
 
 const POLL_MS = 3000
 const NAME_KEY = 'hebri.team.name'
@@ -152,6 +154,25 @@ function fmtTime(ts: number): string {
 }
 
 export function TeamPane() {
+  const { locale } = useI18n()
+  const copy = hostedCopy[locale]
+  const [hosted, setHosted] = useState(true)
+  return (
+    <div>
+      <div className="flex gap-2 p-3">
+        <Button size="sm" variant={hosted ? 'default' : 'outline'} onClick={() => setHosted(true)}>
+          {copy.title}
+        </Button>
+        <Button size="sm" variant={!hosted ? 'default' : 'outline'} onClick={() => setHosted(false)}>
+          {copy.local}
+        </Button>
+      </div>
+      {hosted ? <HostedTeamPane /> : <LocalTeamPane />}
+    </div>
+  )
+}
+
+function LocalTeamPane() {
   const { locale } = useI18n()
   const help = teamHelp[locale]
   const [name, setName] = useState<string>(() => readLocal(NAME_KEY) ?? '')

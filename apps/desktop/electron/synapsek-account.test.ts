@@ -18,7 +18,9 @@ import {
 
 const dirs: string[] = []
 afterEach(() => {
-  for (const dir of dirs.splice(0)) {fs.rmSync(dir, { recursive: true, force: true })}
+  for (const dir of dirs.splice(0)) {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
 })
 const user = '11111111-1111-4111-8111-111111111111'
 const client = '33333333-3333-4333-8333-333333333333'
@@ -79,10 +81,93 @@ function fileStore() {
 }
 
 describe('Synapsek native account', () => {
+  it('sends team commands over authenticated HTTP and denies account switches before transmission', async () => {
+    const { storage } = fileStore()
+    saveAccount(saved, storage)
+    let calls = 0
+    let consent = true
+
+    const server = http.createServer(async (req, res) => {
+      res.setHeader('Content-Type', 'application/json')
+
+      if (req.url?.includes('action=config')) {
+        res.end(JSON.stringify(config))
+
+        return
+      }
+
+      if (req.url?.includes('/oauth/token')) {
+        res.end(
+          JSON.stringify({
+            token_type: 'bearer',
+            access_token: 'test-access',
+            refresh_token: 'rotated',
+            expires_in: 3600
+          })
+        )
+
+        return
+      }
+
+      expect(req.headers.authorization).toBe('Bearer test-access')
+
+      if (req.url === '/api/teams') {
+        calls++
+        const chunks: Buffer[] = []
+
+        for await (const chunk of req) {chunks.push(chunk)}
+        const command = JSON.parse(Buffer.concat(chunks).toString())
+        expect(command.expectedUserId).toBe(user)
+        expect(command).not.toHaveProperty('accessToken')
+
+        if (!consent) {
+          res.statusCode = 403
+          res.end(JSON.stringify({ code: 'team_consent_required' }))
+
+          return
+        }
+
+        res.end(JSON.stringify({ userId: user, teams: [{ id: client, name: 'Private team', role: 'member' }] }))
+
+        return
+      }
+
+      res.end(JSON.stringify(snapshot()))
+    })
+
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+    const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`
+
+    const account = new SynapsekAccount(
+      origin,
+      storage,
+      async () => {},
+      (url, init, max) => accountJson(base + new URL(url).pathname + new URL(url).search, init, max)
+    )
+
+    try {
+      const command = { action: 'list', data: {}, expectedUserId: user }
+      expect((await account.teamRequest(command)).teams[0].name).toBe('Private team')
+      await expect(account.teamRequest({ ...command, expectedUserId: client })).rejects.toThrow('account_mismatch')
+      expect(calls).toBe(1)
+      consent = false
+      await expect(account.teamRequest(command)).rejects.toThrow('team_consent_required')
+      await account.forgetLocal()
+      await expect(account.teamRequest(command)).rejects.toThrow('account_mismatch')
+      expect(calls).toBe(2)
+    } finally {
+      await new Promise<void>(resolve => server.close(() => resolve()))
+    }
+  })
   it('waits for the exact browser binding before persisting and revokes rejected sessions over real HTTP', async () => {
     for (const approve of [true, false]) {
       const { storage } = fileStore()
-      let base = '', issuedChallenge = '', opened = false, reads = 0, revoked = false
+
+      let base = '',
+        issuedChallenge = '',
+        opened = false,
+        reads = 0,
+        revoked = false
 
       const server = http.createServer(async (req, res) => {
         const url = new URL(req.url!, base)
@@ -99,7 +184,10 @@ describe('Synapsek native account', () => {
         if (url.searchParams.get('action') === 'bind') {
           const chunks = []
 
-          for await (const chunk of req) {chunks.push(chunk)}
+          for await (const chunk of req) {
+            chunks.push(chunk)
+          }
+
           issuedChallenge = JSON.parse(Buffer.concat(chunks).toString()).challenge
           expect(issuedChallenge).toMatch(/^[a-f0-9]{64}$/)
           res.end(JSON.stringify({ expiresAt: new Date(Date.now() + 60000).toISOString() }))
@@ -111,8 +199,9 @@ describe('Synapsek native account', () => {
           expect(loadAccount(storage)).toBeNull()
           reads++
 
-          if (approve && reads > 1) {res.end(JSON.stringify(snapshot()))}
-          else {
+          if (approve && reads > 1) {
+            res.end(JSON.stringify(snapshot()))
+          } else {
             res.statusCode = approve ? 403 : 401
             res.end(JSON.stringify({ code: approve ? 'session_binding_required' : 'session_revoked' }))
           }
@@ -123,13 +212,21 @@ describe('Synapsek native account', () => {
       base = `http://127.0.0.1:${(server.address() as { port: number }).port}`
 
       try {
-        const account = new SynapsekAccount(base, storage, async url => {
-          expect(url).toBe(`${base}/desktop/authorize#binding=${issuedChallenge}`)
-          expect(url).not.toContain('native-test-token')
-          opened = true
-        }, accountJson, async () => ({
-          accessToken: 'native-test-token', refreshToken: 'private-refresh', expiresAt: Date.now() + 3600000
-        }))
+        const account = new SynapsekAccount(
+          base,
+          storage,
+          async url => {
+            expect(url).toBe(`${base}/desktop/authorize#binding=${issuedChallenge}`)
+            expect(url).not.toContain('native-test-token')
+            opened = true
+          },
+          accountJson,
+          async () => ({
+            accessToken: 'native-test-token',
+            refreshToken: 'private-refresh',
+            expiresAt: Date.now() + 3600000
+          })
+        )
 
         if (approve) {
           expect((await account.signIn()).state).toBe('signed_in')
@@ -182,7 +279,9 @@ describe('Synapsek native account', () => {
     let refreshes = 0
 
     const api = async (url: string) => {
-      if (url.endsWith('action=config')) {return config}
+      if (url.endsWith('action=config')) {
+        return config
+      }
 
       if (url === config.tokenUrl) {
         refreshes++
@@ -226,9 +325,9 @@ describe('Synapsek native account', () => {
           ? config
           : url.endsWith('action=bind')
             ? { expiresAt: new Date(Date.now() + 60000).toISOString() }
-          : url.endsWith('action=revoke')
-            ? { revoked: true, refreshRevoked: true }
-            : snapshot(id),
+            : url.endsWith('action=revoke')
+              ? { revoked: true, refreshRevoked: true }
+              : snapshot(id),
       async () => ({ accessToken: 'access', refreshToken: 'refresh', expiresAt: Date.now() + 3600000 })
     )
 
@@ -304,11 +403,17 @@ describe('Synapsek native account', () => {
       storage,
       async () => {},
       async url => {
-        if (url.endsWith('action=config')) {return config}
+        if (url.endsWith('action=config')) {
+          return config
+        }
 
-        if (url.endsWith('action=bind')) {return { expiresAt: new Date(Date.now() + 60000).toISOString() }}
+        if (url.endsWith('action=bind')) {
+          return { expiresAt: new Date(Date.now() + 60000).toISOString() }
+        }
 
-        if (url.endsWith('action=revoke')) {return { revoked: true, refreshRevoked: ++revocations > 1 }}
+        if (url.endsWith('action=revoke')) {
+          return { revoked: true, refreshRevoked: ++revocations > 1 }
+        }
 
         return snapshot()
       },
@@ -341,9 +446,9 @@ describe('Synapsek native account', () => {
           ? config
           : url.endsWith('action=bind')
             ? { expiresAt: new Date(Date.now() + 60000).toISOString() }
-          : url.endsWith('action=revoke')
-            ? { revoked: true, refreshRevoked: true }
-            : snapshot()
+            : url.endsWith('action=revoke')
+              ? { revoked: true, refreshRevoked: true }
+              : snapshot()
       },
       async () => ({ accessToken: 'access', refreshToken: 'refresh', expiresAt: Date.now() + 3600000 })
     )

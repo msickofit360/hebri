@@ -4,7 +4,7 @@ import { AccountError } from './synapsek-account'
 import { getSynapsekAccount } from './synapsek-account-runtime'
 
 export function registerSynapsekAccountIpc(rendererUrl: () => string) {
-  ipcMain.handle('hebri:synapsek-account', async (event, operation: unknown) => {
+  ipcMain.handle('hebri:synapsek-account', async (event, operation: unknown, payload: unknown) => {
     try {
       const frame = event.senderFrame
 
@@ -23,11 +23,14 @@ export function registerSynapsekAccountIpc(rendererUrl: () => string) {
         throw new AccountError('forbidden')
       }
 
-      if (!['status', 'signIn', 'signOut', 'openBilling', 'forgetLocal'].includes(String(operation))) {
+      if (!['status', 'signIn', 'signOut', 'openBilling', 'forgetLocal', 'teams'].includes(String(operation))) {
         throw new AccountError('invalid_operation')
       }
 
       const account = getSynapsekAccount()
+
+      if (operation === 'teams')
+        {return { ok: true, value: await account.teamRequest(payload as Parameters<typeof account.teamRequest>[0]) }}
 
       const result =
         operation === 'status'
@@ -39,6 +42,10 @@ export function registerSynapsekAccountIpc(rendererUrl: () => string) {
               : operation === 'forgetLocal'
                 ? await account.forgetLocal()
                 : await account.openBilling()
+
+      if (['signIn', 'signOut', 'forgetLocal'].includes(String(operation))) {
+        for (const window of BrowserWindow.getAllWindows()) {window.webContents.send('hebri:synapsek-account-changed')}
+      }
 
       return { ok: true, value: result ?? null }
     } catch (error) {

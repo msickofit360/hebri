@@ -21,6 +21,12 @@ export {}
 declare global {
   interface Window {
     hermesDesktop: {
+      synapsekTeams?: (command: {
+        action: string
+        data: Record<string, string>
+        expectedUserId: string
+      }) => Promise<{ ok: true; value: any } | { ok: false; code: string }>
+      onSynapsekAccountChanged?: (callback: () => void) => () => void
       synapsekAccount?: (
         operation: 'status' | 'signIn' | 'signOut' | 'openBilling' | 'forgetLocal'
       ) => Promise<{ ok: true; value: SynapsekAccountView | null } | { ok: false; code: string }>
