@@ -4,7 +4,8 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'vitest'
-import { parseUpdateInfo, resolveFiles } from 'electron-updater/out/providers/Provider.js'
+import { findFile, parseUpdateInfo, resolveFiles } from 'electron-updater/out/providers/Provider.js'
+import { MacUpdater } from 'electron-updater/out/MacUpdater.js'
 import { mergeMacUpdateFeed } from './merge-mac-update-feed.mjs'
 
 test('the published feed resolves both architectures to their own real release bytes', async () => {
@@ -24,11 +25,11 @@ test('the published feed resolves both architectures to their own real release b
     const info = parseUpdateInfo(body, 'latest-mac.yml', new URL('latest-mac.yml', base))
     const resolved = resolveFiles(info, base)
     for (const arch of ['x64', 'arm64']) {
-      const zip = resolved.filter(file => file.url.pathname.endsWith(`-mac-${arch}.zip`))
-      assert.equal(zip.length, 1)
+      const zip = findFile(MacUpdater.filterFilesForArch(resolved, arch === 'arm64'), 'zip', ['pkg', 'dmg'])
+      assert.ok(zip?.url.pathname.endsWith(`-mac-${arch}.zip`))
       const bytes = await readFile(join(directory, `Hebri-${version}-mac-${arch}.zip`))
-      assert.equal(zip[0].info.size, bytes.length)
-      assert.equal(zip[0].info.sha512, createHash('sha512').update(bytes).digest('base64'))
+      assert.equal(zip.info.size, bytes.length)
+      assert.equal(zip.info.sha512, createHash('sha512').update(bytes).digest('base64'))
     }
     assert.equal(info.path, `Hebri-${version}-mac-x64.zip`)
     assert.equal(info.sha512, resolved[0].info.sha512)
