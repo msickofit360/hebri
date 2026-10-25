@@ -9,10 +9,20 @@ def test_desktop_provider_resolves_across_homes_and_executes_tool_followup(tmp_p
     from hermes_cli.runtime_provider import resolve_runtime_provider
     from agent.transports.chat_completions import ChatCompletionsTransport
     from openai import OpenAI
+    from hermes_cli.models import provider_model_ids
 
     requests = []
+    catalog_requests = []
+    active_catalog = ['synapsek-auto', 'fixture/paid-model']
 
     class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            assert self.path == '/v1/models'
+            assert self.headers['Authorization'] == 'Bearer process-capability'
+            catalog_requests.append(self.path)
+            out = json.dumps({'data': [{'id': model} for model in active_catalog]}).encode()
+            self.send_response(200); self.send_header('Content-Type', 'application/json'); self.end_headers(); self.wfile.write(out)
+
         def do_POST(self):
             assert self.path == '/v1/chat/completions'
             assert self.headers['Authorization'] == 'Bearer process-capability'
@@ -39,6 +49,11 @@ def test_desktop_provider_resolves_across_homes_and_executes_tool_followup(tmp_p
             monkeypatch.setenv('HERMES_HOME', str(home))
             profile = get_provider_profile('synapsek')
             assert profile and profile.default_aux_model == 'synapsek-auto'
+            active_catalog[:] = ['synapsek-auto', f'fixture/{name}-model']
+            # Exercise the actual picker discovery, not just the completion SDK.
+            # The profile intentionally has no static server address.
+            assert not profile.base_url
+            assert provider_model_ids('synapsek', force_refresh=True) == active_catalog
             runtime = resolve_runtime_provider(requested='synapsek', target_model='synapsek-auto')
             assert runtime['base_url'] == f'http://127.0.0.1:{server.server_port}/v1'
             assert runtime['api_key'] == 'process-capability'
@@ -58,8 +73,11 @@ def test_desktop_provider_resolves_across_homes_and_executes_tool_followup(tmp_p
             if (home / 'auth.json').exists():
                 assert 'process-capability' not in (home / 'auth.json').read_text()
         assert len(requests) == 6
+        assert len(catalog_requests) == 3
         monkeypatch.delenv('HEBRI_SYNAPSEK_BRIDGE_TOKEN')
         from hermes_cli.auth import resolve_api_key_provider_credentials
         assert not resolve_api_key_provider_credentials('synapsek')['api_key']
+        assert provider_model_ids('synapsek', force_refresh=True) == ['synapsek-auto']
+        assert len(catalog_requests) == 3
     finally:
         server.shutdown(); server.server_close(); worker.join()

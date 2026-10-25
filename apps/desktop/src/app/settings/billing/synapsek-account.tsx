@@ -7,6 +7,7 @@ import type { SynapsekAccountView } from '../../../../electron/synapsek-account-
 
 import { billingCopy } from './billing-copy'
 import { accountCopy } from './synapsek-account-copy'
+import { developerCopy } from './synapsek-developer-copy'
 import { usageCopy } from './synapsek-usage-copy'
 
 const messages: Record<string, string> = {
@@ -25,6 +26,7 @@ export function SynapsekAccountSettings() {
   const copy = accountCopy[locale]
   const usageText = usageCopy[locale]
   const billingText = billingCopy[locale]
+  const developerText = developerCopy[locale]
   const [view, setView] = useState<SynapsekAccountView>({ state: 'signed_out' })
   const [available, setAvailable] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -97,20 +99,26 @@ export function SynapsekAccountSettings() {
             <div>
               <dt className="text-sm text-muted-foreground">{billingText.plan}</dt>
               <dd className="mt-1 text-2xl font-semibold capitalize">
-                {view.account.billing.sku || view.account.billing.plan}
+                {view.account.developerAccess
+                  ? developerText.plan
+                  : view.account.billing.sku || view.account.billing.plan}
               </dd>
               <dd className="text-sm text-muted-foreground">{view.account.billing.status}</dd>
             </div>
             <div>
               <dt className="text-sm text-muted-foreground">{copy.credits}</dt>
               <dd className="mt-1 text-2xl font-semibold">
-                {view.account.billing.includedMonthlyCredits.toLocaleString(locale)}
+                {view.account.developerAccess
+                  ? developerText.quota
+                  : view.account.billing.includedMonthlyCredits.toLocaleString(locale)}
               </dd>
             </div>
           </dl>
-          {view.account.billing.accessSource === 'admin' && view.account.billing.includedMonthlyCredits === 0 && (
-            <p className="text-sm text-muted-foreground">{billingText.managed}</p>
-          )}
+          {!view.account.developerAccess &&
+            view.account.billing.accessSource === 'admin' &&
+            view.account.billing.includedMonthlyCredits === 0 && (
+              <p className="text-sm text-muted-foreground">{billingText.managed}</p>
+            )}
         </div>
       )}
       {view.account?.usage && (
@@ -137,7 +145,11 @@ export function SynapsekAccountSettings() {
         </p>
       )}
       <p className="text-sm text-muted-foreground">
-        {view.account?.managedInferenceEnabled ? usageText.enabled : billingText.disabled}
+        {view.account?.managedInferenceEnabled
+          ? view.account.developerAccess
+            ? developerText.usage
+            : usageText.enabled
+          : billingText.disabled}
       </p>
       <div className="flex flex-wrap gap-2">
         <Button disabled={busy} onClick={() => void run('openBilling')}>

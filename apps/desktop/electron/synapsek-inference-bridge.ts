@@ -139,7 +139,25 @@ export async function startSynapsekInferenceBridge(account: ManagedAccount) {
       }
     } catch (error) {
       const code = error instanceof AccountError ? error.code : 'managed_inference_unavailable'
-      const status = code === 'shared_budget_exhausted' ? 402 : code === 'request_already_submitted' ? 409 : 400
+
+      const status =
+        code === 'shared_budget_exhausted'
+          ? 402
+          : ['request_already_submitted', 'restart_after_account_switch'].includes(code)
+            ? 409
+            : [
+                  'inference_not_enabled',
+                  'personal_paid_plan_required',
+                  'manual_model_not_in_plan',
+                  'developer_access_revoked'
+                ].includes(code)
+              ? 403
+              : code === 'too_many_requests'
+                ? 429
+                : code === 'managed_inference_unavailable' || code === 'developer_access_unavailable'
+                  ? 503
+                  : 400
+
       fail(status, code)
     }
   })
@@ -205,6 +223,9 @@ export async function managedInferenceJson(url: string, init: RequestInit) {
         'request_budget_too_large',
         'model_or_context_unavailable',
         'manual_model_not_in_plan',
+        'developer_access_revoked',
+        'developer_access_unavailable',
+        'too_many_requests',
         'usage_settlement_pending'
       ]
 
