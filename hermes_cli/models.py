@@ -1556,9 +1556,13 @@ def _profile_live_catalog(normalized: str) -> Optional[list[str]]:
         # Same merge as setup (`_model_flow_plugin_provider`) so /model, the Desktop picker and
         # `hermes model` offer one list: live ids plus any pinned id the probe omitted.
         return merge_profile_catalog(normalized, profile, list(live) if live else None)
-    if not (profile.auth_type == "api_key" and profile.base_url):
+    if profile.auth_type != "api_key":
         return list(profile.fallback_models) or None
     api_key, base_url = _api_key_credentials(normalized)
+    # Desktop-managed providers resolve a process-local address with their
+    # credentials. An empty static default must not suppress live discovery.
+    if not (base_url or profile.base_url):
+        return list(profile.fallback_models) or None
     return probe_profile_catalog(normalized, profile, api_key, base_url or profile.base_url or None)
 
 

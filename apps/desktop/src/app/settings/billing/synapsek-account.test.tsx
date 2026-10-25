@@ -19,6 +19,36 @@ afterEach(() => {
 })
 
 describe('Synapsek account controls', () => {
+  it('labels sponsored developer usage without inventing purchased credits or quota', async () => {
+    window.hermesDesktop = {
+      ...previous,
+      synapsekAccount: vi.fn(async () => ({
+        ok: true,
+        value: {
+          state: 'signed_in',
+          account: {
+            userId: 'a',
+            email: 'developer@example.com',
+            developerAccess: true,
+            managedInferenceEnabled: true,
+            billing: {
+              plan: 'business',
+              sku: null,
+              status: 'managed',
+              accessSource: 'admin',
+              includedMonthlyCredits: 0
+            }
+          }
+        }
+      }))
+    } as NonNullable<typeof window.hermesDesktop>
+    render(<SynapsekAccountSettings />)
+    expect(await screen.findByText('Developer access')).toBeTruthy()
+    expect(screen.getByText('No monthly credit quota')).toBeTruthy()
+    expect(screen.getByText(/Purchased credits are not charged/)).toBeTruthy()
+    expect(screen.queryByText(/Admin-managed access/)).toBeNull()
+    expect(screen.queryByText(/Each model call/)).toBeNull()
+  })
   it('displays read-only balances when inference is off without claiming teams are disabled', async () => {
     window.hermesDesktop = {
       ...previous,

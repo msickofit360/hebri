@@ -213,6 +213,7 @@ export function parseAccountSnapshot(value: any): AccountSnapshot {
     userId: value.userId,
     email: value.email,
     managedInferenceEnabled: value.managedInferenceEnabled === true,
+    developerAccess: value.developerAccess === true,
     ...(safeUsage ? { usage: safeUsage } : {}),
     billing: {
       plan: b.plan,

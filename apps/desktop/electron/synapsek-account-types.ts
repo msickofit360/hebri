@@ -3,6 +3,7 @@ export interface AccountSnapshot {
   userId: string
   email: string
   managedInferenceEnabled?: boolean
+  developerAccess?: boolean
   usage?: {
     period: string
     remainingIncludedCredits: number
