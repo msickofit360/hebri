@@ -48,14 +48,12 @@ afterEach(() => {
 })
 
 describe('onboarding Picker', () => {
-  it('features Nous Portal and hides other providers behind a disclosure', () => {
+  it('opens Synapsek account settings and excludes Nous from the provider choices', () => {
     setProviders([makeOAuthProvider('anthropic', 'Anthropic Claude'), makeOAuthProvider('nous', 'Nous Portal')])
     render(<Picker ctx={ctx} />)
 
-    expect(screen.getByText('Nous Portal')).toBeTruthy()
-    expect(screen.getByText('Recommended')).toBeTruthy()
-    // Fireworks stays behind the disclosure with the other alternatives; only
-    // Nous Portal is visible before the user expands the list.
+    expect(screen.getByText('Synapsek Labs')).toBeTruthy()
+    expect(screen.queryByText('Nous Portal')).toBeNull()
     expect(screen.queryByText('Fireworks AI')).toBeNull()
     expect(screen.queryByText('Anthropic API Key')).toBeNull()
 
@@ -64,20 +62,19 @@ describe('onboarding Picker', () => {
     expect(screen.getByText('Fireworks AI')).toBeTruthy()
     expect(screen.getByText('Anthropic API Key')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Collapse' })).toBeTruthy()
+    expect(screen.queryByText('Nous Portal')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Synapsek Labs/ }))
+    expect(window.location.hash).toBe('#/settings?tab=billing')
+    expect($desktopOnboarding.get().firstRunSkipped).toBe(true)
+    expect($desktopOnboarding.get().flow.status).toBe('idle')
   })
 
-  it('shows every provider directly when Nous Portal is absent', () => {
-    setProviders([
-      makeOAuthProvider('anthropic', 'Anthropic Claude'),
-      makeOAuthProvider('openai-codex', 'OpenAI Codex / ChatGPT')
-    ])
+  it('keeps Synapsek reachable without backend OAuth providers', () => {
+    setProviders([])
     render(<Picker ctx={ctx} />)
 
-    expect(screen.getByText('Fireworks AI')).toBeTruthy()
-    expect(screen.getByText('Anthropic API Key')).toBeTruthy()
-    expect(screen.getByText('ChatGPT or Codex Subscription')).toBeTruthy()
-    expect(screen.queryByText('Other sign-in options')).toBeNull()
-    expect(screen.queryByText('Recommended')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Synapsek Labs/ }))
+    expect(window.location.hash).toBe('#/settings?tab=billing')
   })
 
   it('offers "choose later" on first run and persists the skip', () => {
