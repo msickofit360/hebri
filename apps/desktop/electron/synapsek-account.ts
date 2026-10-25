@@ -615,8 +615,8 @@ export class SynapsekAccount {
       return { state: 'signed_out' }
     })
   }
-  openBilling() {
-    return this.open(`${this.origin}/billing`)
+  openBilling(section: 'overview' | 'credits' = 'overview') {
+    return this.open(`${this.origin}/billing${section === 'credits' ? '?section=credits' : ''}`)
   }
   async teamRequest(command: { action: string; data: Record<string, string>; expectedUserId: string }) {
     const actions = [

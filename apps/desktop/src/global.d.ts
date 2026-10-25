@@ -28,7 +28,7 @@ declare global {
       }) => Promise<{ ok: true; value: any } | { ok: false; code: string }>
       onSynapsekAccountChanged?: (callback: () => void) => () => void
       synapsekAccount?: (
-        operation: 'status' | 'signIn' | 'signOut' | 'openBilling' | 'forgetLocal'
+        operation: 'status' | 'signIn' | 'signOut' | 'openBilling' | 'openCredits' | 'forgetLocal'
       ) => Promise<{ ok: true; value: SynapsekAccountView | null } | { ok: false; code: string }>
       // Resolve a backend connection. Omit `profile` (or pass the primary) for
       // the window's backend; pass a named profile to lazily spawn/reuse that
