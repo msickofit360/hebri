@@ -4,7 +4,7 @@ import http from 'node:http'
 import os from 'node:os'
 import path from 'node:path'
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   accountJson,
@@ -25,6 +25,14 @@ afterEach(() => {
 const user = '11111111-1111-4111-8111-111111111111'
 const client = '33333333-3333-4333-8333-333333333333'
 const origin = 'https://synapsek.example'
+
+it('opens billing and credit management only at the configured Synapsek origin without credentials', async () => {
+  const open = vi.fn(async (_url: string) => {})
+  const account = new SynapsekAccount(origin, {} as AccountStorage, open)
+  await account.openBilling()
+  await account.openBilling('credits')
+  expect(open.mock.calls.map(call => call[0])).toEqual([`${origin}/billing`, `${origin}/billing?section=credits`])
+})
 
 const config = {
   version: 1 as const,
@@ -115,7 +123,10 @@ describe('Synapsek native account', () => {
         calls++
         const chunks: Buffer[] = []
 
-        for await (const chunk of req) {chunks.push(chunk)}
+        for await (const chunk of req) {
+          chunks.push(chunk)
+        }
+
         const command = JSON.parse(Buffer.concat(chunks).toString())
         expect(command.expectedUserId).toBe(user)
         expect(command).not.toHaveProperty('accessToken')

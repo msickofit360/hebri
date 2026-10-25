@@ -11,6 +11,7 @@
  * to the relay endpoints; "Leave" restores the local view.
  */
 
+import { useStore } from '@nanostores/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
@@ -45,12 +46,16 @@ import { Input } from '@/components/ui/input'
 import { Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
+import { $activeGatewayProfile } from '@/store/profile'
+import { $connection } from '@/store/session'
 
 import { RightSidebarSectionHeader } from '../index'
 
 import { teamHelp } from './help-copy'
 import { HostedTeamPane } from './hosted'
 import { hostedCopy } from './hosted-copy'
+import { shareCopy } from './share-copy'
+import { ShareRoom } from './share-room'
 
 const POLL_MS = 3000
 const NAME_KEY = 'hebri.team.name'
@@ -111,7 +116,9 @@ function loadRelay(): TeamRelay | null {
   const grant = readSession(RELAY_KEYS.grant)
   const roomId = readLocal(RELAY_KEYS.roomId)
 
-  if (!base || !peer || !grant || !roomId) {return null}
+  if (!base || !peer || !grant || !roomId) {
+    return null
+  }
 
   try {
     return {
@@ -135,7 +142,10 @@ function saveRelay(r: TeamRelay): void {
 }
 
 function clearRelay(): void {
-  for (const k of Object.values(RELAY_KEYS)) {removeLocal(k)}
+  for (const k of Object.values(RELAY_KEYS)) {
+    removeLocal(k)
+  }
+
   removeLocal('hebri.relay.code') // remove invite persisted by pre-hardening builds
 
   try {
@@ -157,22 +167,32 @@ export function TeamPane() {
   const { locale } = useI18n()
   const copy = hostedCopy[locale]
   const [hosted, setHosted] = useState(true)
+  const connection = useStore($connection)
+  const profile = useStore($activeGatewayProfile)
+
   return (
     <div>
       <div className="flex gap-2 p-3">
-        <Button size="sm" variant={hosted ? 'default' : 'outline'} onClick={() => setHosted(true)}>
+        <Button onClick={() => setHosted(true)} size="sm" variant={hosted ? 'default' : 'outline'}>
           {copy.title}
         </Button>
-        <Button size="sm" variant={!hosted ? 'default' : 'outline'} onClick={() => setHosted(false)}>
+        <Button onClick={() => setHosted(false)} size="sm" variant={!hosted ? 'default' : 'outline'}>
           {copy.local}
         </Button>
       </div>
-      {hosted ? <HostedTeamPane /> : <LocalTeamPane />}
+      {hosted ? (
+        <HostedTeamPane />
+      ) : (
+        <LocalTeamPane
+          baseUrl={connection?.baseUrl || ''}
+          key={`${connection?.connectionId}:${connection?.baseUrl}:${profile}`}
+        />
+      )}
     </div>
   )
 }
 
-function LocalTeamPane() {
+function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
   const { locale } = useI18n()
   const help = teamHelp[locale]
   const [name, setName] = useState<string>(() => readLocal(NAME_KEY) ?? '')
@@ -213,13 +233,18 @@ function LocalTeamPane() {
   }
 
   const loadRooms = useCallback(async () => {
-    if (relay) {return}
+    if (relay) {
+      return
+    }
 
     try {
       const data = await listTeamRooms()
       setRooms(data.rooms ?? [])
       setRoomId(current => {
-        if (data.rooms?.some(r => r.id === current)) {return current}
+        if (data.rooms?.some(r => r.id === current)) {
+          return current
+        }
+
         const fallback = data.rooms?.[0]?.id ?? 'general'
         writeLocal(ROOM_KEY, fallback)
 
@@ -258,7 +283,9 @@ function LocalTeamPane() {
       return
     }
 
-    if (!roomId) {return}
+    if (!roomId) {
+      return
+    }
 
     try {
       const data = await listTeamMessages(roomId, sinceSeq.current)
@@ -279,9 +306,7 @@ function LocalTeamPane() {
 
   const loadPresence = useCallback(async () => {
     try {
-      const data = relay
-        ? await relayGetPresence(relay)
-        : await getTeamPresence()
+      const data = relay ? await relayGetPresence(relay) : await getTeamPresence()
 
       setOnline(data.online ?? [])
     } catch {
@@ -302,7 +327,10 @@ function LocalTeamPane() {
     let cancelled = false
 
     const tick = async () => {
-      if (cancelled) {return}
+      if (cancelled) {
+        return
+      }
+
       await Promise.all([loadRooms(), loadMessages(), loadPresence(), loadWork()])
     }
 
@@ -330,7 +358,9 @@ function LocalTeamPane() {
       return () => window.clearInterval(id)
     }
 
-    if (!name.trim()) {return}
+    if (!name.trim()) {
+      return
+    }
 
     const beat = () => {
       updateTeamPresence(name.trim(), status.trim()).catch(() => {
@@ -347,19 +377,30 @@ function LocalTeamPane() {
   useEffect(() => {
     const el = scrollRef.current
 
-    if (!el) {return}
+    if (!el) {
+      return
+    }
+
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120
 
-    if (nearBottom) {el.scrollTop = el.scrollHeight}
+    if (nearBottom) {
+      el.scrollTop = el.scrollHeight
+    }
   }, [messages])
 
   const send = async () => {
     const text = draft.trim()
 
-    if (!text) {return}
+    if (!text) {
+      return
+    }
+
     const identity = relay ? relay.peer : name.trim()
 
-    if (!identity) {return}
+    if (!identity) {
+      return
+    }
+
     setDraft('')
     setError('')
 
@@ -385,16 +426,6 @@ function LocalTeamPane() {
       setShared({ roomId: r.id, code: data.room.code })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Share failed')
-    }
-  }
-
-  const copyCode = async () => {
-    if (!shared) {return}
-
-    try {
-      await navigator.clipboard.writeText(shared.code)
-    } catch {
-      /* clipboard blocked; code is visible to copy manually */
     }
   }
 
@@ -451,7 +482,10 @@ function LocalTeamPane() {
   const addWork = async () => {
     const title = newWork.trim()
 
-    if (!title) {return}
+    if (!title) {
+      return
+    }
+
     setError('')
 
     try {
@@ -469,7 +503,7 @@ function LocalTeamPane() {
   }
 
   const setWorkStatus = async (item: TeamWorkItem, status: TeamWorkStatus) => {
-    setWork(rows => rows.map(row => row.id === item.id ? { ...row, status } : row))
+    setWork(rows => rows.map(row => (row.id === item.id ? { ...row, status } : row)))
 
     try {
       if (relay) {
@@ -486,13 +520,10 @@ function LocalTeamPane() {
   }
 
   return (
-    <aside
-      aria-label="Team chat"
-      className="flex h-full w-full min-w-0 flex-col gap-3 overflow-hidden p-3 text-xs"
-    >
+    <aside aria-label="Team chat" className="flex h-full w-full min-w-0 flex-col gap-3 overflow-hidden p-3 text-xs">
       <details className="shrink-0 text-muted-foreground">
-        <summary className="cursor-pointer font-medium text-foreground">{help.title}</summary>
-        <p className="mt-2">{help.local}</p>
+        <summary className="cursor-pointer font-medium text-foreground">{shareCopy[locale].title}</summary>
+        <p className="mt-2">{shareCopy[locale].help}</p>
         <p className="mt-2">{help.join}</p>
         <p className="mt-2">{help.privacy}</p>
       </details>
@@ -501,9 +532,7 @@ function LocalTeamPane() {
         <div className="flex shrink-0 items-center justify-between gap-2 rounded border border-border bg-muted/20 px-2 py-1.5">
           <div className="flex min-w-0 items-center gap-1.5">
             <span className="shrink-0 font-semibold">{relay.roomName}</span>
-            <span className="truncate text-muted-foreground">
-              via {relay.base.replace(/^https?:\/\//, '')}
-            </span>
+            <span className="truncate text-muted-foreground">via {relay.base.replace(/^https?:\/\//, '')}</span>
           </div>
           <Tip label="Leave cross-machine room (back to local)">
             <Button
@@ -521,12 +550,7 @@ function LocalTeamPane() {
         /* Identity */
         <div className="flex shrink-0 flex-col gap-1.5">
           <RightSidebarSectionHeader>You</RightSidebarSectionHeader>
-          <Input
-            maxLength={32}
-            onChange={e => persistName(e.target.value)}
-            placeholder="Your name"
-            value={name}
-          />
+          <Input maxLength={32} onChange={e => persistName(e.target.value)} placeholder="Your name" value={name} />
           <Input
             maxLength={120}
             onChange={e => persistStatus(e.target.value)}
@@ -542,11 +566,7 @@ function LocalTeamPane() {
         <div className="flex max-h-28 flex-col gap-1 overflow-y-auto">
           {online.length === 0 && (
             <div className="text-muted-foreground">
-              {relay
-                ? 'waiting for teammates…'
-                : name.trim()
-                  ? 'just you (for now)'
-                  : 'add your name above'}
+              {relay ? 'waiting for teammates…' : name.trim() ? 'just you (for now)' : 'add your name above'}
             </div>
           )}
           {online.map(p => (
@@ -561,43 +581,52 @@ function LocalTeamPane() {
       {/* Shared human work board. Bots can read this feed through their
           gated team_context tool, but cannot silently edit it. */}
       <div className="flex shrink-0 flex-col gap-1.5">
-          <RightSidebarSectionHeader>Current work</RightSidebarSectionHeader>
-          <div className="flex max-h-36 flex-col gap-1 overflow-y-auto">
-            {work.length === 0 && <div className="text-muted-foreground">No work items yet.</div>}
-            {work.map(item => (
-              <div className="flex items-center gap-1.5 rounded border border-border px-1.5 py-1" key={item.id}>
-                <select
-                  aria-label={`Status for ${item.title}`}
-                  className="max-w-24 rounded border border-border bg-background px-1 py-0.5 text-[0.65rem]"
-                  onChange={event => void setWorkStatus(item, event.target.value as TeamWorkStatus)}
-                  value={item.status}
-                >
-                  <option value="backlog">Backlog</option>
-                  <option value="in_progress">Doing</option>
-                  <option value="blocked">Blocked</option>
-                  <option value="done">Done</option>
-                </select>
-                <span className={cn('min-w-0 flex-1 truncate', item.status === 'done' && 'text-muted-foreground line-through')}>
-                  {item.title}
-                </span>
-                {item.owner && <span className="max-w-20 truncate text-[0.65rem] text-muted-foreground">{item.owner}</span>}
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-1.5">
-            <Input
-              maxLength={160}
-              onChange={event => setNewWork(event.target.value)}
-              onKeyDown={event => {
-                if (event.key === 'Enter') {void addWork()}
-              }}
-              placeholder="Add team work…"
-              value={newWork}
-            />
-            <Button disabled={!newWork.trim()} onClick={() => void addWork()} size="sm">
-              Add
-            </Button>
-          </div>
+        <RightSidebarSectionHeader>Current work</RightSidebarSectionHeader>
+        <div className="flex max-h-36 flex-col gap-1 overflow-y-auto">
+          {work.length === 0 && <div className="text-muted-foreground">No work items yet.</div>}
+          {work.map(item => (
+            <div className="flex items-center gap-1.5 rounded border border-border px-1.5 py-1" key={item.id}>
+              <select
+                aria-label={`Status for ${item.title}`}
+                className="max-w-24 rounded border border-border bg-background px-1 py-0.5 text-[0.65rem]"
+                onChange={event => void setWorkStatus(item, event.target.value as TeamWorkStatus)}
+                value={item.status}
+              >
+                <option value="backlog">Backlog</option>
+                <option value="in_progress">Doing</option>
+                <option value="blocked">Blocked</option>
+                <option value="done">Done</option>
+              </select>
+              <span
+                className={cn(
+                  'min-w-0 flex-1 truncate',
+                  item.status === 'done' && 'text-muted-foreground line-through'
+                )}
+              >
+                {item.title}
+              </span>
+              {item.owner && (
+                <span className="max-w-20 truncate text-[0.65rem] text-muted-foreground">{item.owner}</span>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-1.5">
+          <Input
+            maxLength={160}
+            onChange={event => setNewWork(event.target.value)}
+            onKeyDown={event => {
+              if (event.key === 'Enter') {
+                void addWork()
+              }
+            }}
+            placeholder="Add team work…"
+            value={newWork}
+          />
+          <Button disabled={!newWork.trim()} onClick={() => void addWork()} size="sm">
+            Add
+          </Button>
+        </div>
       </div>
 
       {/* Rooms (local mode only) */}
@@ -648,27 +677,12 @@ function LocalTeamPane() {
             />
           </div>
           {shared && (
-            <div className="flex items-center gap-1.5 rounded border border-border bg-muted/20 px-2 py-1">
-              <span className="text-muted-foreground">
-                “{rooms.find(r => r.id === shared.roomId)?.name ?? shared.roomId}” code:
-              </span>
-              <span className="font-mono font-semibold tracking-widest">{shared.code}</span>
-              <button
-                className="ml-auto text-muted-foreground hover:text-foreground"
-                onClick={() => void copyCode()}
-                type="button"
-              >
-                copy
-              </button>
-              <button
-                aria-label="Dismiss share code"
-                className="text-muted-foreground hover:text-foreground"
-                onClick={() => setShared(null)}
-                type="button"
-              >
-                ×
-              </button>
-            </div>
+            <ShareRoom
+              baseUrl={baseUrl}
+              code={shared.code}
+              key={`${shared.roomId}:${shared.code}`}
+              onClose={() => setShared(null)}
+            />
           )}
         </div>
       )}
@@ -685,18 +699,16 @@ function LocalTeamPane() {
           </button>
           {relayOpen && (
             <div className="flex flex-col gap-1.5 rounded border border-border bg-muted/10 p-2">
-              <Input
-                onChange={e => setJoinBase(e.target.value)}
-                placeholder="HTTPS host URL"
-                value={joinBase}
-              />
+              <Input onChange={e => setJoinBase(e.target.value)} placeholder="HTTPS host URL" value={joinBase} />
               <div className="flex gap-1.5">
                 <Input
                   className="flex-1 font-mono"
                   maxLength={128}
                   onChange={e => setJoinCode(e.target.value.trim().slice(0, 128))}
                   onKeyDown={e => {
-                    if (e.key === 'Enter') {void joinRelay()}
+                    if (e.key === 'Enter') {
+                      void joinRelay()
+                    }
                   }}
                   placeholder="room invite"
                   value={joinCode}
@@ -712,9 +724,7 @@ function LocalTeamPane() {
               <Button disabled={joining} onClick={() => void joinRelay()} size="sm">
                 {joining ? 'Joining…' : 'Join room'}
               </Button>
-              <p className="text-[0.65rem] leading-snug text-muted-foreground">
-                {help.address}
-              </p>
+              <p className="text-[0.65rem] leading-snug text-muted-foreground">{help.address}</p>
             </div>
           )}
         </div>
@@ -741,7 +751,11 @@ function LocalTeamPane() {
         ))}
       </div>
 
-      {error && <div className="shrink-0 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-amber-600 dark:text-amber-400">{error}</div>}
+      {error && (
+        <div className="shrink-0 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-amber-600 dark:text-amber-400">
+          {error}
+        </div>
+      )}
 
       {/* Composer */}
       <div className="flex shrink-0 items-end gap-1.5">
@@ -780,7 +794,10 @@ function AddRoom({ onCreated, onRename }: { onCreated: (id: string) => void; onR
   const create = async () => {
     const clean = value.trim()
 
-    if (!clean || busy) {return}
+    if (!clean || busy) {
+      return
+    }
+
     setBusy(true)
 
     try {
@@ -819,9 +836,13 @@ function AddRoom({ onCreated, onRename }: { onCreated: (id: string) => void; onR
         maxLength={40}
         onChange={e => setValue(e.target.value)}
         onKeyDown={e => {
-          if (e.key === 'Enter') {void create()}
+          if (e.key === 'Enter') {
+            void create()
+          }
 
-          if (e.key === 'Escape') {setOpen(false)}
+          if (e.key === 'Escape') {
+            setOpen(false)
+          }
         }}
         placeholder="room name"
         value={value}

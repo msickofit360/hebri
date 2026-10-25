@@ -23,7 +23,7 @@ export function registerSynapsekAccountIpc(rendererUrl: () => string) {
         throw new AccountError('forbidden')
       }
 
-      if (!['status', 'signIn', 'signOut', 'openBilling', 'forgetLocal', 'teams'].includes(String(operation))) {
+      if (!['status', 'signIn', 'signOut', 'openBilling', 'openCredits', 'forgetLocal', 'teams'].includes(String(operation))) {
         throw new AccountError('invalid_operation')
       }
 
@@ -41,7 +41,7 @@ export function registerSynapsekAccountIpc(rendererUrl: () => string) {
               ? await account.signOut()
               : operation === 'forgetLocal'
                 ? await account.forgetLocal()
-                : await account.openBilling()
+                : await account.openBilling(operation === 'openCredits' ? 'credits' : 'overview')
 
       if (['signIn', 'signOut', 'forgetLocal'].includes(String(operation))) {
         for (const window of BrowserWindow.getAllWindows()) {window.webContents.send('hebri:synapsek-account-changed')}
