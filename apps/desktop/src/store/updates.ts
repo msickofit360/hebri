@@ -215,7 +215,7 @@ export function reportInstallMethodWarning(message: string | undefined): void {
  * showed the user a machine they weren't told about, with no way back.
  */
 export function maybeNotifyUpdateAvailable(status: DesktopUpdateStatus | null, target: UpdateTarget = 'client') {
-  if (!status || status.supported === false || status.error || !status.targetSha) {
+  if (!status || status.supported === false || status.error || (!status.targetSha && !status.releaseVersion)) {
     return
   }
 

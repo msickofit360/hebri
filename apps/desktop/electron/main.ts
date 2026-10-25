@@ -395,8 +395,8 @@ import { createQuickEntryShortcut, quickEntryWindowBounds, sanitizeQuickEntrySet
 import { createQuitFinalization } from './quit-finalization'
 import { type ActiveWork, backendOwnedByApp, mergeActiveWork, normalizeActiveWork, quitPromptFor } from './quit-guard'
 import { backendQuitNeedsWait, createQuitTeardownCoordinator } from './quit-teardown'
+import { createReleaseUpdater, type ReleaseUpdaterController, routeDesktopUpdate } from './release-updater'
 import * as remoteLifecycle from './remote-lifecycle'
-import { createReleaseUpdater, type ReleaseUpdaterController } from './release-updater'
 import {
   attachPowerResumeRemoteRevalidation,
   ensureHealthyPooledRemoteBackendForDispatch,
@@ -3352,7 +3352,11 @@ async function resolveHealedBranch(updateRoot, branch) {
 // update changes HEAD, which busts the cache immediately). `git fetch` runs only
 // inside applyUpdates. `force` (menu item, Settings "Check now") skips the
 // cache; the renderer's background poller never passes it.
-async function checkUpdates({ force = false }: { force?: boolean } = {}) {
+async function checkUpdates(options: { force?: boolean } = {}) {
+  return routeDesktopUpdate<any>(app.isPackaged, releaseUpdater ? () => releaseUpdater.status(Boolean(options.force)) : undefined, () => checkSourceUpdates(options))
+}
+
+async function checkSourceUpdates({ force = false }: { force?: boolean } = {}) {
   const updateRoot = resolveUpdateRoot()
   let { branch } = readDesktopUpdateConfig()
   const gitDir = path.join(updateRoot, '.git')
@@ -4198,6 +4202,10 @@ async function releaseBackendLock(updateRoot, tag) {
 // Detection (checkUpdates / commit changelog / "N behind") stays in the UI;
 // only this apply action changed.
 async function applyUpdates(opts: { stopSafeBlockers?: boolean } = {}) {
+  return routeDesktopUpdate<any>(app.isPackaged, releaseUpdater ? () => releaseUpdater.apply() : undefined, () => applySourceUpdates(opts))
+}
+
+async function applySourceUpdates(opts: { stopSafeBlockers?: boolean } = {}) {
   if (updateInFlight) {
     throw new Error('An update is already in progress.')
   }
@@ -18918,6 +18926,7 @@ app.whenReady().then(() => {
   // captured by the original transaction before removing the journal entry.
   void resumeManagedSshRecoveries()
   releaseUpdater = createReleaseUpdater({
+    currentVersion: app.getVersion(),
     getWindow: () => mainWindow,
     isPackaged: app.isPackaged,
     log: rememberLog,
