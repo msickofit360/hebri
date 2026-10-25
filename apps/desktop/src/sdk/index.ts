@@ -113,6 +113,7 @@ import { sessionsHost } from './sessions'
 import { desktopSettings } from './settings'
 
 export type { DesktopSettingKey, DesktopSettingValues } from './settings'
+export { TeamPane } from './team-pane'
 
 // -- state: readonly views over the app's live atoms -------------------------
 
