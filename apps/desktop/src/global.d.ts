@@ -21,8 +21,9 @@ export {}
 declare global {
   interface Window {
     hermesDesktop: {
-      synapsekAccount?: (operation: 'status' | 'signIn' | 'signOut' | 'openBilling' | 'forgetLocal') =>
-        Promise<{ ok: true; value: SynapsekAccountView | null } | { ok: false; code: string }>
+      synapsekAccount?: (
+        operation: 'status' | 'signIn' | 'signOut' | 'openBilling' | 'forgetLocal'
+      ) => Promise<{ ok: true; value: SynapsekAccountView | null } | { ok: false; code: string }>
       // Resolve a backend connection. Omit `profile` (or pass the primary) for
       // the window's backend; pass a named profile to lazily spawn/reuse that
       // profile's backend from the pool.
@@ -739,6 +740,8 @@ export interface DesktopUpdateCommit {
 }
 
 export interface DesktopUpdateStatus {
+  source?: 'release'
+  releaseVersion?: string
   supported: boolean
   updateAvailable?: boolean
   branch?: string

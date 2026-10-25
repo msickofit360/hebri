@@ -4,8 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { runInTerminal } from '@/app/right-sidebar/store'
 import {
-  FEATURED_ID,
-  FeaturedProviderRow,
   FireworksProviderRow,
   LocalModelsProviderRow,
   OpenRouterProviderRow,
@@ -13,6 +11,7 @@ import {
   providerTitle,
   sortProviders
 } from '@/components/onboarding'
+import { SynapsekProviderRow } from '@/components/synapsek-provider-row'
 import { Button } from '@/components/ui/button'
 import { RowButton } from '@/components/ui/row-button'
 import { SearchField } from '@/components/ui/search-field'
@@ -122,14 +121,13 @@ function buildProviderKeyGroups(vars: Record<string, EnvVarInfo>): ProviderKeyGr
 }
 
 // Deliberately a near-1:1 replica of the first-run onboarding picker
-// (`Picker` in desktop-onboarding-overlay): same recommended card, same
+// (`Picker` in desktop-onboarding-overlay): same Synapsek account card, same
 // always-visible Local models row, same provider rows, same "Other
 // providers" disclosure (Fireworks and OpenRouter quick-key rows live
 // inside it on both surfaces), and the same bottom-right "I have an API
 // key" affordance. The leaf cards are the exact shared components, so
-// the two surfaces stay visually identical. Selecting a provider hands
-// off to the shared onboarding overlay, which runs that provider's real
-// sign-in flow; the key affordances open the API-key catalog below.
+// the two surfaces stay visually identical. Synapsek opens native account
+// controls; alternative providers use their own onboarding OAuth flow.
 function OAuthPicker({
   disconnecting,
   onDisconnect,
@@ -150,26 +148,16 @@ function OAuthPicker({
   const { t } = useI18n()
   const p = t.settings.providers
   const [showAll, setShowAll] = useState(false)
-  const ordered = useMemo(() => sortProviders(providers), [providers])
-
-  if (ordered.length === 0) {
-    return null
-  }
+  const ordered = useMemo(() => sortProviders(providers.filter(p => p.id !== 'nous')), [providers])
 
   const select = (p: OAuthProvider) => startManualProviderOAuth(p.id, profile)
 
-  // The free tier holds a token but no account: it is never "connected"; the featured Nous row
-  // names it (Nous · free tier) and offers the sign-in that keeps its connectors.
   const isConnected = (p: OAuthProvider) => Boolean(p.status?.logged_in) && p.status?.free_tier !== true
-  const featured = ordered.find(p => p.id === FEATURED_ID && !isConnected(p)) ?? null
-  const rest = featured ? ordered.filter(p => p.id !== FEATURED_ID) : ordered
   // Keep connected accounts grouped and always visible; only the unconnected
   // providers hide behind the disclosure, so the page leads with what's set up.
   // Both lists preserve `sortProviders` order (curated priority, then name).
-  const connected = rest.filter(isConnected)
-  const others = rest.filter(p => !isConnected(p))
-  const collapsible = others.length > 0
-  const showOthers = !collapsible || showAll
+  const connected = ordered.filter(isConnected)
+  const others = ordered.filter(p => !isConnected(p))
 
   return (
     <section className="mb-5 grid gap-2">
@@ -188,7 +176,11 @@ function OAuthPicker({
       <p className="-mt-2 mb-1 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
         {p.intro}
       </p>
-      {featured && <FeaturedProviderRow onSelect={select} provider={featured} />}
+      <SynapsekProviderRow
+        onClick={() => {
+          window.location.hash = '#/settings?tab=billing'
+        }}
+      />
       {/* Slot #2 — the no-account path, matching onboarding. Behind the
           --local launch flag like every local-models surface. */}
       {$localModelsEnabled.get() && <LocalModelsProviderRow onClick={onWantLocalModels} />}
@@ -207,7 +199,7 @@ function OAuthPicker({
           ))}
         </>
       )}
-      {showOthers && (
+      {showAll && (
         <>
           {connected.length > 0 && <GroupLabel>{p.otherProviders}</GroupLabel>}
           {others.map(p => (
@@ -217,18 +209,16 @@ function OAuthPicker({
           <OpenRouterProviderRow onClick={onWantApiKey} />
         </>
       )}
-      {collapsible && (
-        <Button
-          className="py-1 text-[length:var(--conversation-caption-font-size)]"
-          onClick={() => setShowAll(v => !v)}
-          size="inline"
-          type="button"
-          variant="text"
-        >
-          {showAll ? p.collapse : connected.length > 0 ? p.connectAnother : p.otherProviders}
-          <ChevronDown className={cn('size-3.5 transition', showAll && 'rotate-180')} />
-        </Button>
-      )}
+      <Button
+        className="py-1 text-[length:var(--conversation-caption-font-size)]"
+        onClick={() => setShowAll(v => !v)}
+        size="inline"
+        type="button"
+        variant="text"
+      >
+        {showAll ? p.collapse : connected.length > 0 ? p.connectAnother : p.otherProviders}
+        <ChevronDown className={cn('size-3.5 transition', showAll && 'rotate-180')} />
+      </Button>
     </section>
   )
 }
@@ -463,10 +453,8 @@ export function ProvidersSettings({
     return <SettingsSkeleton search sections={[{ rows: 6 }]} />
   }
 
-  const hasOauth = oauthProviders.length > 0
-  // The sidebar subnav owns the Accounts/API-keys split now; with no OAuth
-  // providers there's nothing for the "Accounts" view to show, so fall to keys.
-  const showApiKeys = view === 'keys' || (!hasOauth && view !== 'custom-endpoints')
+  // Synapsek account access is independent of the backend's provider catalog.
+  const showApiKeys = view === 'keys'
 
   const keyGroups = buildProviderKeyGroups(vars)
 

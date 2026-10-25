@@ -218,7 +218,7 @@ function AppUpdatesSettings({ includeUninstall }: { includeUninstall: boolean })
 
             {updateAvailable && supported && !applying && (
               <>
-                <Button onClick={() => startActiveUpdate()} size="sm">
+                <Button onClick={() => startActiveUpdate('client')} size="sm">
                   {a.updateNow}
                 </Button>
                 <Button onClick={() => openUpdatesWindow('client')} size="sm" variant="textStrong">
@@ -246,7 +246,11 @@ function AppUpdatesSettings({ includeUninstall }: { includeUninstall: boolean })
 
         <ListRow
           description={a.automaticUpdatesDesc}
-          hint={a.branchCommit(status?.branch ?? 'unknown', status?.currentSha?.slice(0, 7) ?? 'unknown')}
+          hint={
+            status?.source === 'release'
+              ? `satoshilove/hebri · ${a.version(status.currentVersion ?? version?.appVersion ?? 'unknown')}`
+              : a.branchCommit(status?.branch ?? 'unknown', status?.currentSha?.slice(0, 7) ?? 'unknown')
+          }
           id={settingElementId(SETTING_IDS.about.automaticUpdates)}
           title={a.automaticUpdates}
         />

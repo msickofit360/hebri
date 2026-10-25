@@ -41,7 +41,7 @@ export function SynapsekAccountSettings() {
           if (result.ok && result.value) {
             setAvailable(true)
             setView(result.value)
-          } else if (!result.ok && result.code !== 'not_available') {
+          } else if (!result.ok) {
             setAvailable(true)
             setError(result.code)
           }
@@ -71,7 +71,7 @@ export function SynapsekAccountSettings() {
       const result = await bridge!(operation)
 
       if (!result.ok && result.code === 'not_available') {
-        setAvailable(false)
+        setError(result.code)
       } else if (!result.ok) {
         setError(result.code)
       } else if (result.value) {
@@ -118,11 +118,14 @@ export function SynapsekAccountSettings() {
       </p>
       {error && (
         <p className="text-sm text-destructive" role="alert">
-          {locale === 'en' ? messages[error] || copy.error : copy.error}
+          {error === 'not_available' ? copy.unavailable : locale === 'en' ? messages[error] || copy.error : copy.error}
         </p>
       )}
       <div className="flex flex-wrap gap-2">
-        <Button disabled={busy} onClick={() => void run(view.state === 'signed_in' ? 'signOut' : 'signIn')}>
+        <Button
+          disabled={busy || error === 'not_available'}
+          onClick={() => void run(view.state === 'signed_in' ? 'signOut' : 'signIn')}
+        >
           {busy ? copy.working : view.state === 'signed_in' ? copy.signOut : copy.signIn}
         </Button>
         <Button disabled={busy} onClick={() => void run('status')} variant="outline">
@@ -131,13 +134,13 @@ export function SynapsekAccountSettings() {
         <Button disabled={busy} onClick={() => void run('openBilling')} variant="outline">
           {copy.manage}
         </Button>
-        {error && (
+        {error && error !== 'not_available' && (
           <Button disabled={busy} onClick={() => void run('forgetLocal')} variant="outline">
             {copy.remove}
           </Button>
         )}
       </div>
-      {error && <p className="text-sm text-muted-foreground">{copy.removeNotice}</p>}
+      {error && error !== 'not_available' && <p className="text-sm text-muted-foreground">{copy.removeNotice}</p>}
     </section>
   )
 }

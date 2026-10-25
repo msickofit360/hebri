@@ -43,9 +43,12 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tip } from '@/components/ui/tooltip'
+import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
 
 import { RightSidebarSectionHeader } from '../index'
+
+import { teamHelp } from './help-copy'
 
 const POLL_MS = 3000
 const NAME_KEY = 'hebri.team.name'
@@ -149,6 +152,8 @@ function fmtTime(ts: number): string {
 }
 
 export function TeamPane() {
+  const { locale } = useI18n()
+  const help = teamHelp[locale]
   const [name, setName] = useState<string>(() => readLocal(NAME_KEY) ?? '')
   const [status, setStatus] = useState<string>(() => readLocal(STATUS_KEY) ?? '')
   const [rooms, setRooms] = useState<TeamRoom[]>([])
@@ -464,6 +469,12 @@ export function TeamPane() {
       aria-label="Team chat"
       className="flex h-full w-full min-w-0 flex-col gap-3 overflow-hidden p-3 text-xs"
     >
+      <details className="shrink-0 text-muted-foreground">
+        <summary className="cursor-pointer font-medium text-foreground">{help.title}</summary>
+        <p className="mt-2">{help.local}</p>
+        <p className="mt-2">{help.join}</p>
+        <p className="mt-2">{help.privacy}</p>
+      </details>
       {/* Relay status banner (cross-machine join active) */}
       {relay ? (
         <div className="flex shrink-0 items-center justify-between gap-2 rounded border border-border bg-muted/20 px-2 py-1.5">
@@ -649,7 +660,7 @@ export function TeamPane() {
             onClick={() => setRelayOpen(v => !v)}
             type="button"
           >
-            Cross-machine room {relayOpen ? '▾' : '▸'}
+            {help.toggle} {relayOpen ? '▾' : '▸'}
           </button>
           {relayOpen && (
             <div className="flex flex-col gap-1.5 rounded border border-border bg-muted/10 p-2">
@@ -681,10 +692,7 @@ export function TeamPane() {
                 {joining ? 'Joining…' : 'Join room'}
               </Button>
               <p className="text-[0.65rem] leading-snug text-muted-foreground">
-                Ask the host to share a room code. The host dashboard must be
-                reachable from your machine (bound past loopback). You get a
-                short-lived signed grant. Remote connections require HTTPS;
-                messages are protected in transit but stored on the host.
+                {help.address}
               </p>
             </div>
           )}

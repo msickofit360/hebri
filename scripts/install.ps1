@@ -3883,6 +3883,66 @@ You are Hebri, built by Synapsek Labs -- a witness-gated agent that verifies cod
     }
 }
 
+# Helper: run a native command with a hard wall-clock timeout while
+# still streaming its output live.  Returns the exit code, or 124 on
+# timeout (the same convention as coreutils ``timeout`` and bash's
+# run_with_timeout).
+#
+# Launcher notes: ``Start-Process -FilePath npm.cmd`` fails with
+# ``%1 is not a valid Win32 application`` on some PowerShell versions
+# because Start-Process bypasses cmd.exe / PATHEXT and expects a real
+# PE file -- so route through cmd.exe, which IS a real PE, honours .cmd
+# batch shims, and performs the stdout+stderr merge into the log file
+# natively.  The parent then tails the log into the console each poll
+# tick, preserving the live progress that makes a 3-minute download
+# distinguishable from a hang (the whole reason _Run-NpmInstall streams
+# output in the first place).  ``Wait-Job -Timeout`` was rejected: jobs
+# swallow live output, and Stop-Job leaves the npm child running.
+# taskkill /T kills the real process tree.  Works on Windows PowerShell
+# 5.1 -- no pwsh-only primitives.
+function _Invoke-NativeWithTimeout(
+    [string]$exePath, [string]$argLine, [string]$workDir,
+    [string]$logPath, [int]$timeoutSec
+) {
+    $cmdLine = "/d /s /c "" ""$exePath"" $argLine > ""$logPath"" 2>&1 """
+    # Own the native process handle from launch. Start-Process -PassThru can
+    # lose ExitCode after a fast child exits on Windows PowerShell 5.1, making
+    # a successful npm install look like a failure with an empty exit code.
+    $proc = New-Object System.Diagnostics.Process
+    $proc.StartInfo.FileName = $env:ComSpec
+    $proc.StartInfo.Arguments = $cmdLine
+    $proc.StartInfo.WorkingDirectory = $workDir
+    $proc.StartInfo.UseShellExecute = $false
+    $proc.StartInfo.CreateNoWindow = $true
+    [void]$proc.Start()
+    $deadline = [DateTime]::UtcNow.AddSeconds($timeoutSec)
+    $shown = 0
+    function _Drain-NewLines([string]$path, [ref]$count) {
+        $lines = @(Get-Content $path -ErrorAction SilentlyContinue)
+        if ($lines.Count -gt $count.Value) {
+            $lines[$count.Value..($lines.Count - 1)] | ForEach-Object {
+                Write-Host "    $_" -ForegroundColor DarkGray
+            }
+            $count.Value = $lines.Count
+        }
+    }
+    while (-not $proc.HasExited) {
+        if ([DateTime]::UtcNow -gt $deadline) {
+            & taskkill /T /F /PID $proc.Id 2>&1 | Out-Null
+            $proc.WaitForExit()
+            $proc.Dispose()
+            return 124
+        }
+        Start-Sleep -Milliseconds 750
+        _Drain-NewLines $logPath ([ref]$shown)
+    }
+    _Drain-NewLines $logPath ([ref]$shown)
+    $proc.WaitForExit()
+    $exitCode = $proc.ExitCode
+    $proc.Dispose()
+    return $exitCode
+}
+
 function Install-NodeDeps {
     if (-not $HasNode) {
         # Cross-process driver mode (Hermes-Setup.exe runs each -Stage NAME
@@ -3940,53 +4000,6 @@ function Install-NodeDeps {
     $nodeDepsTimeoutSec = 600
     if ($env:NODE_DEPS_TIMEOUT -match '^\d+$') {
         $nodeDepsTimeoutSec = [int]$env:NODE_DEPS_TIMEOUT
-    }
-
-    # Helper: run a native command with a hard wall-clock timeout while
-    # still streaming its output live.  Returns the exit code, or 124 on
-    # timeout (the same convention as coreutils ``timeout`` and bash's
-    # run_with_timeout).
-    #
-    # Launcher notes: ``Start-Process -FilePath npm.cmd`` fails with
-    # ``%1 is not a valid Win32 application`` on some PowerShell versions
-    # because Start-Process bypasses cmd.exe / PATHEXT and expects a real
-    # PE file -- so route through cmd.exe, which IS a real PE, honours .cmd
-    # batch shims, and performs the stdout+stderr merge into the log file
-    # natively.  The parent then tails the log into the console each poll
-    # tick, preserving the live progress that makes a 3-minute download
-    # distinguishable from a hang (the whole reason _Run-NpmInstall streams
-    # output in the first place).  ``Wait-Job -Timeout`` was rejected: jobs
-    # swallow live output, and Stop-Job leaves the npm child running.
-    # taskkill /T kills the real process tree.  Works on Windows PowerShell
-    # 5.1 -- no pwsh-only primitives.
-    function _Invoke-NativeWithTimeout(
-        [string]$exePath, [string]$argLine, [string]$workDir,
-        [string]$logPath, [int]$timeoutSec
-    ) {
-        $cmdLine = "/d /s /c "" ""$exePath"" $argLine > ""$logPath"" 2>&1 """
-        $proc = Start-Process -FilePath $env:ComSpec -ArgumentList $cmdLine `
-            -WorkingDirectory $workDir -NoNewWindow -PassThru
-        $deadline = [DateTime]::UtcNow.AddSeconds($timeoutSec)
-        $shown = 0
-        function _Drain-NewLines([string]$path, [ref]$count) {
-            $lines = @(Get-Content $path -ErrorAction SilentlyContinue)
-            if ($lines.Count -gt $count.Value) {
-                $lines[$count.Value..($lines.Count - 1)] | ForEach-Object {
-                    Write-Host "    $_" -ForegroundColor DarkGray
-                }
-                $count.Value = $lines.Count
-            }
-        }
-        while (-not $proc.HasExited) {
-            if ([DateTime]::UtcNow -gt $deadline) {
-                & taskkill /T /F /PID $proc.Id 2>&1 | Out-Null
-                return 124
-            }
-            Start-Sleep -Milliseconds 750
-            _Drain-NewLines $logPath ([ref]$shown)
-        }
-        _Drain-NewLines $logPath ([ref]$shown)
-        return $proc.ExitCode
     }
 
     # Helper: run "npm install" in a given directory and surface the real
