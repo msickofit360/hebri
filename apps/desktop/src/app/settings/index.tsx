@@ -44,8 +44,7 @@ import { OverlayView } from '../overlays/overlay-view'
 
 import { AboutSettings } from './about-settings'
 import { AppearanceSettings } from './appearance-settings'
-import { BILLING_VIEWS, BillingSettings, type BillingSubView } from './billing'
-import { deriveBillingView, useBillingState, useSubscriptionState } from './billing/use-billing-state'
+import { BillingSettings } from './billing'
 import { ComputerControlSettings } from './computer-control-settings'
 import { ConfigSettings } from './config-settings'
 import { SECTIONS } from './constants'
@@ -154,11 +153,6 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
   // sub-view is deep-linkable and survives a refresh.
   const [providerView, setProviderView] = useRouteEnumParam<ProviderView>('pview', PROVIDER_VIEWS, 'accounts')
   const [keysView] = useRouteEnumParam<KeysView>('kview', KEYS_VIEWS, 'tools')
-  const [billingView] = useRouteEnumParam<BillingSubView>('bview', BILLING_VIEWS, 'overview')
-  const billingState = useBillingState()
-  const subscriptionState = useSubscriptionState()
-  const billingPresentation = deriveBillingView(billingState.data, subscriptionState.data)
-  const canViewPlans = billingPresentation.status === 'normal' && Boolean(billingPresentation.plan?.action)
 
   // Jump to a section + its sub-view in one navigate. Two sequential setters
   // would each read the same stale `search` and the second would clobber the
@@ -286,23 +280,12 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
             active: activeView === 'billing',
             children: [
               {
-                active: activeView === 'billing' && (billingView === 'overview' || !canViewPlans),
+                active: activeView === 'billing',
                 icon: BarChart3,
                 id: 'bview:overview',
                 label: t.settings.subpages.billingOverview,
                 onSelect: () => openSubView('billing', 'bview', 'overview', 'overview')
-              },
-              ...(canViewPlans
-                ? [
-                    {
-                      active: activeView === 'billing' && billingView === 'plans',
-                      icon: BarChart3,
-                      id: 'bview:plans',
-                      label: t.settings.subpages.billingPlans,
-                      onSelect: () => openSubView('billing', 'bview', 'plans', 'overview')
-                    }
-                  ]
-                : [])
+              }
             ],
             icon: BarChart3,
             id: 'billing',
@@ -427,8 +410,6 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
       }),
     [
       activeView,
-      billingView,
-      canViewPlans,
       keysView,
       providerView,
       subpage,

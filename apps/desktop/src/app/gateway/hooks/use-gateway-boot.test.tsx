@@ -1,7 +1,7 @@
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { DesktopConnectionsRegistry } from '@/global'
+import type { DesktopBootstrapEvent, DesktopConnectionsRegistry } from '@/global'
 import { createClientSessionState } from '@/lib/chat-runtime'
 import { $desktopBoot } from '@/store/boot'
 import {
@@ -373,6 +373,39 @@ async function flushAsync() {
     await vi.advanceTimersByTimeAsync(0)
   })
 }
+
+it('finishes first-run installation and opens the authenticated gateway without a manual retry', async () => {
+  const desktop = fakeDesktop()
+  const connection = deferred<typeof primaryConn>()
+  let emit: (event: DesktopBootstrapEvent) => void = () => undefined
+  desktop.getConnection.mockImplementation(() => connection.promise)
+  Object.assign(desktop, {
+    onBootstrapEvent: (listener: typeof emit) => {
+      emit = listener
+
+      return () => undefined
+    }
+  })
+  ;(window as { hermesDesktop?: unknown }).hermesDesktop = desktop
+  render(<Harness />)
+  await flushAsync()
+  act(() => emit({ type: 'setup-choice', active: true }))
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(60_000)
+  })
+  act(() => emit({ type: 'manifest', stages: [], protocolVersion: 1 }))
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(4 * 60_000)
+  })
+  expect($desktopBoot.get().error).toBeNull()
+  expect($gatewayState.get()).not.toBe('open')
+  act(() => emit({ type: 'complete', marker: {} }))
+  connection.resolve(primaryConn)
+  await flushAsync()
+  expect($gatewayState.get()).toBe('open')
+  expect($desktopBoot.get().phase).toBe('renderer.ready')
+  expect(notifyError).not.toHaveBeenCalled()
+})
 
 it('loads and tracks saved gateways without mounting the statusbar or Settings', async () => {
   const desktop = fakeDesktop()

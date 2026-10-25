@@ -115,7 +115,11 @@ jobs:
         run: npm ci
       - name: Test Windows managed-Python bootstrap recovery
         shell: pwsh
-        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/tests/test-install-ps1-managed-python-venv.ps1
+        run: |
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/tests/test-install-ps1-managed-python-venv.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/tests/test-install-ps1-native-exit.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build Windows installers (NSIS + MSI)
         working-directory: apps/desktop
         run: npm run dist:win -- --publish never
@@ -164,7 +168,11 @@ jobs:
         run: npm ci
       - name: Test Windows managed-Python bootstrap recovery
         shell: pwsh
-        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/tests/test-install-ps1-managed-python-venv.ps1
+        run: |
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/tests/test-install-ps1-managed-python-venv.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/tests/test-install-ps1-native-exit.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Validate Azure signing configuration
         shell: pwsh
         env:

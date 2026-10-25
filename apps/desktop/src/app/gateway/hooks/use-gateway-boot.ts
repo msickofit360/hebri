@@ -21,6 +21,7 @@ import {
   LIVENESS_REPROBE_DELAY_MS
 } from '@/lib/gateway-liveness-policy'
 import { resolveDesktopGatewayWsUrl } from '@/lib/gateway-ws-url'
+import { waitForDesktopBackend } from '@/lib/wait-for-desktop-backend'
 import { BACKEND_BOOT_WAIT_TIMEOUT_MS, RECONNECT_ATTEMPT_TIMEOUT_MS, withTimeout } from '@/lib/with-timeout'
 import {
   $desktopBoot,
@@ -1298,6 +1299,8 @@ export function useGatewayBoot({
       })
     })
 
+    const bootWaitController = new AbortController()
+
     async function boot() {
       // Where this boot attempt got to — a historical fact, not a late read of
       // gateway.connectionState. A socket can close after a successful dial;
@@ -1308,15 +1311,10 @@ export function useGatewayBoot({
         // A profile-pinned helper window (the HUD) dials its target profile's
         // backend directly — ensureBackend spawns/reuses it from the pool.
         // Full peers use the source/profile Electron pinned before loading.
-        // Bounded like the reconnect path (#93454): a wedged main-process
-        // round-trip must not hang "Starting Hebri…" forever. Initial boot
-        // rides out a full backend cold spawn, so it gets the shared 45s
-        // backend-boot budget, not the 20s reconnect budget.
-        const conn = await withTimeout(
-          getWindowBackend(true),
-          BACKEND_BOOT_WAIT_TIMEOUT_MS,
-          'Timed out connecting to Hebri backend'
-        )
+        // First-run choice and installation precede the backend spawn. The
+        // lifecycle-aware wait gives installation its own bounded budget and
+        // starts the 45s backend health budget after installation completes.
+        const conn = await waitForDesktopBackend(() => getWindowBackend(true), desktop, bootWaitController.signal)
 
         if (cancelled) {
           return
@@ -1493,6 +1491,7 @@ export function useGatewayBoot({
 
     return () => {
       cancelled = true
+      bootWaitController.abort()
       offSwitchLifecycle()
       endGatewaySwitch()
       clearReconnectTimer()
