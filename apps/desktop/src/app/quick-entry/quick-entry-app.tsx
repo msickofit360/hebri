@@ -1,5 +1,7 @@
 import { useEffect, useReducer, useRef } from 'react'
 
+import { useI18n as useLocaleUpdates } from '@/i18n'
+import { useI18n as useDesktopLanguage } from '@/i18n'
 import { isSubmitEnter } from '@/lib/ime'
 import {
   initialQuickComposerState,
@@ -27,6 +29,10 @@ import {
  * the primary renderer's normal prompt-submit path.
  */
 export function QuickEntryApp() {
+  const { t: localeText } = useLocaleUpdates()
+
+  const { t: languageText } = useDesktopLanguage()
+
   const inputRef = useRef<HTMLInputElement>(null)
 
   // The reducer returns { send, state }; this wrapper performs the side effect
@@ -111,7 +117,7 @@ export function QuickEntryApp() {
             ›
           </span>
           <input
-            aria-label="Quick Entry"
+            aria-label={languageText.additional.ui.quickEntry}
             autoCapitalize="off"
             autoComplete="off"
             autoCorrect="off"
@@ -132,7 +138,11 @@ export function QuickEntryApp() {
                 dispatch({ type: 'dismiss' })
               }
             }}
-            placeholder={state.connected ? 'Ask Hebri…' : 'Not connected — open Hebri to reconnect'}
+            placeholder={
+              state.connected
+                ? localeText.additional.interface.askHebri
+                : localeText.additional.interface.reconnectHebri
+            }
             ref={inputRef}
             spellCheck={false}
             style={{
@@ -159,10 +169,10 @@ export function QuickEntryApp() {
               userSelect: 'none'
             }}
           >
-            Send to
+            {languageText.additional.ui.sendTo}
           </label>
           <select
-            aria-label="Target session"
+            aria-label={languageText.additional.ui.targetSession}
             disabled={!state.connected}
             id="quick-entry-target"
             onChange={event => dispatch({ target: event.target.value, type: 'target' })}
@@ -183,8 +193,8 @@ export function QuickEntryApp() {
             }}
             value={state.target}
           >
-            <option value={QUICK_TARGET_CURRENT}>Current chat</option>
-            <option value={QUICK_TARGET_NEW}>New session</option>
+            <option value={QUICK_TARGET_CURRENT}>{languageText.additional.ui.currentChat}</option>
+            <option value={QUICK_TARGET_NEW}>{languageText.additional.ui.newSession}</option>
             {state.sessions.map(session => (
               <option key={session.id} value={session.id}>
                 {session.title}
