@@ -2,6 +2,7 @@ import { useStore } from '@nanostores/react'
 import { useEffect, useRef } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { useI18n as useDesktopLanguage } from '@/i18n'
 import { useI18n } from '@/i18n'
 import { iconSize, Loader2, Mic, Volume2, VolumeX } from '@/lib/icons'
 import { cn } from '@/lib/utils'
@@ -204,6 +205,8 @@ export function VoiceActivity({ state }: { state: VoiceActivityState }) {
 }
 
 export function VoicePlaybackActivity() {
+  const { t: languageText } = useDesktopLanguage()
+
   const { t } = useI18n()
   const playback = useStore($voicePlayback)
 
@@ -245,7 +248,7 @@ export function VoicePlaybackActivity() {
         variant="ghost"
       >
         <VolumeX className={iconSize.xs} />
-        Stop
+        {languageText.additional.ui.stop}
       </Button>
     </div>
   )
