@@ -4,6 +4,7 @@ import { useLocation } from 'react-router'
 
 import { appViewForPath, isOverlayView } from '@/app/routes'
 import { Tip } from '@/components/ui/tooltip'
+import { useI18n as useLocaleUpdates } from '@/i18n'
 import { useI18n } from '@/i18n'
 import { findBarKeyAction, formatMatchLabel } from '@/lib/find-in-page'
 import { cn } from '@/lib/utils'
@@ -35,6 +36,8 @@ import {
  * accelerator set is testable without a DOM.
  */
 export function FindBar() {
+  const { t: localeText } = useLocaleUpdates()
+
   const { t } = useI18n()
   const { active, query, matchOrdinal, matchCount } = useStore($findInPage)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -296,12 +299,12 @@ export function FindBar() {
       style={barStyle}
     >
       <input
-        aria-label={t.keybinds.actions['view.findInPage'] ?? 'Find in page'}
+        aria-label={t.keybinds.actions['view.findInPage'] ?? localeText.additional.interface.findInPage}
         autoComplete="off"
         className="h-6 w-40 bg-transparent text-xs text-(--ui-text-primary) outline-none placeholder:text-(--ui-text-tertiary)"
         onChange={onInput}
         onKeyDown={onKeyDown}
-        placeholder={t.keybinds.actions['view.findInPage'] ?? 'Find in page'}
+        placeholder={t.keybinds.actions['view.findInPage'] ?? localeText.additional.interface.findInPage}
         ref={inputRef}
         type="search"
         value={localQuery}
