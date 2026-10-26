@@ -48,7 +48,7 @@ export const ar = defineLocale({
     doneDescription: 'تم رفع الحزمة بشكل خاص. شارك الرابط أدناه في محادثة الدعم لكي يتمكن الفريق من رؤية سجلاتك.',
     failedTitle: 'فشل الرفع',
     failedHint:
-      'يمكنك أيضاً تشغيل `hermes debug share --nous` من الطرفية، أو `hermes debug share --local` لعرض التقرير دون رفعه.',
+      'شغّل `hebri debug share --local` لعرض التقرير المنقح دون رفعه. راجعه قبل مشاركته يدوياً مع دعم Synapsek.',
     handoffLead: 'تابع النقاش في:',
     links: {
       github: 'GitHub Issues',

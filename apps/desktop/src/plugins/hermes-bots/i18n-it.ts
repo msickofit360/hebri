@@ -162,7 +162,7 @@ export const botsIt: BotsMessages = {
     attentionFallback: 'Richiede attenzione',
     attentionProviderAuth: 'Accedi di nuovo per questo profilo',
     attentionQuota: 'Quota o saldo esauriti',
-    attentionMissingConfig: 'Fornitore non configurato: esegui hermes model',
+    attentionMissingConfig: 'Fornitore non configurato: esegui hebri model',
     attentionBlocked: 'Il bot è bloccato: leggi il suo ultimo messaggio',
     duplicate: 'Duplica',
     duplicateFailed: 'Duplicazione non riuscita',

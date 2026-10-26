@@ -80,7 +80,7 @@ export const itCommonFlows = {
   sendDiagnostics: {
     title: 'I dati diagnostici restano in locale',
     privacyNotice:
-      'Hebri ha disattivato il caricamento dei dati diagnostici ereditato da Nous. Nessun registro o dato delle conversazioni verrà inviato al servizio originale. Se l’assistenza Synapsek richiede dati diagnostici, esegui `hermes debug share --local` e controlla il rapporto con i dati sensibili oscurati prima di condividerlo manualmente.',
+      'Hebri ha disattivato il caricamento dei dati diagnostici ereditato da Nous. Nessun registro o dato delle conversazioni verrà inviato al servizio originale. Se l’assistenza Synapsek richiede dati diagnostici, esegui `hebri debug share --local` e controlla il rapporto con i dati sensibili oscurati prima di condividerlo manualmente.',
     upload: 'Carica',
     uploading: 'Caricamento…',
     copyLink: 'Copia link',
@@ -91,7 +91,7 @@ export const itCommonFlows = {
       'Il pacchetto è stato caricato in forma privata. Condividi il link qui sotto nella conversazione con l’assistenza per consentire al team di consultare i registri.',
     failedTitle: 'Caricamento non riuscito',
     failedHint:
-      'Esegui `hermes debug share --local` per visualizzare il rapporto con i dati sensibili oscurati senza caricarlo.',
+      'Esegui `hebri debug share --local` per visualizzare il rapporto con i dati sensibili oscurati senza caricarlo.',
     handoffLead: 'Continua la discussione su:',
     links: {
       github: 'Segnalazioni su GitHub',

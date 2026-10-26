@@ -604,7 +604,7 @@ export const es = defineLocale({
       'Tu paquete se subió de forma privada. Comparte el enlace de abajo en tu hilo de soporte para que el equipo pueda ver tus registros.',
     failedTitle: 'Error al subir',
     failedHint:
-      'También puedes ejecutar `hermes debug share --nous` desde una terminal, o `hermes debug share --local` para mostrar el informe sin subirlo.',
+      'Ejecuta `hebri debug share --local` para mostrar el informe con los datos sensibles ocultos, sin subirlo. Revísalo antes de compartirlo manualmente con el soporte de Synapsek.',
     handoffLead: 'Continúa la conversación en:',
     links: {
       github: 'Issues de GitHub',
@@ -5543,7 +5543,7 @@ export const es = defineLocale({
       reject: 'Rechazar',
       alwaysTitle: '¿Permitir siempre este comando?',
       alwaysDescription: pattern =>
-        `Esto añade el patrón “${pattern}” a tu allowlist permanente (~/.hermes/config.yaml). Hebri no volverá a preguntar por comandos como este, ni en esta sesión ni en futuras.`,
+        `Esto añade el patrón “${pattern}” a tu allowlist permanente. Hebri no volverá a preguntar por comandos como este, ni en esta sesión ni en futuras.`,
       alwaysAllow: 'Permitir siempre'
     },
     clarify: {

@@ -572,7 +572,7 @@ export const en: Translations = {
   sendDiagnostics: {
     title: 'Diagnostics stay local',
     privacyNotice:
-      'Hebri has disabled the inherited Nous diagnostics upload. No logs or conversation data will be sent to the upstream service. If Synapsek support asks for diagnostics, run `hermes debug share --local` and review the redacted output before sharing it manually.',
+      'Hebri has disabled the inherited Nous diagnostics upload. No logs or conversation data will be sent to the upstream service. If Synapsek support asks for diagnostics, run `hebri debug share --local` and review the redacted output before sharing it manually.',
     upload: 'Upload',
     uploading: 'Uploading…',
     cancel: 'Cancel',
@@ -583,7 +583,7 @@ export const en: Translations = {
     doneDescription:
       'Your bundle was uploaded privately. Share the link below in your support thread so the team can see your logs.',
     failedTitle: 'Upload failed',
-    failedHint: 'Run `hermes debug share --local` to print the redacted report without uploading it.',
+    failedHint: 'Run `hebri debug share --local` to print the redacted report without uploading it.',
     handoffLead: 'Pick up the discussion in:',
     links: {
       github: 'GitHub Issues',
@@ -5071,7 +5071,7 @@ export const en: Translations = {
       reject: 'Reject',
       alwaysTitle: 'Always allow this command?',
       alwaysDescription: pattern =>
-        `This adds the “${pattern}” pattern to your permanent allowlist (~/.hermes/config.yaml). Hebri won’t ask again for commands like this — in this session or any future one.`,
+        `This adds the “${pattern}” pattern to your permanent allowlist. Hebri won’t ask again for commands like this — in this session or any future one.`,
       alwaysAllow: 'Always allow'
     },
     clarify: {

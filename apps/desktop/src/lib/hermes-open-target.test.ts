@@ -8,6 +8,18 @@ import {
 } from './hermes-open-target'
 
 describe('normalizeHermesOpenString', () => {
+  it('routes Hebri links with the same safety checks and legacy plugin compatibility', () => {
+    for (const scheme of ['hebri', 'hermes']) {
+      expect(normalizeHermesOpenString(`${scheme}://open/settings/plugins`)).toBe('/settings/plugins')
+      expect(normalizeHermesOpenString(`${scheme}://index-network/intent/1?focus=true`)).toBe(
+        '/index-network/intent/1?focus=true'
+      )
+      expect(normalizeHermesOpenString(`${scheme}://mcp/install?config=encoded`)).toBeNull()
+      expect(normalizeHermesOpenString(`${scheme}://open/%2e%2e%2fsecret`)).toBeNull()
+      expect(normalizeHermesOpenString(`${scheme}://open/%ZZ`)).toBeNull()
+    }
+  })
+
   it('accepts hash-router paths and strips a leading hash', () => {
     expect(normalizeHermesOpenString('/index-network/intent/1')).toBe('/index-network/intent/1')
     expect(normalizeHermesOpenString('#/index-network/intent/1')).toBe('/index-network/intent/1')

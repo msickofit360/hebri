@@ -17,7 +17,7 @@ export const itChatTools = {
       reject: 'Rifiuta',
       alwaysTitle: 'Consentire sempre questo comando?',
       alwaysDescription: pattern =>
-        `Aggiunge lo schema «${pattern}» all’elenco permanente dei comandi consentiti (~/.hermes/config.yaml). Hebri non chiederà più l’approvazione per comandi di questo tipo, né in questa sessione né in quelle future.`,
+        `Aggiunge lo schema «${pattern}» all’elenco permanente dei comandi consentiti. Hebri non chiederà più l’approvazione per comandi di questo tipo, né in questa sessione né in quelle future.`,
       alwaysAllow: 'Consenti sempre'
     },
     clarify: {
