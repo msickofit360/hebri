@@ -208,7 +208,7 @@ def check_systemd_timing_alignment(
     """
     if not os.environ.get("INVOCATION_ID"):
         return None  # Not running under systemd (or at least not directly)
-    # /proc/self/cgroup: "0::/user.slice/.../hermes-gateway.service"
+    # /proc/self/cgroup: "0::/user.slice/.../hebri-gateway.service"
     unit_name: Optional[str] = None
     with contextlib.suppress(OSError), open("/proc/self/cgroup", encoding="utf-8") as fh:
         for line in fh:

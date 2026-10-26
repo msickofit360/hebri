@@ -1,3 +1,4 @@
+import { useStore } from '@nanostores/react'
 /**
  * TeamPane — Hebri local team chat (desktop right zone) + cross-machine relay.
  *
@@ -10,8 +11,6 @@
  * HMAC-signed peer grant. When a relay join is active this pane talks ONLY
  * to the relay endpoints; "Leave" restores the local view.
  */
-
-import { useStore } from '@nanostores/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
@@ -44,7 +43,9 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tip } from '@/components/ui/tooltip'
+import { useI18n as useDesktopLanguage } from '@/i18n'
 import { useI18n } from '@/i18n'
+import { uiDateLocale } from '@/lib/time'
 import { cn } from '@/lib/utils'
 import { $activeGatewayProfile } from '@/store/profile'
 import { $connection } from '@/store/session'
@@ -157,7 +158,7 @@ function clearRelay(): void {
 
 function fmtTime(ts: number): string {
   try {
-    return new Date(ts * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    return new Date(ts * 1000).toLocaleTimeString(uiDateLocale(), { hour: '2-digit', minute: '2-digit' })
   } catch {
     return ''
   }
@@ -193,6 +194,8 @@ export function TeamPane() {
 }
 
 function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
+  const { t: languageText } = useDesktopLanguage()
+
   const { locale } = useI18n()
   const help = teamHelp[locale]
   const [name, setName] = useState<string>(() => readLocal(NAME_KEY) ?? '')
@@ -251,9 +254,9 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
         return fallback
       })
     } catch {
-      setError('Team chat unavailable (is the dashboard backend running?)')
+      setError(languageText.additional.team.unavailable)
     }
-  }, [relay])
+  }, [relay, languageText.additional.team.unavailable])
 
   const loadMessages = useCallback(async () => {
     if (activeMessageStream.current !== messageStreamKey) {
@@ -277,7 +280,7 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
           sinceSeq.current = Math.max(sinceSeq.current, data.latest_seq ?? 0)
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Relay unavailable')
+        setError(e instanceof Error ? e.message : languageText.additional.team.relayUnavailable)
       }
 
       return
@@ -302,7 +305,7 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
     } catch {
       /* transient; next tick retries */
     }
-  }, [messageStreamKey, relay, roomId])
+  }, [messageStreamKey, relay, roomId, languageText.additional.team.relayUnavailable])
 
   const loadPresence = useCallback(async () => {
     try {
@@ -414,7 +417,7 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
       await loadMessages()
     } catch (e) {
       setDraft(text)
-      setError(e instanceof Error ? e.message : 'Send failed')
+      setError(e instanceof Error ? e.message : languageText.additional.team.sendFailed)
     }
   }
 
@@ -425,7 +428,7 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
       const data = await shareTeamRoom(r.id)
       setShared({ roomId: r.id, code: data.room.code })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Share failed')
+      setError(e instanceof Error ? e.message : languageText.additional.team.shareFailed)
     }
   }
 
@@ -435,7 +438,7 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
     try {
       base = normalizeRelayBase(joinBase)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Invalid host URL')
+      setError(e instanceof Error ? e.message : languageText.additional.team.invalidHost)
 
       return
     }
@@ -444,7 +447,7 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
     const peer = joinPeer.trim().slice(0, 32)
 
     if (!base || code.length < 20 || !peer) {
-      setError('Need an HTTPS host URL, the complete room invite, and your name.')
+      setError(languageText.additional.team.joinRequirements)
 
       return
     }
@@ -467,7 +470,7 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
       setRelay(info)
       setRelayOpen(false)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Join failed')
+      setError(e instanceof Error ? e.message : languageText.additional.team.joinFailed)
     } finally {
       setJoining(false)
     }
@@ -498,7 +501,7 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
       setNewWork('')
       await loadWork()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not add work item')
+      setError(e instanceof Error ? e.message : languageText.additional.team.addWorkFailed)
     }
   }
 
@@ -514,13 +517,16 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
 
       await loadWork()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not update work item')
+      setError(e instanceof Error ? e.message : languageText.additional.team.updateWorkFailed)
       await loadWork()
     }
   }
 
   return (
-    <aside aria-label="Team chat" className="flex h-full w-full min-w-0 flex-col gap-3 overflow-hidden p-3 text-xs">
+    <aside
+      aria-label={languageText.additional.ui.teamChat}
+      className="flex h-full w-full min-w-0 flex-col gap-3 overflow-hidden p-3 text-xs"
+    >
       <details className="shrink-0 text-muted-foreground">
         <summary className="cursor-pointer font-medium text-foreground">{shareCopy[locale].title}</summary>
         <p className="mt-2">{shareCopy[locale].help}</p>
@@ -532,11 +538,13 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
         <div className="flex shrink-0 items-center justify-between gap-2 rounded border border-border bg-muted/20 px-2 py-1.5">
           <div className="flex min-w-0 items-center gap-1.5">
             <span className="shrink-0 font-semibold">{relay.roomName}</span>
-            <span className="truncate text-muted-foreground">via {relay.base.replace(/^https?:\/\//, '')}</span>
+            <span className="truncate text-muted-foreground">
+              {languageText.additional.team.via} {relay.base.replace(/^https?:\/\//, '')}
+            </span>
           </div>
-          <Tip label="Leave cross-machine room (back to local)">
+          <Tip label={languageText.additional.ui.leaveRemoteTip}>
             <Button
-              aria-label="Leave cross-machine room"
+              aria-label={languageText.additional.ui.leaveRemote}
               className="size-6 shrink-0"
               onClick={leaveRelay}
               size="icon"
@@ -549,12 +557,17 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
       ) : (
         /* Identity */
         <div className="flex shrink-0 flex-col gap-1.5">
-          <RightSidebarSectionHeader>You</RightSidebarSectionHeader>
-          <Input maxLength={32} onChange={e => persistName(e.target.value)} placeholder="Your name" value={name} />
+          <RightSidebarSectionHeader>{languageText.additional.ui.you}</RightSidebarSectionHeader>
+          <Input
+            maxLength={32}
+            onChange={e => persistName(e.target.value)}
+            placeholder={languageText.additional.ui.yourName}
+            value={name}
+          />
           <Input
             maxLength={120}
             onChange={e => persistStatus(e.target.value)}
-            placeholder="Working on… (optional)"
+            placeholder={languageText.additional.ui.workingOn}
             value={status}
           />
         </div>
@@ -562,17 +575,23 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
 
       {/* Online now */}
       <div className="flex shrink-0 flex-col gap-1">
-        <RightSidebarSectionHeader>{relay ? 'Online in this room' : 'Online now'}</RightSidebarSectionHeader>
+        <RightSidebarSectionHeader>
+          {relay ? languageText.additional.team.onlineRoom : languageText.additional.team.onlineNow}
+        </RightSidebarSectionHeader>
         <div className="flex max-h-28 flex-col gap-1 overflow-y-auto">
           {online.length === 0 && (
             <div className="text-muted-foreground">
-              {relay ? 'waiting for teammates…' : name.trim() ? 'just you (for now)' : 'add your name above'}
+              {relay
+                ? languageText.additional.team.waiting
+                : name.trim()
+                  ? languageText.additional.team.justYou
+                  : languageText.additional.team.addName}
             </div>
           )}
           {online.map(p => (
             <div className="flex items-baseline gap-2" key={p.name}>
               <span className="shrink-0 font-semibold">{p.name}</span>
-              <span className="truncate text-muted-foreground">{p.status || 'online'}</span>
+              <span className="truncate text-muted-foreground">{p.status || languageText.additional.team.online}</span>
             </div>
           ))}
         </div>
@@ -581,21 +600,21 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
       {/* Shared human work board. Bots can read this feed through their
           gated team_context tool, but cannot silently edit it. */}
       <div className="flex shrink-0 flex-col gap-1.5">
-        <RightSidebarSectionHeader>Current work</RightSidebarSectionHeader>
+        <RightSidebarSectionHeader>{languageText.additional.ui.currentWork}</RightSidebarSectionHeader>
         <div className="flex max-h-36 flex-col gap-1 overflow-y-auto">
-          {work.length === 0 && <div className="text-muted-foreground">No work items yet.</div>}
+          {work.length === 0 && <div className="text-muted-foreground">{languageText.additional.ui.noWork}</div>}
           {work.map(item => (
             <div className="flex items-center gap-1.5 rounded border border-border px-1.5 py-1" key={item.id}>
               <select
-                aria-label={`Status for ${item.title}`}
+                aria-label={languageText.additional.team.statusFor(item.title)}
                 className="max-w-24 rounded border border-border bg-background px-1 py-0.5 text-[0.65rem]"
                 onChange={event => void setWorkStatus(item, event.target.value as TeamWorkStatus)}
                 value={item.status}
               >
-                <option value="backlog">Backlog</option>
-                <option value="in_progress">Doing</option>
-                <option value="blocked">Blocked</option>
-                <option value="done">Done</option>
+                <option value="backlog">{languageText.additional.ui.backlog}</option>
+                <option value="in_progress">{languageText.additional.ui.doing}</option>
+                <option value="blocked">{languageText.additional.ui.blocked}</option>
+                <option value="done">{languageText.additional.ui.done}</option>
               </select>
               <span
                 className={cn(
@@ -620,11 +639,11 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
                 void addWork()
               }
             }}
-            placeholder="Add team work…"
+            placeholder={languageText.additional.ui.addWork}
             value={newWork}
           />
           <Button disabled={!newWork.trim()} onClick={() => void addWork()} size="sm">
-            Add
+            {languageText.additional.ui.add}
           </Button>
         </div>
       </div>
@@ -632,7 +651,7 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
       {/* Rooms (local mode only) */}
       {!relay && (
         <div className="flex shrink-0 flex-col gap-1">
-          <RightSidebarSectionHeader>Rooms</RightSidebarSectionHeader>
+          <RightSidebarSectionHeader>{languageText.additional.ui.rooms}</RightSidebarSectionHeader>
           <div className="flex flex-wrap gap-1">
             {rooms.map(r => (
               <span className="inline-flex items-center gap-0.5" key={r.id}>
@@ -651,9 +670,9 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
                 >
                   {r.name}
                 </button>
-                <Tip label={`Share "${r.name}" across machines`}>
+                <Tip label={languageText.additional.team.shareAcross(r.name)}>
                   <button
-                    aria-label={`Share room ${r.name}`}
+                    aria-label={languageText.additional.team.shareRoom(r.name)}
                     className={cn(
                       'rounded-r border border-l-0 px-1 py-0.5',
                       shared?.roomId === r.id
@@ -699,7 +718,11 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
           </button>
           {relayOpen && (
             <div className="flex flex-col gap-1.5 rounded border border-border bg-muted/10 p-2">
-              <Input onChange={e => setJoinBase(e.target.value)} placeholder="HTTPS host URL" value={joinBase} />
+              <Input
+                onChange={e => setJoinBase(e.target.value)}
+                placeholder={languageText.additional.ui.hostUrl}
+                value={joinBase}
+              />
               <div className="flex gap-1.5">
                 <Input
                   className="flex-1 font-mono"
@@ -710,19 +733,19 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
                       void joinRelay()
                     }
                   }}
-                  placeholder="room invite"
+                  placeholder={languageText.additional.ui.roomInvite}
                   value={joinCode}
                 />
                 <Input
                   className="flex-1"
                   maxLength={32}
                   onChange={e => setJoinPeer(e.target.value)}
-                  placeholder="your name"
+                  placeholder={languageText.additional.ui.yourNameLower}
                   value={joinPeer}
                 />
               </div>
               <Button disabled={joining} onClick={() => void joinRelay()} size="sm">
-                {joining ? 'Joining…' : 'Join room'}
+                {joining ? languageText.additional.team.joining : languageText.additional.team.joinRoom}
               </Button>
               <p className="text-[0.65rem] leading-snug text-muted-foreground">{help.address}</p>
             </div>
@@ -737,9 +760,9 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
       >
         {messages.length === 0 && (
           <div className="px-1 py-4 text-center text-muted-foreground">
-            No messages yet.
+            {languageText.additional.ui.noMessages}
             <br />
-            {relay ? 'Say hello to the team.' : 'Say hello — this is local to your machine.'}
+            {relay ? languageText.additional.team.helloTeam : languageText.additional.team.helloLocal}
           </div>
         )}
         {messages.map(m => (
@@ -769,7 +792,13 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
               void send()
             }
           }}
-          placeholder={relay ? 'Message the room…' : name.trim() ? 'Message the team…' : 'Add your name first'}
+          placeholder={
+            relay
+              ? languageText.additional.team.messageRoom
+              : name.trim()
+                ? languageText.additional.team.messageTeam
+                : languageText.additional.team.nameFirst
+          }
           rows={2}
           value={draft}
         />
@@ -779,7 +808,7 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
           onClick={() => void send()}
           size="icon"
         >
-          Send
+          {languageText.additional.ui.send}
         </Button>
       </div>
     </aside>
@@ -787,6 +816,8 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
 }
 
 function AddRoom({ onCreated, onRename }: { onCreated: (id: string) => void; onRename: () => void }) {
+  const { t: languageText } = useDesktopLanguage()
+
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState('')
   const [busy, setBusy] = useState(false)
@@ -807,7 +838,7 @@ function AddRoom({ onCreated, onRename }: { onCreated: (id: string) => void; onR
       onCreated(data.room.id)
       onRename()
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : 'Create failed')
+      window.alert(e instanceof Error ? e.message : languageText.additional.team.createFailed)
     } finally {
       setBusy(false)
     }
@@ -815,9 +846,9 @@ function AddRoom({ onCreated, onRename }: { onCreated: (id: string) => void; onR
 
   if (!open) {
     return (
-      <Tip label="New room">
+      <Tip label={languageText.additional.ui.newRoom}>
         <button
-          aria-label="New room"
+          aria-label={languageText.additional.ui.newRoom}
           className="rounded border border-dashed border-border px-1.5 py-0.5 text-muted-foreground hover:border-foreground/40"
           onClick={() => setOpen(true)}
           type="button"
@@ -844,11 +875,11 @@ function AddRoom({ onCreated, onRename }: { onCreated: (id: string) => void; onR
             setOpen(false)
           }
         }}
-        placeholder="room name"
+        placeholder={languageText.additional.ui.roomName}
         value={value}
       />
       <Button className="h-6 px-1.5" disabled={busy} onClick={() => void create()} size="sm">
-        Add
+        {languageText.additional.ui.add}
       </Button>
     </span>
   )

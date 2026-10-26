@@ -206,8 +206,7 @@
       {
         "name": "Hebri Protocol",
         "schemes": [
-          "hebri",
-          "hermes"
+          "hebri"
         ]
       }
     ],

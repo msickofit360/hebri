@@ -1,0 +1,195 @@
+import type { TranslationOverrides } from './define-locale'
+
+export const itSkills = {
+  skills: {
+    configuringProfile: 'Configurazione di:',
+    searchSkills: 'Cerca competenze…',
+    searchToolsets: 'Cerca strumenti…',
+    refresh: 'Aggiorna competenze',
+    refreshing: 'Aggiornamento delle competenze',
+    loading: 'Caricamento delle funzionalità…',
+    noSkillsTitle: 'Nessuna competenza trovata',
+    noSkillsDesc: 'Prova una ricerca più ampia o un’altra categoria.',
+    noToolsetsTitle: 'Nessun gruppo di strumenti trovato',
+    noToolsetsDesc: 'Prova una ricerca più ampia.',
+    noDescription: 'Nessuna descrizione.',
+    configured: 'Configurato',
+    needsKeys: 'Chiavi richieste',
+    visionModelHint:
+      'La visione usa la configurazione dei modelli ausiliari: il modello capace di elaborare immagini viene scelto lì, non per ciascun fornitore qui.',
+    visionModelLink: 'Scegli il modello per la visione in Impostazioni → Modelli',
+    toolsetsEnabled: (enabled, total) => `${enabled}/${total} gruppi di strumenti attivi`,
+    configureToolset: label => `Configura ${label}`,
+    toggleToolset: (label, enabled) => `${enabled ? 'Attiva' : 'Disattiva'} il gruppo di strumenti ${label}`,
+    skillsLoadFailed: 'Impossibile caricare le competenze',
+    toolsetsRefreshFailed: 'Impossibile aggiornare i gruppi di strumenti',
+    skillEnabled: 'Competenza attivata',
+    skillDisabled: 'Competenza disattivata',
+    toolsetEnabled: 'Gruppo di strumenti attivato',
+    toolsetDisabled: 'Gruppo di strumenti disattivato',
+    appliesToNewSessions: name => `${name} si applica alle nuove sessioni.`,
+    failedToUpdate: name => `Impossibile aggiornare ${name}`,
+    sortMostUsed: 'Più usati',
+    sortAlpha: 'A–Z',
+    sortMostUsedDesc: '↓ Più usati',
+    sortLeastUsedAsc: '↑ Meno usati',
+    enableAll: 'Attiva tutti',
+    disableAll: 'Disattiva tutti',
+    disableUnused: 'Disattiva quelli inutilizzati',
+    bulkUpdated: count => `${count} element${count === 1 ? 'o aggiornato' : 'i aggiornati'} per le nuove sessioni.`,
+    bulkNoChange: 'Nessuna modifica da applicare.',
+    usageCount: count => `utilizzi: ${count}`,
+    provenance: {
+      agent: 'Appresa',
+      bundled: 'Integrata',
+      hub: 'Catalogo'
+    },
+    emptyNoneFound: noun => `Nessun risultato per ${noun}`,
+    emptyNothingMatches: query => `Nessun risultato per «${query}».`,
+    emptyNoneAvailable: noun => `Ancora nessun elemento disponibile per ${noun}.`,
+    changesApplyNewSessions: 'Le modifiche si applicano alle nuove sessioni.',
+    skillUpdated: 'Competenza aggiornata',
+    skillArchivedTitle: 'Competenza archiviata',
+    skillArchivedMessage: 'Ripristinabile tramite hermes curator restore.',
+    plugins: {
+      agentTitle: 'Plugin dell’agente',
+      agentBlurb:
+        'Estendono l’agente del profilo selezionato con strumenti, hook e fornitori. Hanno effetto dopo il riavvio del gateway.',
+      pageBlurb: 'Un plugin può estendere questa app, l’agente o entrambi: ciascuna parte ha il proprio interruttore.',
+      halfDesktop: 'Desktop',
+      halfDesktopHint: 'questa app, uguale per tutti i profili',
+      halfAgentIn: (profile: string) => `Agente in ${profile}`,
+      defaultProfile: 'Hebri (predefinito)',
+      kindDesktop: 'Desktop',
+      kindBoth: 'Agente + Desktop',
+      installAgentHere: 'Installa qui',
+      installAgentHereTip: (profile: string) =>
+        `La parte desktop è caricata in questa app, ma la parte dell’agente non è installata in ${profile}. Installala lì.`,
+      installAgentHereNoOrigin:
+        'La parte dell’agente non è installata in questo profilo e il pacchetto è stato copiato manualmente, senza una voce nel catalogo o un repository Git remoto. Non è quindi possibile installarlo da qui. Copia la cartella nel profilo oppure reinstallalo da Git.',
+      desktopHalfPending: 'copia in corso…',
+      desktopHalfPendingTip:
+        'Questo pacchetto include una parte desktop che non è ancora stata copiata nell’app. Usa «Ripeti scansione» oppure riavvia l’app.',
+      desktopHalfRemote: 'non disponibile (backend remoto)',
+      desktopHalfRemoteTip:
+        'La parte desktop di questo pacchetto si trova sul disco del backend remoto, che questa app non può leggere. Per usarla qui, scegli «Installa da Git», inserisci l’URL del repository del pacchetto e seleziona la destinazione Desktop: verrà clonata su questo computer.',
+      emptyAll: 'Ancora nessun plugin.',
+      empty: 'Nessun plugin dell’agente installato per questo profilo.',
+      emptyHint: 'Sfoglia il catalogo qui sotto e installa un plugin verificato con un clic.',
+      loadFailed: 'Impossibile caricare i plugin dell’agente',
+      toggleFailed: (name: string) => `Impossibile cambiare lo stato di ${name}`,
+      legacyBackend:
+        'Questo backend non supporta l’attivazione dei plugin tramite chiave: aggiorna Hebri per gestirli qui.',
+      portableBadge: 'portabile',
+      serverStates: {
+        connected: 'collegato',
+        app_not_running: 'app non in esecuzione',
+        endpoint_unavailable: 'endpoint non disponibile',
+        no_interactive_session: 'nessuna sessione interattiva',
+        version_too_old: 'versione troppo vecchia',
+        missing_app: 'app mancante',
+        unknown: 'stato sconosciuto'
+      },
+      catalogTitle: 'Catalogo dei plugin',
+      catalogBrowse: 'Sfoglia',
+      catalogHide: 'Nascondi il catalogo',
+      catalogHint:
+        'Premi «+ Aggiungi a questo agente» su un plugin: le voci verificate vengono installate nel profilo selezionato alla versione fissata. I plugin che includono agente e desktop offrono entrambe le parti.',
+      alreadyInstalled: (name: string) => `${name} è già installato in questo profilo.`,
+      catalogProvenance: (sha: string) => `Installato dal catalogo Hebri${sha ? ` alla versione fissata ${sha}` : ''}.`,
+      pinnedProvenance: (sha: string) =>
+        `Fissato al commit ${sha}. Gli aggiornamenti vengono rifiutati finché non viene reinstallato con una nuova versione fissata.`,
+      pinnedBadge: (sha: string) => `fissato a ${sha}`,
+      tierOfficial: 'ufficiale',
+      tierCommunity: 'comunità',
+      updateToPin: (sha: string) => `Aggiorna a ${sha}`,
+      updateFailed: (name: string) => `Impossibile aggiornare ${name}`,
+      updated: (name: string) =>
+        `${name} aggiornato alla versione attualmente fissata nel catalogo. Riavvia il gateway per applicarla.`,
+      updateConsentTitle: (name: string) => `${name} richiede più funzionalità`,
+      updateConsentBody: (name: string, sha: string) =>
+        `La nuova versione di ${name} nel catalogo (${sha}) aggiunge funzionalità assenti nella versione installata. Applicala solo se ti fidi:`,
+      updateConsentConfirm: 'Applica aggiornamento',
+      uninstallTip: (name: string, profile: string) => `Disinstalla ${name} da ${profile}`,
+      uninstallConfirmTitle: (name: string) => `Disinstallare ${name}?`,
+      uninstallConfirmBody: (name: string, profile: string) =>
+        `Verranno eliminati i file del plugin dal profilo ${profile}. Verrà rimossa anche l’eventuale parte desktop inclusa. Puoi reinstallarlo dal catalogo o da Git in qualsiasi momento.`,
+      uninstallFailed: (name: string) => `Impossibile disinstallare ${name}`,
+      uninstalled: (name: string) => `${name} disinstallato. Riavvia il gateway per scaricarlo dalla memoria.`,
+      uninstallDesktopTip: (name: string) => `Disinstalla ${name} da questa app`,
+      uninstallDesktopConfirmBody: (name: string) =>
+        `Verrà eliminato ${name} dalla cartella desktop-plugins di questo computer e rimosso subito dall’app. Puoi reinstallarlo da Git o ricopiare la cartella in qualsiasi momento.`,
+      uninstalledDesktop: (name: string) => `${name} disinstallato.`,
+      deepLinkErrorTitle: 'Link di installazione del plugin rifiutato',
+      deepLinkCatalogInvalidName: 'Il nome nel catalogo indicato dal link è mancante o non valido.',
+      deepLinkCatalogUnknown: (name: string) =>
+        `«${name}» non è presente nel catalogo dei plugin Hebri. Non è stato installato nulla.`,
+      deepLinkCatalogUnavailable:
+        'Impossibile caricare il catalogo dei plugin Hebri. Controlla la connessione e apri di nuovo il link.',
+      settingsToggle: (name: string) => `Impostazioni: ${name}`,
+      settingsForm: {
+        save: 'Salva impostazioni',
+        saved: (name: string) => `Impostazioni di ${name} salvate.`,
+        saveFailed: (name: string) => `Impossibile salvare le impostazioni di ${name}`,
+        secretSet: '•••••••• (impostato)',
+        secretStoredAs: (env: string) =>
+          `Salvato nel file .env del profilo come ${env}, mai in config.yaml. Lascia vuoto per mantenere il valore attuale.`
+      }
+    },
+    officialCatalog: 'Disponibili per l’installazione',
+    officialPill: 'Ufficiale',
+    hub: {
+      searchPlaceholder: 'Cerca nel catalogo delle competenze',
+      searching: 'Ricerca…',
+      connectingHubs: 'Connessione ai cataloghi delle competenze…',
+      connectedHubs: 'Cataloghi collegati:',
+      featured: 'Competenze in evidenza',
+      landingHint:
+        'Cerca nel catalogo le competenze installabili dall’indice ufficiale, da GitHub e dalle fonti della comunità.',
+      noResults: 'Nessuna competenza corrispondente trovata nel catalogo.',
+      resultCount: (count, ms) => `${count} risultat${count === 1 ? 'o' : 'i'}${ms !== null ? ` in ${ms} ms` : ''}`,
+      timedOut: sources => `Tempo scaduto: ${sources}`,
+      installed: 'Installata',
+      installing: 'Installazione…',
+      uninstalling: 'Disinstallazione…',
+      updateAll: 'Aggiorna le installate',
+      updating: 'Aggiornamento…',
+      scan: 'Analizza',
+      scanning: 'Analisi…',
+      noReadme: 'Questa competenza non ha un’anteprima SKILL.md.',
+      trust: {
+        builtin: 'integrata',
+        trusted: 'attendibile',
+        community: 'comunità'
+      },
+      verdictSafe: 'Sicura',
+      verdictCaution: 'Attenzione',
+      verdictDangerous: 'Pericolosa',
+      policyAllow: 'Installazione consentita',
+      policyAsk: 'Verifica prima di installare',
+      policyBlock: 'Installazione bloccata dalle regole di sicurezza',
+      findings: count => `${count} segnalazion${count === 1 ? 'e' : 'i'}`,
+      noFindings: 'Nessun problema di sicurezza rilevato.',
+      installStarted: name => `Installazione di ${name}…`,
+      uninstallStarted: name => `Disinstallazione di ${name}…`,
+      updateStarted: 'Aggiornamento delle competenze installate…',
+      actionFailed: 'Operazione sulla competenza non riuscita',
+      installBlockedTitle: name => `Impossibile installare ${name}`,
+      installBlockedMessage: (findings, unverified) =>
+        `L’analisi di sicurezza ha segnalato ${findings > 0 ? `${findings} elementi` : 'schemi rischiosi'} da esaminare${unverified ? ' e la competenza proviene da una fonte non verificata' : ''}. Leggi l’analisi prima di decidere se fidarti dell’autore.`,
+      viewScan: 'Visualizza analisi',
+      openLog: 'Apri registro',
+      actionLog: 'Registro delle operazioni',
+      alreadyInstalled: (name: string) => `«${name}» è già installata`,
+      pickerTitle: 'Catalogo delle competenze',
+      pickerBrowse: 'Sfoglia il catalogo completo',
+      pickerHide: 'Nascondi il catalogo',
+      pickerHint:
+        'Premi «+ Aggiungi a questo agente» su una competenza per installarla e vederla nell’elenco qui sopra.',
+      loadFailed: 'Impossibile caricare il catalogo delle competenze',
+      previewFailed: 'Anteprima della competenza non riuscita',
+      scanFailed: 'Analisi di sicurezza non riuscita',
+      searchFailed: 'Ricerca nel catalogo non riuscita'
+    }
+  }
+} satisfies TranslationOverrides

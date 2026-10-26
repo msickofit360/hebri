@@ -1,5 +1,10 @@
 'use client'
 
+import { useI18n as useLocaleUpdates } from '@/i18n'
+import { useI18n as useDesktopLanguage } from '@/i18n'
+
+;('use client')
+
 import { TextMessagePartProvider, useMessagePartText } from '@assistant-ui/react'
 import {
   type StreamdownTextComponents,
@@ -126,14 +131,15 @@ function useOpenMediaFile(path: string) {
 }
 
 function OpenMediaFailedNote({ name }: { name: string }) {
+  const { t: languageText } = useDesktopLanguage()
+
   return (
-    <span className="mt-1 block text-xs text-muted-foreground">
-      Couldn&apos;t fetch {name} from the gateway (missing, unreadable, or too large).
-    </span>
+    <span className="mt-1 block text-xs text-muted-foreground">{languageText.additional.screen.mediaFailed(name)}</span>
   )
 }
 
 function OpenMediaButton({ kind, path }: { kind: 'audio' | 'video'; path: string }) {
+  const { t: languageText } = useDesktopLanguage()
   const { open, openFailed } = useOpenMediaFile(path)
 
   return (
@@ -143,7 +149,7 @@ function OpenMediaButton({ kind, path }: { kind: 'audio' | 'video'; path: string
         onClick={open}
         type="button"
       >
-        Open {kind} file
+        {languageText.additional.screen.openMedia(kind)}
       </button>
       {openFailed && <OpenMediaFailedNote name={mediaName(path)} />}
     </span>
@@ -159,6 +165,8 @@ function MediaAttachment({ path }: { path: string }) {
 }
 
 function MediaPlaybackAttachment({ path }: { path: string }) {
+  const { t: localeText } = useLocaleUpdates()
+
   const [src, setSrc] = useState('')
   const [failed, setFailed] = useState(false)
   const { open, openFailed } = useOpenMediaFile(path)
@@ -242,7 +250,7 @@ function MediaPlaybackAttachment({ path }: { path: string }) {
           open()
         }}
       >
-        {failed ? `Open ${name}` : `Loading ${name}...`}
+        {failed ? localeText.additional.display.openNamed(name) : localeText.additional.display.loadingNamed(name)}
       </a>
       {openFailed && <OpenMediaFailedNote name={name} />}
     </span>
@@ -392,6 +400,8 @@ function MarkdownImageContent({
   style,
   ...props
 }: ComponentProps<'img'>) {
+  const { t: languageText } = useDesktopLanguage()
+
   const rawSrc = typeof src === 'string' ? src : ''
   const image = useMediaImage(rawSrc, COLD_IMAGE_RATIO, validImageDimensions(width, height))
   const { open, openFailed } = useOpenMediaFile(rawSrc)
@@ -406,9 +416,9 @@ function MarkdownImageContent({
   if (image.failed) {
     return (
       <span className="my-2 block text-sm text-muted-foreground" data-slot="aui_markdown-image">
-        Couldn&apos;t load {name}.{' '}
+        {languageText.additional.screen.imageFailed(name)}{' '}
         <button className="ref font-medium text-foreground" onClick={open} type="button">
-          Open image
+          {languageText.additional.ui.openImage}
         </button>
         {openFailed && <OpenMediaFailedNote name={name} />}
       </span>
@@ -450,7 +460,8 @@ function MarkdownImageContent({
         />
       ) : (
         <span className={cn('block overflow-hidden text-sm text-muted-foreground', framed && 'absolute inset-0')}>
-          Loading {name}...
+          {languageText.additional.ui.loading}
+          {name}...
         </span>
       )}
     </span>

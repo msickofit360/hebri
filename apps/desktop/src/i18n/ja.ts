@@ -271,7 +271,7 @@ export const ja = defineLocale({
       'バンドルは非公開でアップロードされました。サポートスレッドで以下のリンクを共有すると、チームがログを確認できます。',
     failedTitle: 'アップロードに失敗しました',
     failedHint:
-      'ターミナルから `hermes debug share --nous` を実行するか、`hermes debug share --local` でアップロードせずにレポートを表示することもできます。',
+      '`hebri debug share --local` を実行すると、機密情報を除いたレポートをアップロードせずに表示できます。内容を確認してから、必要に応じて Synapsek サポートに手動で共有してください。',
     handoffLead: '続きは次の場所で:',
     links: {
       github: 'GitHub Issues',
@@ -3744,7 +3744,7 @@ export const ja = defineLocale({
       reject: '拒否',
       alwaysTitle: 'このコマンドを常に許可しますか？',
       alwaysDescription: pattern =>
-        `これにより "${pattern}" パターンが永続的な許可リスト (~/.hermes/config.yaml) に追加されます。Hebri はこのセッションや将来のセッションで、このようなコマンドについて再度尋ねません。`,
+        `これにより "${pattern}" パターンが永続的な許可リスト に追加されます。Hebri はこのセッションや将来のセッションで、このようなコマンドについて再度尋ねません。`,
       alwaysAllow: '常に許可'
     },
     clarify: {

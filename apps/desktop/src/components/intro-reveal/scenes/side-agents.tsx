@@ -1,3 +1,6 @@
+import { useI18n as useLocaleUpdates } from '@/i18n'
+import { useI18n } from '@/i18n'
+
 import { INTRO_BEATS } from '../timeline'
 
 import { BLUE, BLUE_FAINT, EASE, NOUS_SHADOW } from './style'
@@ -12,6 +15,10 @@ interface SideAgentsProps {
 }
 
 export function SideAgents({ active, side, tick }: SideAgentsProps) {
+  const { t: localeText } = useLocaleUpdates()
+
+  useI18n()
+
   const sideCard = (title: string, line1: string, line2: string, offset: string, delayMs = 0, tilt = 0) => (
     <div
       className="w-full rounded-xl p-5"
@@ -51,32 +58,46 @@ export function SideAgents({ active, side, tick }: SideAgentsProps) {
     <div className="flex w-[19vw] min-w-[240px] flex-col gap-4 self-start pt-[6vh]">
       <div style={{ animation: 'intro-float-a 5.2s ease-in-out infinite alternate' }}>
         {sideCard(
-          'research agent',
-          'Apartment hunt: 3 new listings shortlisted',
-          '↳ compiling tour schedule…',
+          localeText.additional.interface.researchAgent,
+          localeText.additional.interface.apartmentShortlist,
+          localeText.additional.interface.scheduleTours,
           '26px',
           0,
           7
         )}
       </div>
       <div style={{ animation: 'intro-float-b 6.1s ease-in-out infinite alternate' }}>
-        {sideCard('groceries', 'Weekly order built from your list', '↳ delivery booked for Sunday', '38px', 220, 7)}
+        {sideCard(
+          localeText.additional.interface.groceries,
+          localeText.additional.interface.weeklyOrder,
+          localeText.additional.interface.deliverySunday,
+          '38px',
+          220,
+          7
+        )}
       </div>
     </div>
   ) : (
     <div className="flex w-[19vw] min-w-[240px] flex-col gap-4 self-end pb-[5vh]">
       <div style={{ animation: 'intro-float-c 5.7s ease-in-out infinite alternate' }}>
         {sideCard(
-          'inbox agent',
-          '2 replies drafted, waiting for your ok',
-          '↳ calendar updated for Friday',
+          localeText.additional.interface.inboxAgent,
+          localeText.additional.interface.repliesDrafted,
+          localeText.additional.interface.calendarFriday,
           '34px',
           120,
           -7
         )}
       </div>
       <div style={{ animation: 'intro-float-a 6.6s ease-in-out infinite alternate' }}>
-        {sideCard('morning brief', 'Tomorrow: 3 meetings, rain at 8', '↳ ready before you wake', '30px', 340, -7)}
+        {sideCard(
+          localeText.additional.interface.morningBrief,
+          localeText.additional.interface.tomorrowMeetings,
+          localeText.additional.interface.readyMorning,
+          '30px',
+          340,
+          -7
+        )}
       </div>
     </div>
   )

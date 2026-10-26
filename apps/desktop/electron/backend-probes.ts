@@ -139,8 +139,12 @@ async function execProbe(
  *
  * @returns {string}
  */
-function hermesRuntimeImportProbe() {
-  return 'import yaml; import dotenv; import hermes_cli.config'
+function hermesRuntimeImportProbe(requireHebriIdentity = false) {
+  const imports = 'import yaml; import dotenv; import hermes_cli.config'
+
+  return requireHebriIdentity
+    ? `${imports}; from hermes_constants import APPLICATION_ID; assert APPLICATION_ID == "com.synapsek.hebri"`
+    : imports
 }
 
 /**
@@ -161,13 +165,16 @@ function hermesRuntimeImportProbe() {
  * @param {object} [opts.env] - Additional environment for the probe.
  * @returns {boolean}
  */
-async function canImportHermesCli(pythonPath: string, opts: { env?: Record<string, string> } = {}) {
+async function canImportHermesCli(
+  pythonPath: string,
+  opts: { env?: Record<string, string>; requireHebriIdentity?: boolean } = {}
+) {
   if (!pythonPath) {
     return false
   }
 
   try {
-    await execProbe(pythonPath, ['-c', hermesRuntimeImportProbe()], {
+    await execProbe(pythonPath, ['-c', hermesRuntimeImportProbe(opts.requireHebriIdentity)], {
       env: { ...process.env, ...(opts.env || {}) },
       stdio: 'ignore',
       timeout: PROBE_TIMEOUT_MS,

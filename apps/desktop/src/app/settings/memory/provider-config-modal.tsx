@@ -12,6 +12,8 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 import { saveMemoryProviderConfig } from '@/hermes'
+import { useI18n } from '@/i18n'
+import { localizeBuiltinText } from '@/i18n/builtin-metadata'
 import { ExternalLink, Loader2, Save, SlidersHorizontal } from '@/lib/icons'
 import { notify, notifyError } from '@/store/notifications'
 import { $activeGatewayProfile } from '@/store/profile'
@@ -59,6 +61,7 @@ export function ProviderConfigModal({
   onOpenChange: (open: boolean) => void
   onSaved: () => Promise<void> | void
 }) {
+  const { t } = useI18n()
   const activeProfile = useStore($activeGatewayProfile)
   const [values, setValues] = useState<Record<string, string>>({})
   const [seeded, setSeeded] = useState<Record<string, string>>({})
@@ -81,11 +84,15 @@ export function ProviderConfigModal({
 
     try {
       await saveMemoryProviderConfig(provider, edited, profile)
-      notify({ kind: 'success', title: `${config.label} saved`, message: 'Memory provider configuration updated.' })
+      notify({
+        kind: 'success',
+        title: t.additional.memory.saved(config.label),
+        message: t.additional.memory.savedBody
+      })
       await onSaved()
       onOpenChange(false)
     } catch (err) {
-      notifyError(err, `Failed to save ${config.label} settings`)
+      notifyError(err, t.additional.memory.saveFailed(config.label))
     } finally {
       setSaving(false)
     }
@@ -95,10 +102,9 @@ export function ProviderConfigModal({
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent bodyClassName="dt-portal-scrollbar" className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle icon={SlidersHorizontal}>{config.label} — full configuration</DialogTitle>
+          <DialogTitle icon={SlidersHorizontal}>{t.additional.memory.fullTitle(config.label)}</DialogTitle>
           <DialogDescription>
-            Every {config.label} option for the <span className="font-medium">{profile ?? activeProfile}</span> profile.
-            Blank fields fall back to the resolved host or built-in default.
+            {t.additional.memory.fullDescription(config.label, profile ?? activeProfile)}
           </DialogDescription>
           {config.docs_url && (
             <a
@@ -111,7 +117,7 @@ export function ProviderConfigModal({
               rel="noreferrer"
               target="_blank"
             >
-              {config.label} configuration reference
+              {t.additional.memory.reference(config.label)}
               <ExternalLink className="size-3" />
             </a>
           )}
@@ -121,7 +127,7 @@ export function ProviderConfigModal({
           {groupFields(config.fields).map(([group, fields]) => (
             <section className="mt-6 first:mt-2" key={group}>
               <h3 className="border-b border-(--ui-accent-secondary)/30 pb-1.5 font-mono text-[0.68rem] uppercase tracking-wide text-(--ui-accent-secondary)">
-                {group}
+                {group === 'Other' ? t.additional.memory.other : localizeBuiltinText(group, t)}
               </h3>
               <div className="pl-1">
                 {fields.map(field => (
@@ -134,7 +140,7 @@ export function ProviderConfigModal({
                           value={values[field.key] ?? ''}
                         />
                       }
-                      description={field.description}
+                      description={localizeBuiltinText(field.description, t)}
                       title={<FieldTitle field={field} />}
                     />
                   </div>
@@ -147,12 +153,12 @@ export function ProviderConfigModal({
         <DialogFooter>
           <DialogClose asChild>
             <Button size="sm" type="button" variant="ghost">
-              Cancel
+              {t.common.cancel}
             </Button>
           </DialogClose>
           <Button disabled={saving} onClick={() => void save()} size="sm">
             {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save />}
-            Save changes
+            {t.cron.saveChanges}
           </Button>
         </DialogFooter>
       </DialogContent>

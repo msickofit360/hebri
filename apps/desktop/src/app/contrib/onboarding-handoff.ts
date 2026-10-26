@@ -1,6 +1,5 @@
-/** Durable first-build handoff and progress check-ins. */
-
 import { useStore } from '@nanostores/react'
+/** Durable first-build handoff and progress check-ins. */
 import { useEffect } from 'react'
 
 import { PROMPT_SUBMIT_REQUEST_TIMEOUT_MS } from '@/api/client'
@@ -20,6 +19,7 @@ import {
 import { showHandoffTour } from '@/components/onboarding-chat/signpost'
 import { findGroupOfPane } from '@/components/pane-shell/tree/model'
 import { $layoutTree, activateTreePane } from '@/components/pane-shell/tree/store'
+import { translateNow } from '@/i18n/runtime'
 import { toChatMessages } from '@/lib/chat-messages'
 import { connectorTitle } from '@/lib/connector-tools'
 import { isOnboardingEnabled } from '@/lib/onboarding-enabled'
@@ -116,7 +116,7 @@ export function useOnboardingHandoff({
     } catch (error) {
       notify({
         kind: 'error',
-        title: 'First build needs attention',
+        title: translateNow('additional.notice.firstBuildAttention'),
         message: error instanceof Error ? error.message : 'The first-build receipt could not be read.'
       })
     }
@@ -323,9 +323,9 @@ export function useOnboardingHandoff({
         notify({
           id: 'onboarding-handoff',
           kind: 'error',
-          title: 'First build needs attention',
+          title: translateNow('additional.notice.firstBuildAttention'),
           message,
-          action: { label: 'Retry first build', onClick: retrySetupHandoff }
+          action: { label: translateNow('additional.notice.retryFirstBuild'), onClick: retrySetupHandoff }
         })
       }
     })()

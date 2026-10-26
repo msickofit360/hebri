@@ -45,7 +45,7 @@ BOLD='\033[1m'
 # Configuration
 REPO_URL_SSH="git@github.com:satoshilove/hebri.git"
 REPO_URL_HTTPS="https://github.com/satoshilove/hebri.git"
-HERMES_HOME="${HERMES_HOME:-$HOME/.hebri}"
+HERMES_HOME="${HEBRI_HOME:-$HOME/.hebri}"
 # INSTALL_DIR is resolved AFTER arg parsing and OS detection so we can pick an
 # FHS-style layout for root installs.  Track whether the user gave us an
 # explicit directory — if so we never override it.
@@ -61,7 +61,7 @@ PYTHON_SUPPORTED_RANGE=">=3.11,<3.14"  # pyproject requires-python; keep in sync
 NODE_VERSION="26"
 
 # FHS-style root install layout (set by resolve_install_layout when applicable):
-#   code at /usr/local/lib/hebri-agent, command at /usr/local/bin/hermes,
+#   code at /usr/local/lib/hebri-agent, command at /usr/local/bin/hebri,
 #   data still at /root/.hebri (HERMES_HOME).  Matches Claude Code / Codex CLI
 #   and keeps Docker bind-mounted /root/ volumes lean.
 ROOT_FHS_LAYOUT=false
@@ -202,7 +202,7 @@ while [[ $# -gt 0 ]]; do
             echo "Notes:"
             echo "  When running as root on Linux, Hebri installs the code under"
             echo "  /usr/local/lib/hebri-agent and links the command into"
-            echo "  /usr/local/bin/hebri (the legacy hermes command remains available)."
+            echo "  /usr/local/bin/hebri (Hermes commands are left unchanged)."
             echo "  Data, config, sessions, and logs still live in \$HERMES_HOME"
             echo "  (default /root/.hebri).  This keeps Docker bind-mounted volumes"
             echo "  small and ensures the command is on PATH for all shells."
@@ -477,13 +477,13 @@ resolve_install_layout() {
         # Place uv-managed Python under /usr/local/share so the venv interpreter
         # is world-readable.  Default uv paths land in /root/.local/share/uv,
         # which non-root users can't traverse — leaving the shared
-        # /usr/local/bin/hermes wrapper unable to exec the bad-interpreter venv
+        # /usr/local/bin/hebri wrapper unable to exec the bad-interpreter venv
         # python.  See #21457.
         export UV_PYTHON_INSTALL_DIR="${UV_PYTHON_INSTALL_DIR:-/usr/local/share/uv/python}"
         export UV_PYTHON_BIN_DIR="${UV_PYTHON_BIN_DIR:-/usr/local/share/uv/bin}"
         log_info "Root install on Linux — using FHS layout"
         log_info "  Code:    $INSTALL_DIR"
-        log_info "  Command: /usr/local/bin/hermes"
+        log_info "  Command: /usr/local/bin/hebri"
         log_info "  Data:    $HERMES_HOME (unchanged)"
         log_info "  uv Python: $UV_PYTHON_INSTALL_DIR (world-readable)"
         return 0
@@ -535,10 +535,10 @@ configure_managed_node_npm_prefix() {
 get_hermes_command_path() {
     local link_dir
     link_dir="$(get_command_link_dir)"
-    if [ -x "$link_dir/hermes" ]; then
-        echo "$link_dir/hermes"
+    if [ -x "$link_dir/hebri" ]; then
+        echo "$link_dir/hebri"
     else
-        echo "hermes"
+        echo "hebri"
     fi
 }
 
@@ -2166,15 +2166,15 @@ PY
 }
 
 setup_path() {
-    log_info "Setting up hermes command..."
+    log_info "Setting up hebri command..."
 
     if [ "$USE_VENV" = true ]; then
         HERMES_BIN="$INSTALL_DIR/venv/bin/python"
         HERMES_ENTRYPOINT="$INSTALL_DIR/hermes"
     else
-        HERMES_BIN="$(which hermes 2>/dev/null || echo "")"
+        HERMES_BIN="$(which hebri 2>/dev/null || echo "")"
         if [ -z "$HERMES_BIN" ]; then
-            log_warn "hermes not found on PATH after install"
+            log_warn "hebri not found on PATH after install"
             return 0
         fi
     fi
@@ -2196,36 +2196,47 @@ setup_path() {
     command_link_dir="$(get_command_link_dir)"
     command_link_display_dir="$(get_command_link_display_dir)"
 
-    # Create the Hebri command and retain hermes as a compatibility alias.
+    # Publish only Hebri commands. An existing Hermes installation owns its names.
     # We intentionally clear PYTHONPATH/PYTHONHOME here so inherited env vars
     # can't make this launcher import modules from another checkout.
     mkdir -p "$command_link_dir"
+    # Retire only aliases proven to target this exact Hebri checkout. Original
+    # Hermes wrappers (and ambiguous symlinks) are never removed by this repair.
+    local legacy_command
+    for legacy_command in hermes hermes-agent hermes-acp; do
+        local legacy_path="$command_link_dir/$legacy_command"
+        if [ -f "$legacy_path" ] && [ ! -L "$legacy_path" ] \
+            && grep -Fq "\"$INSTALL_DIR/venv/bin/python\"" "$legacy_path"; then
+            rm -f "$legacy_path"
+        fi
+    done
     # Older installs created this path as a symlink to $HERMES_BIN. Without
     # the rm, `cat >` follows the symlink and overwrites the venv pip entry
     # point with this shim — making `exec "$HERMES_BIN"` self-recurse. (#21454)
-    rm -f "$command_link_dir/hermes"
+    rm -f "$command_link_dir/hebri"
     if [ "$USE_VENV" = true ]; then
         # uv-generated console scripts resolve themselves through `realpath`,
         # which stock macOS does not provide. Run the checked-in entrypoint
         # with the venv interpreter instead, so the public launcher remains
         # independent of non-standard shell utilities.
-        cat > "$command_link_dir/hermes" <<EOF
+        cat > "$command_link_dir/hebri" <<EOF
 #!/usr/bin/env bash
 unset PYTHONPATH
 unset PYTHONHOME
+export HEBRI_HOME="\${HEBRI_HOME:-$HERMES_HOME}"
+export HERMES_HOME="\$HEBRI_HOME"
 exec "$HERMES_BIN" "$HERMES_ENTRYPOINT" "\$@"
 EOF
     else
-        cat > "$command_link_dir/hermes" <<EOF
+        cat > "$command_link_dir/hebri" <<EOF
 #!/usr/bin/env bash
 unset PYTHONPATH
 unset PYTHONHOME
+export HEBRI_HOME="\${HEBRI_HOME:-$HERMES_HOME}"
+export HERMES_HOME="\$HEBRI_HOME"
 exec "$HERMES_BIN" "\$@"
 EOF
     fi
-    chmod +x "$command_link_dir/hermes"
-    rm -f "$command_link_dir/hebri"
-    cp "$command_link_dir/hermes" "$command_link_dir/hebri"
     chmod +x "$command_link_dir/hebri"
     log_success "Installed hebri launcher → $command_link_display_dir/hebri"
 
@@ -2233,24 +2244,28 @@ EOF
     # pyproject.toml's [project.scripts] lives inside the venv, which is not on
     # the login-shell PATH. Without this launcher users can't invoke the agent
     # entrypoint directly from outside the venv. (#74819)
-    rm -f "$command_link_dir/hermes-agent"
+    rm -f "$command_link_dir/hebri-agent"
     if [ "$USE_VENV" = true ]; then
-        cat > "$command_link_dir/hermes-agent" <<EOF
+        cat > "$command_link_dir/hebri-agent" <<EOF
 #!/usr/bin/env bash
 unset PYTHONPATH
 unset PYTHONHOME
+export HEBRI_HOME="\${HEBRI_HOME:-$HERMES_HOME}"
+export HERMES_HOME="\$HEBRI_HOME"
 exec "$HERMES_BIN" "$INSTALL_DIR/run_agent.py" "\$@"
 EOF
     else
-        cat > "$command_link_dir/hermes-agent" <<EOF
+        cat > "$command_link_dir/hebri-agent" <<EOF
 #!/usr/bin/env bash
 unset PYTHONPATH
 unset PYTHONHOME
+export HEBRI_HOME="\${HEBRI_HOME:-$HERMES_HOME}"
+export HERMES_HOME="\$HEBRI_HOME"
 exec "$HERMES_BIN" run_agent.py "\$@"
 EOF
     fi
-    chmod +x "$command_link_dir/hermes-agent"
-    log_success "Installed hermes-agent launcher → $command_link_display_dir/hermes-agent"
+    chmod +x "$command_link_dir/hebri-agent"
+    log_success "Installed hermes-agent launcher → $command_link_display_dir/hebri-agent"
 
     # Also expose `hermes-acp`. ACP hosts (Zed, JetBrains, Buzz) resolve the
     # agent by command name on the login-shell PATH, and the `hermes-acp`
@@ -2258,29 +2273,33 @@ EOF
     # this launcher those hosts report Hermes as not installed. (#21454 applies
     # here too: clear the path first so `cat >` cannot follow an old symlink
     # into the venv and overwrite the console script.)
-    rm -f "$command_link_dir/hermes-acp"
+    rm -f "$command_link_dir/hebri-acp"
     if [ "$USE_VENV" = true ]; then
-        cat > "$command_link_dir/hermes-acp" <<EOF
+        cat > "$command_link_dir/hebri-acp" <<EOF
 #!/usr/bin/env bash
 unset PYTHONPATH
 unset PYTHONHOME
+export HEBRI_HOME="\${HEBRI_HOME:-$HERMES_HOME}"
+export HERMES_HOME="\$HEBRI_HOME"
 exec "$HERMES_BIN" "$HERMES_ENTRYPOINT" acp "\$@"
 EOF
     else
-        cat > "$command_link_dir/hermes-acp" <<EOF
+        cat > "$command_link_dir/hebri-acp" <<EOF
 #!/usr/bin/env bash
 unset PYTHONPATH
 unset PYTHONHOME
+export HEBRI_HOME="\${HEBRI_HOME:-$HERMES_HOME}"
+export HERMES_HOME="\$HEBRI_HOME"
 exec "$HERMES_BIN" acp "\$@"
 EOF
     fi
-    chmod +x "$command_link_dir/hermes-acp"
-    log_success "Installed hermes-acp launcher → $command_link_display_dir/hermes-acp"
+    chmod +x "$command_link_dir/hebri-acp"
+    log_success "Installed hermes-acp launcher → $command_link_display_dir/hebri-acp"
 
     if [ "$DISTRO" = "termux" ]; then
         export PATH="$command_link_dir:$PATH"
         log_info "$command_link_display_dir is the native Termux command path"
-        log_success "hermes command ready"
+        log_success "hebri command ready"
         return 0
     fi
 
@@ -2295,16 +2314,16 @@ EOF
         # Probe a fresh non-login interactive bash the way the user will use it.
         # `bash -i -c` sources ~/.bashrc but NOT ~/.bash_profile or /etc/profile,
         # which is the exact scenario where RHEL root loses /usr/local/bin.
-        if env -i HOME="$HOME" TERM="${TERM:-dumb}" bash -i -c 'command -v hermes' \
+        if env -i HOME="$HOME" TERM="${TERM:-dumb}" bash -i -c 'command -v hebri' \
                 >/dev/null 2>&1; then
             log_info "/usr/local/bin is already on PATH for all shells"
-            log_success "hermes command ready"
+            log_success "hebri command ready"
             return 0
         fi
 
-        log_info "hermes not on PATH in non-login shells (common on RHEL-family)"
+        log_info "hebri not on PATH in non-login shells (common on RHEL-family)"
         PATH_LINE='export PATH="/usr/local/bin:$PATH"'
-        PATH_COMMENT='# Hermes Agent — ensure /usr/local/bin is on PATH (RHEL non-login shells)'
+        PATH_COMMENT='# Hebri Agent — ensure /usr/local/bin is on PATH (RHEL non-login shells)'
         for SHELL_CONFIG in "$HOME/.bashrc" "$HOME/.bash_profile"; do
             [ -f "$SHELL_CONFIG" ] || continue
             if ! grep -v '^[[:space:]]*#' "$SHELL_CONFIG" 2>/dev/null \
@@ -2315,7 +2334,7 @@ EOF
                 log_success "Added /usr/local/bin to PATH in $SHELL_CONFIG"
             fi
         done
-        log_success "hermes command ready"
+        log_success "hebri command ready"
         return 0
     fi
 
@@ -2361,7 +2380,7 @@ EOF
         for SHELL_CONFIG in "${SHELL_CONFIGS[@]}"; do
             if ! grep -v '^[[:space:]]*#' "$SHELL_CONFIG" 2>/dev/null | grep -qE 'PATH=.*\.local/bin'; then
                 echo "" >> "$SHELL_CONFIG"
-                echo "# Hermes Agent — ensure ~/.local/bin is on PATH" >> "$SHELL_CONFIG"
+                echo "# Hebri Agent — ensure ~/.local/bin is on PATH" >> "$SHELL_CONFIG"
                 echo "$PATH_LINE" >> "$SHELL_CONFIG"
                 log_success "Added ~/.local/bin to PATH in $SHELL_CONFIG"
             fi
@@ -2371,7 +2390,7 @@ EOF
         if [ "$IS_FISH" = "true" ]; then
             if ! grep -q 'fish_add_path.*\.local/bin' "$FISH_CONFIG" 2>/dev/null; then
                 echo "" >> "$FISH_CONFIG"
-                echo "# Hermes Agent — ensure ~/.local/bin is on PATH" >> "$FISH_CONFIG"
+                echo "# Hebri Agent — ensure ~/.local/bin is on PATH" >> "$FISH_CONFIG"
                 echo 'fish_add_path "$HOME/.local/bin"' >> "$FISH_CONFIG"
                 log_success "Added ~/.local/bin to PATH in $FISH_CONFIG"
             fi
@@ -2388,7 +2407,7 @@ EOF
     # Export for current session so hermes works immediately
     export PATH="$command_link_dir:$PATH"
 
-    log_success "hermes command ready"
+    log_success "hebri command ready"
 }
 
 copy_config_templates() {
@@ -2514,7 +2533,7 @@ strip_snap_browser_override() {
 
     local tmp
     tmp="$(mktemp)" || return 0
-    if grep -Ev '^AGENT_BROWSER_EXECUTABLE_PATH=/snap/|^# Hermes Agent browser tools' "$env_file" > "$tmp"; then
+    if grep -Ev '^AGENT_BROWSER_EXECUTABLE_PATH=/snap/|^# Hebri Agent browser tools' "$env_file" > "$tmp"; then
         mv "$tmp" "$env_file"
         log_warn "Removed stale Snap browser override (AGENT_BROWSER_EXECUTABLE_PATH=/snap/...) from $env_file"
         log_info "Hebri will use the bundled Chromium instead."
@@ -2738,7 +2757,7 @@ configure_browser_env_from_system_browser() {
 
     {
         echo ""
-        echo "# Hermes Agent browser tools — explicit browser override."
+        echo "# Hebri Agent browser tools — explicit browser override."
         echo "AGENT_BROWSER_EXECUTABLE_PATH=$browser_path"
     } >> "$env_file"
     log_success "Configured browser tools to use $browser_path"

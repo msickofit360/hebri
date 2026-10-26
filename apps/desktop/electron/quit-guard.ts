@@ -1,3 +1,5 @@
+import { nativeText } from './native-i18n'
+
 // Quitting with a turn in flight kills the backend mid-tool-call: the work is
 // lost, and anything the agent had half-written to disk stays half-written.
 // Renderers publish what they're running; the main process asks before it lets
@@ -108,21 +110,28 @@ export function quitPromptFor(
   const lines = listed.map(title => `• ${title}`)
 
   if (remaining > 0) {
-    lines.push(remaining === 1 ? '• 1 more' : `• ${remaining} more`)
+    lines.push(remaining === 1 ? nativeText('• 1 more') : nativeText('• {count} more', { count: remaining }))
   }
 
   return {
-    buttons: backendOwned ? ['Keep Running', 'Quit Anyway'] : ['Cancel', 'Quit'],
+    buttons: backendOwned
+      ? [nativeText('Keep Running'), nativeText('Quit Anyway')]
+      : [nativeText('Cancel'), nativeText('Quit')],
     detail: [
       lines.join('\n'),
       lines.length > 0 ? '' : null,
       backendOwned
-        ? 'Quitting stops the agent mid-turn. Any work it has not finished writing is lost.'
-        : 'The agent keeps running on the remote backend. Quitting only closes Hebri on this computer; reconnect later to see the results.'
+        ? nativeText('Quitting stops the agent mid-turn. Any work it has not finished writing is lost.')
+        : nativeText(
+            'The agent keeps running on the remote backend. Quitting only closes Hebri on this computer; reconnect later to see the results.'
+          )
     ]
       .filter(line => line !== null)
       .join('\n')
       .trim(),
-    message: work.count === 1 ? 'Hebri is still working on 1 chat.' : `Hebri is still working on ${work.count} chats.`
+    message:
+      work.count === 1
+        ? nativeText('Hebri is still working on 1 chat.')
+        : nativeText('Hebri is still working on {count} chats.', { count: work.count })
   }
 }

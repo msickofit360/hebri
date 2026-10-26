@@ -245,7 +245,7 @@ function shouldPreserveConfiguredOnFallback(runtime: RuntimeReadinessResult, sta
 }
 
 function notifyReady(provider: string) {
-  notify({ kind: 'success', title: 'Hebri is ready', message: `${provider} connected.` })
+  notify({ kind: 'success', title: translateNow('additional.notice.ready'), message: `${provider} connected.` })
 }
 
 // Human-friendly labels for tools auto-routed through the Nous Tool Gateway,
@@ -274,7 +274,7 @@ function notifyGatewayTools(tools: string[] | undefined) {
     durationMs: 8000,
     kind: 'info',
     message: `${list} now run through your Nous subscription — no separate API keys needed.`,
-    title: 'Tool Gateway enabled'
+    title: translateNow('additional.notice.toolGatewayEnabled')
   })
 }
 
@@ -727,9 +727,8 @@ export async function refreshOnboarding(ctx: OnboardingContext, stillWanted?: ()
     notify({
       id: 'runtime-not-ready',
       kind: 'error',
-      title: 'Runtime not ready',
-      message:
-        'Hebri Desktop could not verify the running backend on startup. Some features may be unavailable until the gateway is reachable.'
+      title: translateNow('additional.notice.runtimeNotReady'),
+      message: translateNow('additional.notice.backendNotVerified')
     })
 
     return false
@@ -1046,7 +1045,7 @@ export async function saveOnboardingApiKey(
   const trimmed = value.trim()
 
   if (!trimmed) {
-    return { ok: false, message: 'Enter a value first.' }
+    return { ok: false, message: translateNow('additional.notice.valueFirst') }
   }
 
   // The "Local / custom endpoint" option carries a base URL (in `value`) plus
@@ -1111,7 +1110,7 @@ export async function saveOnboardingLocalEndpoint(baseUrl: string, apiKey: strin
   const key = apiKey.trim()
 
   if (!url) {
-    return { ok: false, message: 'Enter the endpoint URL first.' }
+    return { ok: false, message: translateNow('additional.notice.endpointFirst') }
   }
 
   // Probe connectivity + discover the served models. Any HTTP response proves

@@ -30,8 +30,8 @@ param(
     # existing tree pass -ForceCommit.
     [switch]$ForceCommit,
     [string]$Tag = "",
-    [string]$HermesHome = $(if ($env:HERMES_HOME) { $env:HERMES_HOME } else { "$env:LOCALAPPDATA\hebri" }),
-    [string]$InstallDir = $(if ($env:HERMES_HOME) { "$env:HERMES_HOME\hebri-agent" } else { "$env:LOCALAPPDATA\hebri\hebri-agent" }),
+    [string]$HermesHome = $(if ($env:HEBRI_HOME) { $env:HEBRI_HOME } else { "$env:LOCALAPPDATA\hebri" }),
+    [string]$InstallDir = $(if ($env:HEBRI_HOME) { "$env:HEBRI_HOME\hebri-agent" } else { "$env:LOCALAPPDATA\hebri\hebri-agent" }),
 
     # Local-source install: copy the agent source tree from this directory
     # (the bundle shipped inside the desktop app, or a local checkout) instead
@@ -352,14 +352,14 @@ if ($PSBoundParameters.ContainsKey('HermesHome')) {
     $HermesHome = ConvertTo-LongPath $HermesHome
 } else {
     $HermesHome = ConvertTo-LongPath $(
-        if ($env:HERMES_HOME) { $env:HERMES_HOME } else { "$env:LOCALAPPDATA\hermes" }
+        if ($env:HEBRI_HOME) { $env:HEBRI_HOME } else { "$env:LOCALAPPDATA\hebri" }
     )
 }
 if ($PSBoundParameters.ContainsKey('InstallDir')) {
     $InstallDir = ConvertTo-LongPath $InstallDir
 } else {
     $InstallDir = ConvertTo-LongPath $(
-        if ($env:HERMES_HOME) { "$env:HERMES_HOME\hebri-agent" } else { "$env:LOCALAPPDATA\hebri\hebri-agent" }
+        if ($env:HEBRI_HOME) { "$env:HEBRI_HOME\hebri-agent" } else { "$env:LOCALAPPDATA\hebri\hebri-agent" }
     )
 }
 if ($script:NormalizedProfilePaths) {
@@ -390,7 +390,7 @@ $script:ResolvedPathReport = @{
 # Configuration
 # ============================================================================
 
-$RepoUrlSsh = "git@github.com:NousResearch/hermes-agent.git"
+$RepoUrlSsh = "git@github.com:satoshilove/hebri.git"
 $RepoUrlHttps = "https://github.com/satoshilove/hebri.git"
 $PythonVersion = "3.11"
 # Minor versions the installer accepts when the requested $PythonVersion isn't
@@ -1947,7 +1947,7 @@ function Set-GitBashEnvVar {
 
     foreach ($candidate in $candidates) {
         if ($candidate -and (Test-Path $candidate)) {
-            [Environment]::SetEnvironmentVariable("HERMES_GIT_BASH_PATH", $candidate, "User")
+            [Environment]::SetEnvironmentVariable("HEBRI_GIT_BASH_PATH", $candidate, "User")
             $env:HERMES_GIT_BASH_PATH = $candidate
             $script:GitBashPath = $candidate
             Write-Info "Set HERMES_GIT_BASH_PATH=$candidate"
@@ -3041,8 +3041,12 @@ function Install-Venv {
             # on failure -- but only for tasks that were enabled to begin with.
             # Best-effort: a missing task just errors quietly.
             try {
-                schtasks /Query /FO CSV 2>$null | ConvertFrom-Csv | Where-Object { $_.TaskName -like '*Hermes_Gateway*' } | ForEach-Object {
+                schtasks /Query /FO CSV 2>$null | ConvertFrom-Csv | Where-Object { $_.TaskName -match '(Hebri|Hermes)_Gateway' } | ForEach-Object {
                     $tn = $_.TaskName
+                    [xml]$taskXml = (schtasks /Query /TN $tn /XML 2>$null) -join "`n"
+                    $action = (($taskXml.Task.Actions.Exec | ForEach-Object { $_.Command; $_.Arguments }) -join ' ').Replace('\', '/').ToLowerInvariant()
+                    $ownedPrefix = (Join-Path $HermesHome 'gateway-service').Replace('\', '/').TrimEnd('/') + '/'
+                    if (-not $action.Contains($ownedPrefix.ToLowerInvariant())) { return }
                     if ($_.Status -eq 'Disabled') {
                         Write-Info "  gateway autostart task $tn is already disabled; leaving it that way"
                         return
@@ -3055,11 +3059,9 @@ function Install-Venv {
             } catch {
                 Write-Warn "Could not enumerate gateway scheduled tasks: $($_.Exception.Message)"
             }
-            # The launcher CLI (hermes.exe) plus its child tree.
-            Invoke-NativeWithRelaxedErrorAction {
-                & taskkill /F /T /IM hermes.exe /FI "PID ne $myPid" 2>$null | Out-Null
-            }
-            # taskkill /IM hermes.exe is NOT enough: the gateway/agent that a
+            # Scope all process termination by this installation's paths, never
+            # by image name: another Hebri or Hermes may be running alongside it.
+            # The gateway/agent that a
             # scheduled task or watchdog autostarts runs as
             # `pythonw.exe -m hermes_cli.main gateway run` straight out of
             # venv\Scripts\, so its image name is python/pythonw, not hermes.exe.
@@ -3085,12 +3087,20 @@ function Install-Venv {
             # enumerates; three consecutive clean passes (or the attempt cap)
             # ends the loop.
             $venvPrefix = [System.IO.Path]::GetFullPath((Join-Path $InstallDir "venv")).TrimEnd('\') + '\'
+            $managedBinPrefix = [System.IO.Path]::GetFullPath((Join-Path $HermesHome "bin")).TrimEnd('\') + '\'
             $cleanPasses = 0
             for ($sweep = 0; $sweep -lt 10 -and $cleanPasses -lt 3; $sweep++) {
                 $found = 0
                 try {
                     Get-CimInstance Win32_Process -ErrorAction Stop |
-                        Where-Object { $_.ProcessId -ne $myPid -and $_.ExecutablePath -and $_.ExecutablePath.StartsWith($venvPrefix, [System.StringComparison]::OrdinalIgnoreCase) } |
+                        Where-Object {
+                            $_.ProcessId -ne $myPid -and $_.ExecutablePath -and (
+                                $_.ExecutablePath.StartsWith($venvPrefix, [System.StringComparison]::OrdinalIgnoreCase) -or (
+                                    $_.ExecutablePath.StartsWith($managedBinPrefix, [System.StringComparison]::OrdinalIgnoreCase) -and
+                                    $_.Name -in @('hebri.exe', 'hebri-agent.exe', 'hebri-acp.exe', 'hermes.exe', 'hermes-agent.exe', 'hermes-acp.exe')
+                                )
+                            )
+                        } |
                         ForEach-Object {
                             $found++
                             $treePid = [string]$_.ProcessId
@@ -3618,7 +3628,7 @@ function Install-HermesCommandLaunchers {
     if (Test-Path -LiteralPath $pyvenvCfg) {
         $venvRelocatable = [bool](Select-String -Path $pyvenvCfg -Pattern '^\s*relocatable\s*=\s*true\s*$' -Quiet)
     }
-    foreach ($launcher in @("hebri", "hermes", "hermes-acp")) {
+    foreach ($launcher in @("hebri", "hebri-agent", "hebri-acp")) {
         $src = Join-Path $scriptsDir "$launcher.exe"
         if (-not (Test-Path -LiteralPath $src -PathType Leaf)) { continue }
         if ($venvRelocatable) {
@@ -3627,6 +3637,24 @@ function Install-HermesCommandLaunchers {
         } else {
             Remove-Item (Join-Path $Destination "$launcher.cmd") -Force -ErrorAction SilentlyContinue
             Copy-Item -Force -LiteralPath $src -Destination (Join-Path $Destination "$launcher.exe")
+        }
+    }
+
+    # Old aliases are ours only when their bytes match this private venv's
+    # launcher, or their delegator names its exact path. Do not delete an
+    # independently installed Hermes command merely because of its filename.
+    foreach ($legacy in @("hermes", "hermes-agent", "hermes-acp")) {
+        $source = Join-Path $scriptsDir "$legacy.exe"
+        $copy = Join-Path $Destination "$legacy.exe"
+        if ((Test-Path -LiteralPath $source -PathType Leaf) -and
+            (Test-Path -LiteralPath $copy -PathType Leaf) -and
+            ((Get-FileHash -LiteralPath $source).Hash -eq (Get-FileHash -LiteralPath $copy).Hash)) {
+            Remove-Item -LiteralPath $copy -Force
+        }
+        $delegator = Join-Path $Destination "$legacy.cmd"
+        if ((Test-Path -LiteralPath $delegator -PathType Leaf) -and
+            (Get-Content -LiteralPath $delegator -Raw).Contains('"' + $source + '"')) {
+            Remove-Item -LiteralPath $delegator -Force
         }
     }
 
@@ -3692,11 +3720,12 @@ function Set-PathVariable {
     # Set HERMES_HOME so the Python code finds config/data in the right place.
     # Only needed on Windows where we install to %LOCALAPPDATA%\hermes instead
     # of the Unix default ~/.hermes
-    $currentHermesHome = [Environment]::GetEnvironmentVariable("HERMES_HOME", "User")
+    $currentHermesHome = [Environment]::GetEnvironmentVariable("HEBRI_HOME", "User")
     if (-not $currentHermesHome -or $currentHermesHome -ne $HermesHome) {
-        [Environment]::SetEnvironmentVariable("HERMES_HOME", $HermesHome, "User")
-        Write-Success "Set HERMES_HOME=$HermesHome"
+        [Environment]::SetEnvironmentVariable("HEBRI_HOME", $HermesHome, "User")
+        Write-Success "Set HEBRI_HOME=$HermesHome"
     }
+    $env:HEBRI_HOME = $HermesHome
     $env:HERMES_HOME = $HermesHome
     
     # Update current session
@@ -5000,9 +5029,9 @@ function Start-GatewayIfConfigured {
 
     if (-not $hasMessaging) { return }
 
-    $hermesCmd = "$InstallDir\venv\Scripts\hermes.exe"
+    $hermesCmd = "$InstallDir\venv\Scripts\hebri.exe"
     if (-not (Test-Path $hermesCmd)) {
-        $hermesCmd = "hermes"
+        $hermesCmd = "hebri"
     }
 
     # If WhatsApp is enabled but not yet paired, run foreground for QR scan

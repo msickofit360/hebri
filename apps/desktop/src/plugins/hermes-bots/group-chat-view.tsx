@@ -1,3 +1,4 @@
+import * as sdk from '@hermes/plugin-sdk'
 /**
  * The group-chat room surface: the merged room view, its settings dialog, the
  * MAIN-window tab it opens into, and the two room-lifecycle mutations that
@@ -9,8 +10,6 @@
  * cycle, so it is one module. The tab registry and the composer drafts they
  * touch stay below, in `group-panes.ts`.
  */
-
-import * as sdk from '@hermes/plugin-sdk'
 import {
   atom,
   Button,
@@ -102,6 +101,7 @@ import {
 import type { GroupComposerDraft, GroupDraftSetter } from './group-panes'
 import { groupReplyMentionTag, sendToGroupChat, stopGroupThread } from './group-rounds'
 import { clearGroupClarify, renameGroupClarify } from './group-turns'
+import { useBots as useExtraBots } from './i18n'
 import { botsText, useBots } from './i18n'
 import { displayName, slugifyProfileName } from './labels'
 import { botRosterMeta, groupTranscriptSpeakerMeta, setBotsWorkspaceOwner } from './routing'
@@ -392,6 +392,8 @@ function GroupChatSettingsDialog({
   onManageMembers,
   onRenamed
 }: GroupChatSettingsDialogProps) {
+  const extraBots = useExtraBots().additional
+
   const { t } = useI18n()
   const b = useBots()
   const rooms: Record<string, GroupChatRoom> = useValue($groupChats)
@@ -538,7 +540,7 @@ function GroupChatSettingsDialog({
             variant="secondary"
           >
             <Codicon name="organization" />
-            {`Manage members (${(members || []).length})…`}
+            {extraBots.manageMemberCount((members || []).length)}
           </Button>
         ) : null}
         <DialogFooter>
@@ -568,6 +570,8 @@ interface GroupChatWorkspaceProps {
 }
 
 export function GroupChatWorkspace({ group, members, onBack, visible = true }: GroupChatWorkspaceProps) {
+  const extraBots = useExtraBots().additional
+
   const b = useBots()
   const rooms: Record<string, GroupChatRoom> = useValue($groupChats)
   const allMeta: Record<string, BotMeta> = useValue($botMeta)
@@ -753,13 +757,12 @@ export function GroupChatWorkspace({ group, members, onBack, visible = true }: G
   const availableMembers = members.filter(member => botSourceStatus(member).available).length
   const availabilityLabel = `${availableMembers} of ${members.length} available`
 
-  const memberNames =
-    members.map(b => displayName(b, botRosterMeta(b, allMeta))).join(', ') || 'No bots in this group chat'
+  const memberNames = members.map(b => displayName(b, botRosterMeta(b, allMeta))).join(', ') || extraBots.noGroupBots
 
   const header = (
     <div className="flex items-center gap-2 px-2.5 pt-2.5 pb-2">
       <Button onClick={() => (onBack ? onBack() : $groupChatWorkspace.set(null))} size="sm" variant="ghost">
-        Back
+        {extraBots.back}
       </Button>
       {/* Room picture (set via Group settings) leads the title when present. */}
       {room.image ? (
@@ -798,9 +801,9 @@ export function GroupChatWorkspace({ group, members, onBack, visible = true }: G
           <Codicon name="gear" />
         </Button>
       </Tip>
-      <Tip label="Manage members">
+      <Tip label={extraBots.manageMembers}>
         <Button
-          aria-label="Manage group members"
+          aria-label={extraBots.manageGroupMembers}
           className="shrink-0 text-(--ui-text-tertiary) hover:text-foreground"
           onClick={() => setMemberPickerOpen(true)}
           size="sm"
@@ -1033,7 +1036,9 @@ export function GroupChatWorkspace({ group, members, onBack, visible = true }: G
             ) : (
               <img alt="" className="size-6 rounded object-cover" src={img.data} />
             )}
-            <span className="max-w-32 truncate text-[0.65rem] text-(--ui-text-tertiary)">{img.name || 'image'}</span>
+            <span className="max-w-32 truncate text-[0.65rem] text-(--ui-text-tertiary)">
+              {img.name || extraBots.image}
+            </span>
             <Tip label={b.group.removeAttachment}>
               <Button
                 aria-label={b.group.removeAttachment}
@@ -1169,7 +1174,7 @@ export function GroupChatWorkspace({ group, members, onBack, visible = true }: G
             {isUser ? (
               <span className="text-[0.7rem] font-semibold text-foreground">{label}</span>
             ) : (
-              <Tip label={revealed ? 'Hide full handle' : 'Show full handle'}>
+              <Tip label={revealed ? extraBots.hideHandle : extraBots.showHandle}>
                 <Button
                   className="text-left text-[0.7rem] font-semibold text-(--ui-accent)"
                   onClick={() => setRevealedSpeaker(revealed ? null : entryKey)}
@@ -1184,9 +1189,9 @@ export function GroupChatWorkspace({ group, members, onBack, visible = true }: G
             {entry.text.trim() || !isUser ? (
               <div className="ml-auto flex shrink-0 items-center gap-0.5 opacity-0 pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100">
                 {isUser ? null : (
-                  <Tip label={`Reply to @${replyMentionTag(entry, member)}`}>
+                  <Tip label={extraBots.replyToHandle(replyMentionTag(entry, member))}>
                     <Button
-                      aria-label={`Reply to ${display}`}
+                      aria-label={extraBots.replyTo(display)}
                       className="text-(--ui-text-tertiary) hover:text-foreground"
                       onClick={() => replyToMember(entry, member)}
                       size="icon"
@@ -1226,18 +1231,18 @@ export function GroupChatWorkspace({ group, members, onBack, visible = true }: G
                   <div
                     className="flex items-center gap-1 rounded-md border border-(--ui-stroke-secondary) px-1.5 py-1 text-[0.65rem] text-(--ui-text-tertiary)"
                     key={`${entryKey}:img:${imgIndex}`}
-                    title={img.name || 'attached file'}
+                    title={img.name || extraBots.attachedFile}
                   >
                     <Codicon className="text-[0.8rem]" name={img.kind === 'pdf' ? 'file-pdf' : 'file'} />
-                    <span className="max-w-48 truncate">{img.name || 'attached file'}</span>
+                    <span className="max-w-48 truncate">{img.name || extraBots.attachedFile}</span>
                   </div>
                 ) : (
                   <img
-                    alt={img.name || 'attached image'}
+                    alt={img.name || extraBots.attachedImage}
                     className="max-h-40 max-w-60 rounded-md border border-(--ui-stroke-secondary) object-contain"
                     key={`${entryKey}:img:${imgIndex}`}
                     src={img.data}
-                    title={img.name || 'attached image'}
+                    title={img.name || extraBots.attachedImage}
                   />
                 )
               )}
@@ -1504,7 +1509,7 @@ export function openGroupChat(group: string): void {
     [group]: false
   })
   const ownerKey = groupWorkspaceOwnerKey(group)
-  setBotsWorkspaceOwner(ownerKey, null, 'New group conversations start in the group composer.')
+  setBotsWorkspaceOwner(ownerKey, null, botsText().additional.groupComposerHint)
   // #93813: what reached the members' room sessions while nobody drove them
   // (a Bot posting reports into its own session, a CLI resume) is posted as
   // the room opens, not only once the room next drives that member.

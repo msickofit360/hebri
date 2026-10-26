@@ -13,6 +13,7 @@ import {
   type TelegramOnboardingApplyResponse,
   type TelegramOnboardingStartResponse
 } from '@/hermes'
+import { useI18n as useDesktopLanguage } from '@/i18n'
 import { useI18n } from '@/i18n'
 import { openExternalLink } from '@/lib/external-link'
 import { Check, ExternalLink, QrCode, Save, X } from '@/lib/icons'
@@ -66,6 +67,8 @@ export interface TelegramQrSetupProps {
  * the Desktop no longer sends users to @BotFather by hand.
  */
 export function TelegramQrSetup({ onApplied, platform, scopeProfile }: TelegramQrSetupProps) {
+  const { t: languageText } = useDesktopLanguage()
+
   const { t } = useI18n()
   const q = t.messaging.telegramQr
   const [setup, setSetup] = useState<null | TelegramOnboardingStartResponse>(null)
@@ -356,7 +359,11 @@ export function TelegramQrSetup({ onApplied, platform, scopeProfile }: TelegramQ
           </div>
 
           <div className="flex flex-col items-center gap-2">
-            <img alt="Telegram setup QR code" className="size-56 rounded-md bg-white p-2" src={qrDataUrl} />
+            <img
+              alt={languageText.additional.ui.telegramQr}
+              className="size-56 rounded-md bg-white p-2"
+              src={qrDataUrl}
+            />
             <Badge variant={expiresIn ? 'outline' : 'destructive'}>
               {expiresIn ? q.expiresIn(expiresIn) : q.expired}
             </Badge>

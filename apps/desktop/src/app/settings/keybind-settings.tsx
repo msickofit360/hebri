@@ -8,6 +8,7 @@ import { SearchField } from '@/components/ui/search-field'
 import { Tip } from '@/components/ui/tooltip'
 import { useContributions } from '@/contrib/react/use-contributions'
 import { useI18n } from '@/i18n'
+import { localizeBuiltinText } from '@/i18n/builtin-metadata'
 import {
   allKeybindActions,
   KEYBIND_CATEGORIES,
@@ -237,7 +238,7 @@ function KeybindRow({ action }: { action: KeybindActionMeta }) {
   // the default instead of the user's rebinding for a plugin/contrib action.
   const combos = bindingsFor(action.id, bindings)
   const capturing = capture === action.id
-  const label = k.actions[action.id] ?? action.label ?? action.id
+  const label = k.actions[action.id] ?? localizeBuiltinText(action.label ?? action.id, t)
   const isDefault = arraysEqual(combos, [...action.defaults])
 
   const conflict = combos

@@ -17,6 +17,24 @@ type Copy = {
 }
 
 export const accountCopy: Record<Locale, Copy> = {
+  it: {
+    unavailable:
+      'L’accesso desktop Synapsek non è ancora attivo su questo server. Puoi continuare con il tuo fornitore di modelli.',
+    title: 'Account Synapsek',
+    introduction: 'Usa il tuo account e abbonamento Synapsek. L’accesso non carica chat o file locali.',
+    preview:
+      'L’utilizzo dei modelli a carico di Synapsek e l’accesso agli spazi di lavoro del team non sono attivi in questa anteprima. Il fornitore di modelli attuale resta separato.',
+    credits: 'Crediti mensili inclusi',
+    working: 'Operazione in corso…',
+    signIn: 'Accedi con Synapsek',
+    signOut: 'Esci',
+    refresh: 'Aggiorna account',
+    manage: 'Gestisci su Synapsek',
+    remove: 'Rimuovi solo la sessione locale',
+    removeNotice: 'La rimozione della sessione locale non la revoca sul server.',
+    error:
+      'Impossibile completare l’operazione. Sblocca l’archivio credenziali del sistema operativo e riprova. Se non riesci a uscire, riprova quando il servizio è disponibile.'
+  },
   en: {
     unavailable:
       'Synapsek desktop sign-in is not enabled on this server yet. You can continue with your own model provider.',

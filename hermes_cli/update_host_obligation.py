@@ -14,7 +14,7 @@ tree already has. It is written once per host, read by every profile's CLI, and 
 
 The same "one host process, not one per profile" identity is what
 :func:`collapse_units_to_host_processes` applies to enumerated systemd units: leftover
-per-profile ``hermes-gateway-<p>.service`` units on a multiplexed host all point at the same
+per-profile ``hebri-gateway-<p>.service`` units on a multiplexed host all point at the same
 live ``MainPID``, so restarting each one restarts the host process N times.
 """
 

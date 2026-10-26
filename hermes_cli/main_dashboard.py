@@ -78,7 +78,7 @@ def _dashboard_probe_host(host: str | None) -> str:
     return normalized
 
 
-_DASHBOARD_SYSTEMD_UNIT = "hermes-dashboard.service"
+_DASHBOARD_SYSTEMD_UNIT = "hebri-dashboard.service"
 
 _SYSTEMCTL_ERRORS = (FileNotFoundError, subprocess.TimeoutExpired, OSError)
 
@@ -106,16 +106,21 @@ def _restart_managed_dashboard_service(reason: str, unit: str = _DASHBOARD_SYSTE
     # default), system manager only when the unit isn't there. Keep the selected
     # scope for ALL probes and the restart — a user unit must never be restarted
     # through the system manager (or raw-killed).
+    from hermes_cli.update_fleet_scope import systemd_unit_in_update_scope
     scope: tuple[str, ...] | None = None
-    for candidate in (("--user",), ()):
+    names = (unit, "hermes-dashboard.service") if unit == _DASHBOARD_SYSTEMD_UNIT else (unit,)
+    candidates = [(name, args) for name in names for args in (("--user",), ())]
+    for candidate_unit, candidate in candidates:
         try:
-            result = _systemctl(*candidate, "list-unit-files", unit, "--no-legend", "--no-pager")
+            result = _systemctl(*candidate, "list-unit-files", candidate_unit, "--no-legend", "--no-pager")
         except _SYSTEMCTL_ERRORS:
             continue
         if result.returncode != 0:
             continue
         unit_rows = (result.stdout or "").splitlines()
-        if any(row.split()[0:1] == [unit] for row in unit_rows if row.split()):
+        if (any(row.split()[0:1] == [candidate_unit] for row in unit_rows if row.split())
+                and systemd_unit_in_update_scope(["systemctl", *candidate], candidate_unit) is True):
+            unit = candidate_unit
             scope = candidate
             break
 
@@ -184,7 +189,7 @@ def _pid_unified_cgroup_entries(pid: int):
 
 
 def _get_systemd_service_for_pid(pid: int) -> str | None:
-    """The systemd service unit name *pid* belongs to (``hermes-serve.service``), or None.
+    """The systemd service unit name *pid* belongs to (``hebri-serve.service``), or None.
 
     None when the PID isn't part of a service, the file is unreadable, or off Linux.
     """

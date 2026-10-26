@@ -9,6 +9,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { GenerateButton } from '@/components/ui/generate-button'
 import { Input } from '@/components/ui/input'
+import { useI18n as useDesktopLanguage } from '@/i18n'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
 import { Egg, ImageIcon } from '@/lib/icons'
@@ -50,6 +51,8 @@ import { readReferenceImage } from './lib/read-reference-image'
 // The generate → hatch → adopt controller. A thin view over the `pet-generate`
 // store; the store owns the steps and persists inputs across close/reopen.
 export function PetGenerateContent() {
+  const { t: languageText } = useDesktopLanguage()
+
   const { t } = useI18n()
   const copy = t.commandCenter.generatePet
   const { requestGateway } = useGatewayRequest()
@@ -256,7 +259,7 @@ export function PetGenerateContent() {
                   type="button"
                 >
                   <ImageIcon className="size-3" />
-                  Add a reference
+                  {languageText.additional.ui.addReference}
                 </button>
               )}
             </div>

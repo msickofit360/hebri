@@ -6,32 +6,37 @@ import { ProjectDialog } from './project-dialog'
 
 afterEach(cleanup)
 
-vi.mock('@/i18n', () => ({
-  useI18n: () => ({
-    t: {
-      common: { cancel: 'Cancel', save: 'Save' },
-      sidebar: {
-        projects: {
-          addFolder: 'Add folder',
-          create: 'Create',
-          createDesc: 'Create a new project',
-          createFailed: 'Failed to create project',
-          createTitle: 'New project',
-          foldersLabel: 'Folders',
-          ideaGenerate: 'Generate',
-          ideaGenerating: 'Generating…',
-          ideaLabel: 'Idea',
-          ideaPlaceholder: 'What are you building?',
-          ideaShuffle: 'Shuffle ideas',
-          namePlaceholder: 'Project name',
-          noFolders: 'No folders yet',
-          primaryBadge: 'Primary',
-          removeFolder: 'Remove folder'
+vi.mock('@/i18n', async () => {
+  const { additionalEn } = await import('@/i18n/additional-en')
+
+  return {
+    useI18n: () => ({
+      t: {
+        additional: additionalEn,
+        common: { cancel: 'Cancel', save: 'Save' },
+        sidebar: {
+          projects: {
+            addFolder: 'Add folder',
+            create: 'Create',
+            createDesc: 'Create a new project',
+            createFailed: 'Failed to create project',
+            createTitle: 'New project',
+            foldersLabel: 'Folders',
+            ideaGenerate: 'Generate',
+            ideaGenerating: 'Generating…',
+            ideaLabel: 'Idea',
+            ideaPlaceholder: 'What are you building?',
+            ideaShuffle: 'Shuffle ideas',
+            namePlaceholder: 'Project name',
+            noFolders: 'No folders yet',
+            primaryBadge: 'Primary',
+            removeFolder: 'Remove folder'
+          }
         }
       }
-    }
-  })
-}))
+    })
+  }
+})
 
 // $projectDialog is a real nanostore atom in the app; recreate it here so
 // useStore behaves identically without pulling in the rest of the projects

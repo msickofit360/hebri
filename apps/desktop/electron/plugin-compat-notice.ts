@@ -1,3 +1,4 @@
+import fs from 'fs'
 /**
  * One-time Desktop notice for plugins that import pre-decomposition module paths (PR #102117).
  *
@@ -10,9 +11,9 @@
  *
  * Pure module: no Electron imports, so it is unit-testable; main.ts owns the dialog.
  */
-
-import fs from 'fs'
 import path from 'path'
+
+import { nativeText } from './native-i18n'
 
 export const REPORT_FILE = '.plugin-compat-report.json'
 export const DISMISSED_FILE = 'plugin-compat-dismissed.json'
@@ -121,7 +122,12 @@ export function pendingNotice(hermesHome: string, userData: string): PendingNoti
       const hits = report.plugins[n]
       const first = hits[0]
 
-      return `• ${n} — ${hits.length} import${hits.length === 1 ? '' : 's'} (e.g. ${first.old} → ${first.new})`
+      return nativeText(
+        hits.length === 1
+          ? '• {name} — {count} import (e.g. {old} → {next})'
+          : '• {name} — {count} imports (e.g. {old} → {next})',
+        { name: n, count: hits.length, old: first.old, next: first.new }
+      )
     })
     .join('\n')
 
@@ -129,14 +135,20 @@ export function pendingNotice(hermesHome: string, userData: string): PendingNoti
   // and CLI commands stay out; the per-plugin list is for the plugin author.
   const copy = report.in_effect
     ? {
-        title: 'Some plugins were turned off',
-        message: `These plugins were built for an older Hebri and were turned off: ${nameList}. Hebri works normally without them.`,
-        detail: `Look for an updated version of each plugin or ask its author.\n\n${list}`
+        title: nativeText('Some plugins were turned off'),
+        message: nativeText(
+          'These plugins were built for an older Hebri and were turned off: {names}. Hebri works normally without them.',
+          { names: nameList }
+        ),
+        detail: nativeText('Look for an updated version of each plugin or ask its author.\n\n{list}', { list })
       }
     : {
-        title: 'Some plugins need an update',
-        message: `These plugins were built for an older Hebri and will stop working on ${report.removal_date}: ${nameList}.`,
-        detail: `Look for an updated version or ask the plugin's author before then.\n\n${list}`
+        title: nativeText('Some plugins need an update'),
+        message: nativeText('These plugins were built for an older Hebri and will stop working on {date}: {names}.', {
+          date: report.removal_date,
+          names: nameList
+        }),
+        detail: nativeText("Look for an updated version or ask the plugin's author before then.\n\n{list}", { list })
       }
 
   return { key, ...copy }

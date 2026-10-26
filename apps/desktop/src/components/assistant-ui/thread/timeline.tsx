@@ -4,6 +4,7 @@ import { type FC, useCallback, useEffect, useMemo, useRef, useState } from 'reac
 
 import { useSessionView } from '@/app/chat/session-view'
 import { usePaneVisible } from '@/components/pane-shell/pane-visibility'
+import { useI18n as useDesktopLanguage } from '@/i18n'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
 import { useStoreSelector } from '@/lib/use-session-slice'
@@ -38,6 +39,8 @@ export const ThreadTimeline: FC = () => {
 }
 
 const ActiveThreadTimeline: FC = () => {
+  const { t: languageText } = useDesktopLanguage()
+
   const view = useSessionView()
   const { t } = useI18n()
   const history = useTranscriptWindow()
@@ -314,7 +317,7 @@ const ActiveThreadTimeline: FC = () => {
 
   return (
     <div
-      aria-label="Conversation timeline"
+      aria-label={languageText.additional.ui.timeline}
       data-slot="thread-timeline"
       data-suppress-pane-reveal=""
       ref={root}

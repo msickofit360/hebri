@@ -1,11 +1,10 @@
+import { useAuiState } from '@assistant-ui/react'
+import { useStore } from '@nanostores/react'
 /**
  * The three build cards: choosing what to make, handing it to a session of its own, and reporting progress. Unlike the
  * setup cards these read the directive attrs, which the model writes, so each card validates the payload before it
  * renders.
  */
-
-import { useAuiState } from '@assistant-ui/react'
-import { useStore } from '@nanostores/react'
 import { useEffect, useMemo } from 'react'
 
 import { requestComposerSubmit } from '@/app/chat/composer/focus'
@@ -27,6 +26,8 @@ import {
   retrySetupHandoff
 } from '@/components/onboarding-chat/setup-profile'
 import { Button } from '@/components/ui/button'
+import { useI18n as useLocaleUpdates } from '@/i18n'
+import { useI18n as useDesktopLanguage } from '@/i18n'
 import { answeredAfter } from '@/lib/chat-messages/parts'
 import { segmentTranscriptDirectives } from '@/lib/transcript-directives'
 import { cn } from '@/lib/utils'
@@ -117,6 +118,10 @@ export function FirstBuildCard({ attrs, locked }: CardProps) {
  * and a locked (replayed) transcript never starts one.
  */
 export function HandoffCard({ attrs, locked }: CardProps) {
+  const { t: localeText } = useLocaleUpdates()
+
+  const { t: languageText } = useDesktopLanguage()
+
   const view = useSessionView()
   const storedId = useStore(view.$storedId)
   const runtimeId = useStore(view.$runtimeId)
@@ -228,14 +233,14 @@ export function HandoffCard({ attrs, locked }: CardProps) {
       <StatusDot live={!settled && !failed} />
       <span className="text-(--ui-text-secondary)">
         {failed
-          ? (error ?? 'The first build could not be started. Retry to check its session.')
+          ? (error ?? localeText.additional.interface.firstBuildFailed)
           : settled
-            ? `${title} was started — find it in your sessions`
-            : `Opening ${title}\u2026`}
+            ? localeText.additional.display.buildStarted(title)
+            : localeText.additional.display.openingNamed(title)}
       </span>
       {state?.phase === 'error' && (
         <Button disabled={locked} onClick={() => void retry()} size="sm" variant="text">
-          Retry first build
+          {languageText.additional.ui.retryBuild}
         </Button>
       )}
     </div>

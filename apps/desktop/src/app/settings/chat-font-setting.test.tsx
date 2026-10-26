@@ -23,6 +23,7 @@ vi.mock('@/hermes', () => ({
 vi.mock('@/i18n', () => ({
   useI18n: () => ({
     t: {
+      titlebar: { search: 'Search' },
       settings: {
         appearance: {
           chatFontDesc: 'Choose a font.',

@@ -157,6 +157,7 @@ export function I18nProvider({
           // A saved choice needs no machine probe and always takes precedence.
           if (isSupportedLocaleValue(saved)) {
             setLocaleState(normalizeLocale(saved))
+            window.hermesDesktop?.setNativeLocale?.(normalizeLocale(saved))
 
             return
           }
@@ -167,6 +168,7 @@ export function I18nProvider({
 
           if (!cancelled && !userLocaleRef.current) {
             setLocaleState(resolveInitialLocale(undefined, machineProfile?.locale))
+            window.hermesDesktop?.setNativeLocale?.(resolveInitialLocale(undefined, machineProfile?.locale))
           }
         })
         .catch(error => {
@@ -224,6 +226,10 @@ export function I18nProvider({
 
         if (!result.ok) {
           throw new Error('Failed to save language')
+        }
+
+        if (generation === scopeGenerationRef.current) {
+          window.hermesDesktop?.setNativeLocale?.(next)
         }
       } catch (error) {
         const nextError = toError(error)

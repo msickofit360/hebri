@@ -21,6 +21,7 @@ import { Switch } from '@/components/ui/switch'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
 import { KeyRound, Lock, Plus, ShieldLock, Trash2 } from '@/lib/icons'
+import { uiDateLocale } from '@/lib/time'
 import { $activeConnectionId } from '@/store/connections'
 import { requestGatewayForAgent } from '@/store/gateway'
 import { notify, notifyError } from '@/store/notifications'
@@ -384,7 +385,7 @@ export function VaultSettings({ subpage }: VaultSettingsProps = {}) {
   const formatCreated = useCallback((iso: string) => {
     const parsed = new Date(iso)
 
-    return Number.isNaN(parsed.getTime()) ? iso : parsed.toLocaleDateString()
+    return Number.isNaN(parsed.getTime()) ? iso : parsed.toLocaleDateString(uiDateLocale())
   }, [])
 
   return (

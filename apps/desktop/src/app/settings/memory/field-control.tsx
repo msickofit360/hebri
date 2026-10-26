@@ -3,6 +3,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Tip } from '@/components/ui/tooltip'
+import { useI18n } from '@/i18n'
+import { localizeBuiltinText } from '@/i18n/builtin-metadata'
 import { Check, Info } from '@/lib/icons'
 import type { MemoryProviderField } from '@/types/hermes'
 
@@ -13,15 +15,20 @@ const FIELD_INPUT = `font-mono ${CONTROL_TEXT} placeholder:text-muted-foreground
 
 // Field label with an optional info tooltip, shared by the panel and modal rows.
 export function FieldTitle({ field }: { field: MemoryProviderField }) {
+  const { t } = useI18n()
+
   if (!field.info) {
-    return <>{field.label}</>
+    return <>{localizeBuiltinText(field.label, t)}</>
   }
 
   return (
     <span className="inline-flex items-center gap-1.5">
-      {field.label}
-      <Tip className="max-w-60 font-normal leading-snug whitespace-normal" label={field.info}>
-        <Info aria-label={`About ${field.label}`} className="size-3.5 text-muted-foreground/70" />
+      {localizeBuiltinText(field.label, t)}
+      <Tip className="max-w-60 font-normal leading-snug whitespace-normal" label={localizeBuiltinText(field.info, t)}>
+        <Info
+          aria-label={t.additional.memory.about(localizeBuiltinText(field.label, t))}
+          className="size-3.5 text-muted-foreground/70"
+        />
       </Tip>
     </span>
   )
@@ -41,6 +48,8 @@ export function FieldControl({
   // controls commit on blur. Absent (the modal), edits stay drafts until Save.
   onCommit?: (value: string) => void
 }) {
+  const { t } = useI18n()
+
   const set = (next: string) => {
     onChange(next)
     onCommit?.(next)
@@ -59,7 +68,7 @@ export function FieldControl({
         inputMode="numeric"
         onBlur={commitDraft}
         onChange={event => onChange(event.target.value)}
-        placeholder={field.placeholder}
+        placeholder={localizeBuiltinText(field.placeholder, t)}
         type="number"
         value={value}
       />
@@ -72,7 +81,7 @@ export function FieldControl({
         className={FIELD_INPUT}
         onBlur={commitDraft}
         onChange={event => onChange(event.target.value)}
-        placeholder={field.placeholder}
+        placeholder={localizeBuiltinText(field.placeholder, t)}
         spellCheck={false}
         value={value}
       />
@@ -88,7 +97,7 @@ export function FieldControl({
         <SelectContent>
           {field.options.map(option => (
             <SelectItem key={option.value} value={option.value}>
-              {option.label}
+              {localizeBuiltinText(option.label, t)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -103,14 +112,14 @@ export function FieldControl({
           className={`w-full ${FIELD_INPUT}`}
           onBlur={commitDraft}
           onChange={event => onChange(event.target.value)}
-          placeholder={field.is_set ? 'Leave blank to keep current value' : field.placeholder}
+          placeholder={field.is_set ? t.additional.memory.keepValue : localizeBuiltinText(field.placeholder, t)}
           type="password"
           value={value}
         />
         {field.is_set && (
           <span className="inline-flex items-center gap-1 self-start font-mono text-[0.65rem] text-(--ui-text-tertiary)">
             <Check className="size-3 text-(--ui-accent-secondary)" />
-            set
+            {t.additional.memory.isSet}
           </span>
         )}
       </div>
@@ -122,7 +131,7 @@ export function FieldControl({
       className={FIELD_INPUT}
       onBlur={commitDraft}
       onChange={event => onChange(event.target.value)}
-      placeholder={field.placeholder}
+      placeholder={localizeBuiltinText(field.placeholder, t)}
       value={value}
     />
   )

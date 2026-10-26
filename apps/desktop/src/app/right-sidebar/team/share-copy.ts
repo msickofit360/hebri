@@ -11,6 +11,17 @@ interface ShareCopy {
   close: string
 }
 export const shareCopy: Record<Locale, ShareCopy> = {
+  it: {
+    title: 'Chat del team',
+    host: 'Indirizzo HTTPS dell’host',
+    code: 'Codice di invito alla stanza',
+    copy: 'Copia indirizzo e invito',
+    copied: 'Copiato',
+    help: 'Invia entrambi al tuo collega. In Chat del team → Locale / server personale → Unisciti alla stanza di un altro computer, incolla l’indirizzo e il codice.',
+    missing:
+      'Questo servizio non ha un indirizzo HTTPS condivisibile. Se hai già configurato un host HTTPS protetto, inseriscilo sopra. Altrimenti usa i team Synapsek per invitare persone su altri computer. Un codice stanza da solo non rende accessibile il tuo computer.',
+    close: 'Nascondi invito'
+  },
   en: {
     title: 'Team Chat',
     host: 'Host HTTPS address',

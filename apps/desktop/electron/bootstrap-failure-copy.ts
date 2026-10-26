@@ -1,3 +1,5 @@
+import { nativeKnownText, nativeText } from './native-i18n'
+
 /**
  * User-facing copy for a failed first-run install (bootstrap).
  *
@@ -50,7 +52,7 @@ export function bootstrapStageLabel(stage: string | null | undefined): string | 
     return null
   }
 
-  return BOOTSTRAP_STAGE_LABELS.get(stage) ?? humanizeStageName(stage)
+  return nativeKnownText(BOOTSTRAP_STAGE_LABELS.get(stage) ?? humanizeStageName(stage))
 }
 
 const BOOTSTRAP_FAILURE_REMEDY =
@@ -65,12 +67,12 @@ export function describeBootstrapFailure(failedStage: string | null | undefined,
   const label = bootstrapStageLabel(failedStage)
 
   const lead = label
-    ? `Setting up Hebri stopped during the '${label}' step.`
-    : 'Setting up Hebri stopped before it could finish.'
+    ? nativeText("Setting up Hebri stopped during the '{step}' step.", { step: label })
+    : nativeText('Setting up Hebri stopped before it could finish.')
 
-  const details = typeof rawError === 'string' && rawError.trim() ? rawError.trim() : 'unknown error'
+  const details = typeof rawError === 'string' && rawError.trim() ? rawError.trim() : nativeText('unknown error')
 
-  return `${lead} ${BOOTSTRAP_FAILURE_REMEDY}\nDetails: ${details}`
+  return `${lead} ${nativeKnownText(BOOTSTRAP_FAILURE_REMEDY)}\n${nativeText('Details: {details}', { details })}`
 }
 
 /**
@@ -80,9 +82,8 @@ export function describeBootstrapFailure(failedStage: string | null | undefined,
  * names the missing part and its path, e.g. "Python environment missing at /x".
  */
 export function missingInstallPartMessage(whatIsMissing: string): string {
-  return (
-    "Part of Hebri's installation is missing (it may have been deleted or quarantined by antivirus). " +
-    'Choose Repair install below to put it back — your chats and settings are not affected. ' +
-    `Details: ${whatIsMissing}`
+  return nativeText(
+    "Part of Hebri's installation is missing (it may have been deleted or quarantined by antivirus). Choose Repair install below to put it back — your chats and settings are not affected. Details: {details}",
+    { details: whatIsMissing }
   )
 }

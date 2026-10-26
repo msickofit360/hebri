@@ -604,7 +604,7 @@ export const de = defineLocale({
       'Ihr Paket wurde privat hochgeladen. Teilen Sie den Link unten in Ihrem Support-Thread, damit das Team Ihre Logs sehen kann.',
     failedTitle: 'Hochladen fehlgeschlagen',
     failedHint:
-      'Sie können auch `hermes debug share --nous` im Terminal ausführen oder `hermes debug share --local`, um den Bericht ohne Hochladen auszugeben.',
+      'Führen Sie `hebri debug share --local` aus, um den bereinigten Bericht ohne Hochladen anzuzeigen. Prüfen Sie ihn, bevor Sie ihn manuell mit dem Synapsek-Support teilen.',
     handoffLead: 'Diskussion hier fortsetzen:',
     links: {
       github: 'GitHub Issues',
@@ -5551,7 +5551,7 @@ export const de = defineLocale({
       reject: 'Ablehnen',
       alwaysTitle: 'Diesen Befehl immer erlauben?',
       alwaysDescription: pattern =>
-        `Dies fügt das Muster „${pattern}“ Ihrer dauerhaften Zulassungsliste hinzu (~/.hermes/config.yaml). Hebri fragt bei solchen Befehlen nicht mehr nach – weder in dieser noch in zukünftigen Sessions.`,
+        `Dies fügt das Muster „${pattern}“ Ihrer dauerhaften Zulassungsliste hinzu. Hebri fragt bei solchen Befehlen nicht mehr nach – weder in dieser noch in zukünftigen Sessions.`,
       alwaysAllow: 'Immer erlauben'
     },
     clarify: {

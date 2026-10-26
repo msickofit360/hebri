@@ -116,3 +116,43 @@ test('resolveLinuxPasswordStore warns on unknown values instead of applying them
   assert.equal(result.store, null)
   assert.match(String(result.warning), /keychain-of-wonders/)
 })
+
+test('direct Hyprland launches select Secret Service without the CLI launcher', () => {
+  for (const env of [
+    { XDG_CURRENT_DESKTOP: 'Hyprland' },
+    { XDG_CURRENT_DESKTOP: 'Hyprland:wlroots' },
+    { XDG_SESSION_DESKTOP: 'hyprland' },
+    { DESKTOP_SESSION: 'hyprland-uwsm' }
+  ]) {
+    assert.deepEqual(resolveLinuxPasswordStore({ env, platform: 'linux' }), {
+      store: 'gnome-libsecret',
+      warning: null
+    })
+  }
+
+  for (const platform of ['win32', 'darwin'] as const) {
+    assert.deepEqual(resolveLinuxPasswordStore({ env: { XDG_CURRENT_DESKTOP: 'Hyprland' }, platform }), {
+      store: null,
+      warning: null
+    })
+  }
+
+  assert.deepEqual(resolveLinuxPasswordStore({ env: { XDG_CURRENT_DESKTOP: 'KDE' }, platform: 'linux' }), {
+    store: null,
+    warning: null
+  })
+})
+
+test('explicit password-store selection takes precedence over Hyprland detection', () => {
+  const env = { XDG_CURRENT_DESKTOP: 'Hyprland', HERMES_DESKTOP_PASSWORD_STORE: 'kwallet6' }
+  assert.equal(resolveLinuxPasswordStore({ env, platform: 'linux' }).store, 'kwallet6')
+  assert.equal(
+    resolveLinuxPasswordStore({ env, platform: 'linux', passwordStoreSwitch: 'gnome-libsecret' }).store,
+    'gnome-libsecret'
+  )
+  // Never silently replace an explicit basic/invalid selection with another store.
+  assert.equal(resolveLinuxPasswordStore({ env, platform: 'linux', passwordStoreSwitch: 'basic' }).store, 'basic')
+  const invalid = resolveLinuxPasswordStore({ env, platform: 'linux', passwordStoreSwitch: 'invalid' })
+  assert.equal(invalid.store, null)
+  assert.match(String(invalid.warning), /invalid/)
+})

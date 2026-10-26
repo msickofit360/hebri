@@ -1,3 +1,4 @@
+import { useStore } from '@nanostores/react'
 /**
  * Real-data panes + composable bar items for the contrib root:
  *
@@ -7,8 +8,6 @@
  *    contributions (`area: 'statusBar.left' / 'statusBar.right'`, payload =
  *    StatusbarItem) — plugins add theirs through the identical call.
  */
-
-import { useStore } from '@nanostores/react'
 import { useQuery } from '@tanstack/react-query'
 import { atom } from 'nanostores'
 
@@ -22,6 +21,7 @@ import { ContribBoundary, ContribRender } from '@/contrib/react/boundary'
 import { useContributions } from '@/contrib/react/use-contributions'
 import { registry } from '@/contrib/registry'
 import { getLogs } from '@/hermes'
+import { useI18n } from '@/i18n'
 import { normalizeOrLocalPreviewTarget } from '@/lib/local-preview'
 import { cn } from '@/lib/utils'
 import { openPreview } from '@/store/preview'
@@ -34,6 +34,8 @@ import { $currentCwd } from '@/store/session'
 // ---------------------------------------------------------------------------
 
 export function LogsPane() {
+  const { t } = useI18n()
+
   const { data, error } = useQuery({
     queryKey: ['contrib-logs-tail'],
     queryFn: () => getLogs({ lines: 300 }),
@@ -41,13 +43,15 @@ export function LogsPane() {
   })
 
   if (error) {
-    return <div className="p-3 text-xs text-(--ui-text-quaternary)">log unavailable: {String(error)}</div>
+    return (
+      <div className="p-3 text-xs text-(--ui-text-quaternary)">{t.additional.screen.logUnavailable(String(error))}</div>
+    )
   }
 
   if (!data) {
     return (
       <div className="grid h-full place-items-center">
-        <DecodeText className="text-(--ui-text-quaternary)" cursor prefix={1} text="LOGS" />
+        <DecodeText className="text-(--ui-text-quaternary)" cursor prefix={1} text={t.additional.screen.logs} />
       </div>
     )
   }

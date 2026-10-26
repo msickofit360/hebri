@@ -56,6 +56,12 @@ export const LOCALE_OPTIONS = [
     configValue: 'de'
   },
   {
+    id: 'it',
+    name: LOCALE_ENDONYMS.it,
+    englishName: 'Italian',
+    configValue: 'it'
+  },
+  {
     id: 'es',
     name: LOCALE_ENDONYMS.es,
     englishName: 'Spanish',
@@ -72,6 +78,13 @@ export const LOCALE_META: Record<Locale, { name: string; englishName: string }> 
 ) as Record<Locale, { name: string; englishName: string }>
 
 const LOCALE_ALIASES: Record<string, Locale> = {
+  it: 'it',
+  'it-it': 'it',
+  it_it: 'it',
+  'it-ch': 'it',
+  it_ch: 'it',
+  italian: 'it',
+  italiano: 'it',
   en: 'en',
   'en-us': 'en',
   en_us: 'en',

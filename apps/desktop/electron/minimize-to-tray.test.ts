@@ -216,3 +216,26 @@ test('persistence, disabling, failed tray creation, and handoff never strand hid
   disabled.main.close()
   expect(disabled.main.destroyed).toBe(true)
 })
+
+test('refreshes Italian tray labels while preserving restore and quit actions', async () => {
+  const { setNativeLocale } = await import('./native-i18n')
+  const { controller, main } = setup()
+  await controller.setEnabled(true)
+  main.minimize()
+
+  try {
+    setNativeLocale('it')
+    controller.refreshLabels()
+    expect(native.trays[0].menu[0].label).toBe('Mostra Hebri')
+    expect(native.trays[0].menu[2].label).toBe('Esci da Hebri')
+    native.trays[0].menu[0].click()
+    expect(main.visible).toBe(true)
+    native.trays[0].menu[2].click()
+    expect(native.app.quit).toHaveBeenCalledOnce()
+    setNativeLocale('en')
+    controller.refreshLabels()
+    expect(native.trays[0].menu[0].label).toBe('Show Hebri')
+  } finally {
+    setNativeLocale('en')
+  }
+})

@@ -1,5 +1,6 @@
 import { forceCollide, forceLink, forceManyBody, forceRadial, forceSimulation, type Simulation } from 'd3-force'
 
+import { uiDateLocale } from '@/lib/time'
 import type { StarmapGraph, StarmapNode } from '@/types/hermes'
 
 import { RING_STEPS } from './constants'
@@ -121,7 +122,7 @@ function bucketLabel(ts: number, { kind, step }: Unit): string {
 
     return step >= 12
       ? String(d.getUTCFullYear())
-      : d.toLocaleDateString(undefined, { month: 'short', timeZone: 'UTC', year: 'numeric' })
+      : d.toLocaleDateString(uiDateLocale(), { month: 'short', timeZone: 'UTC', year: 'numeric' })
   } catch {
     return formatDate(ts)
   }

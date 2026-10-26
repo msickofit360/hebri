@@ -1,6 +1,8 @@
 import { memo, useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { Codicon } from '@/components/ui/codicon'
+import { useI18n as useLocaleUpdates } from '@/i18n'
+import { useI18n } from '@/i18n'
 
 import type { TimeAxis } from './time-axis'
 
@@ -109,6 +111,9 @@ export const Timeline = memo(function Timeline({
   revealStore,
   ringStops = []
 }: TimelineProps) {
+  const { t: localeText } = useLocaleUpdates()
+
+  const { t } = useI18n()
   const trackRef = useRef<HTMLDivElement | null>(null)
   const draggingRef = useRef(false)
   const markerRefs = useRef<HTMLDivElement[]>([])
@@ -183,7 +188,9 @@ export const Timeline = memo(function Timeline({
   return (
     <div className="pointer-events-auto flex w-[28rem] max-w-full items-center gap-3 [-webkit-app-region:no-drag]">
       <button
-        aria-label={playing ? 'Pause' : 'Play timeline'}
+        aria-label={
+          playing ? localeText.additional.interface.pauseTimeline : localeText.additional.interface.playTimeline
+        }
         className="flex size-5 shrink-0 items-center justify-center text-foreground/75 transition-colors hover:text-foreground"
         onClick={onTogglePlay}
         type="button"
@@ -192,7 +199,7 @@ export const Timeline = memo(function Timeline({
       </button>
 
       <div
-        aria-label="Timeline scrubber"
+        aria-label={t.additional.ui.timelineScrubber}
         aria-valuemax={100}
         aria-valuemin={0}
         aria-valuenow={Math.round(revealStore.get() * 100)}

@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
+import { uiDateLocale } from '@/lib/time'
 import {
   runSessionControlAction,
   type SessionControlAction,
@@ -581,7 +582,7 @@ export const SessionControlGoalSection = memo(function SessionControlGoalSection
                 </div>
                 <div className="mt-0.5 text-foreground/90 leading-relaxed">
                   {goal.wait_barrier.type === 'until' &&
-                    ctrl.waitUntil(new Date(goal.wait_barrier.until_at * 1000).toLocaleTimeString())}
+                    ctrl.waitUntil(new Date(goal.wait_barrier.until_at * 1000).toLocaleTimeString(uiDateLocale()))}
                   {goal.wait_barrier.type === 'session' && ctrl.waitSession(goal.wait_barrier.target)}
                   {goal.wait_barrier.type === 'pid' && ctrl.waitPid(goal.wait_barrier.target)}
                   {goal.wait_barrier.reason && (
