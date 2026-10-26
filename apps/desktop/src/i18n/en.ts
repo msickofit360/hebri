@@ -1,8 +1,10 @@
 import { FIELD_DESCRIPTIONS, FIELD_LABELS } from '@/app/settings/constants'
 
+import { additionalEn } from './additional-en'
 import type { Translations } from './types'
 
 export const en: Translations = {
+  additional: additionalEn,
   // English editorial copy stays in the shipped JSONL; other locales override it.
   intro: { stock: {}, custom: () => [] },
   connectors: {
@@ -581,8 +583,7 @@ export const en: Translations = {
     doneDescription:
       'Your bundle was uploaded privately. Share the link below in your support thread so the team can see your logs.',
     failedTitle: 'Upload failed',
-    failedHint:
-      'Run `hermes debug share --local` to print the redacted report without uploading it.',
+    failedHint: 'Run `hermes debug share --local` to print the redacted report without uploading it.',
     handoffLead: 'Pick up the discussion in:',
     links: {
       github: 'GitHub Issues',
@@ -1063,7 +1064,8 @@ export const en: Translations = {
       tabStripAlways: 'Always',
       tabStripNever: 'Never',
       appActionsTitle: 'App Actions',
-      appActionsDesc: 'Where Settings, Web, Layout, and HUD sit in the titlebar. Right leaves room for tabs on the left.',
+      appActionsDesc:
+        'Where Settings, Web, Layout, and HUD sit in the titlebar. Right leaves room for tabs on the left.',
       appActionsLeft: 'Left',
       appActionsRight: 'Right',
       terminalFontTitle: 'Terminal Font',
@@ -1510,8 +1512,7 @@ export const en: Translations = {
     gateway: {
       loading: 'Loading gateway settings...',
       unavailableTitle: 'Gateway settings unavailable',
-      unavailableDesc:
-        'Connection settings can only be changed from the Hebri Desktop app on the computer running it.',
+      unavailableDesc: 'Connection settings can only be changed from the Hebri Desktop app on the computer running it.',
       title: 'Gateway Connection',
       envOverride: 'env override',
       intro:
@@ -1640,7 +1641,8 @@ export const en: Translations = {
       sshKeyTitle: 'Identity file',
       sshKeyDesc: 'Private key path. Blank = ssh-agent or ~/.ssh/config.',
       sshHermesPathTitle: 'Hebri path (optional)',
-      sshHermesPathDesc: 'Full path to the remote hebri binary (legacy hermes command is also supported). Blank = auto-detect.',
+      sshHermesPathDesc:
+        'Full path to the remote hebri binary (legacy hermes command is also supported). Blank = auto-detect.',
       sshHermesPathPlaceholder: 'auto-detect',
       sshTestConnection: 'Test SSH',
       sshConnect: 'Connect',
@@ -4108,8 +4110,7 @@ export const en: Translations = {
     errorTitle: 'Update didn’t finish',
     errorBody: 'No worries — nothing was lost. You can try again now.',
     blockerTitle: 'Close local previews to update Hebri?',
-    blockerBody:
-      'Hebri needs to stop these local previews before updating. This will not modify or delete your files.',
+    blockerBody: 'Hebri needs to stop these local previews before updating. This will not modify or delete your files.',
     foreignBlockerTitle: 'Close other processes to update Hebri',
     foreignBlockerBody:
       'Hebri can’t safely close these processes automatically. Close the app, terminal, or service that owns each one, then try the update again.',
@@ -4178,8 +4179,7 @@ export const en: Translations = {
     installTo: 'Will install to',
     retryAfterRun: 'I’ve run it -- retry',
     setupChoiceTitle: 'Set up Hebri Desktop',
-    setupChoiceDesc:
-      'Connect this app to a Hebri gateway you already run, or install Hebri locally on this computer.',
+    setupChoiceDesc: 'Connect this app to a Hebri gateway you already run, or install Hebri locally on this computer.',
     connectExistingTitle: 'Connect to existing Hebri',
     connectExistingShort: 'Connect existing',
     connectExistingDesc: 'Use a remote backend with a session token or browser sign-in. No local install will start.',
@@ -4383,8 +4383,7 @@ export const en: Translations = {
       powRequired:
         "The Nous server asked for a proof of work, but that isn't implemented in your Agent yet. Sign in or create a free Nous account to continue.",
       locked: "This session can't continue without signing in. Sign in or create a free Nous account to keep going.",
-      generic:
-        "Hebri couldn't set up free access without signing in. Signing in is free, or connect another provider.",
+      generic: "Hebri couldn't set up free access without signing in. Signing in is free, or connect another provider.",
       signInBelow: 'Signing in is free. Pick Nous below.',
       tryAgain: 'Try again',
       retrying: 'Trying again…'
@@ -4859,8 +4858,7 @@ export const en: Translations = {
         auth: 'The AI service rejected your sign-in. Check the credentials for this provider, then send your message again.',
         billing: 'Your account has no credits left for this provider. Top up or switch provider, then send again.',
         disk: 'Your disk is full, so Hebri could not save this conversation. Free some space, then retry.',
-        endpoint:
-          "Hebri can't reach your custom model server. Check that it is running, then send your message again.",
+        endpoint: "Hebri can't reach your custom model server. Check that it is running, then send your message again.",
         gateway:
           'Hebri hit an internal problem starting this reply. Send your message again; if it keeps happening, send diagnostics.',
         generic: 'Something went wrong while Hebri was replying. Retry, or copy the details if it keeps happening.',

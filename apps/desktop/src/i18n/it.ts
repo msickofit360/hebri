@@ -1,8 +1,15 @@
-import { defineLocale } from './define-locale'
+import { mergeTranslations } from '@hermes/shared/i18n'
+
+import { additionalIt } from './additional-it'
+import { defineLocale, type TranslationOverrides } from './define-locale'
+import { introIt } from './intro-it'
+import { italianSupplements } from './it-supplements'
 
 // Italian desktop overlay. Shared wording follows web/src/i18n/it.ts.
-// Untranslated advanced controls use the existing English fallback.
-export const it = defineLocale({
+// Additional desktop copy is organized by feature in the Italian supplements.
+const itBase = {
+  additional: additionalIt,
+  intro: introIt,
   connectors: {
     connect: 'Collega',
     connected: 'Collegato',
@@ -268,10 +275,56 @@ export const it = defineLocale({
   settings: {
     subpages: {
       appearanceTheme: 'Tema',
+      appearanceTypography: 'Caratteri',
+      appearanceWindowLayout: 'Finestra e disposizione',
+      appearanceChatDisplay: 'Visualizzazione della chat',
+      appearancePet: 'Mascotte',
       appearanceGeneral: 'Generale',
-      billingOverview: 'Panoramica',
+      modelMain: 'Modello principale',
+      modelAuxiliary: 'Modelli ausiliari',
+      modelMoa: 'Combinazione di agenti',
+      modelFallbacks: 'Modelli di riserva',
+      chatBehavior: 'Comportamento',
+      chatAttachments: 'Allegati',
+      workspaceProjects: 'Progetti e ricerca',
+      workspaceShell: 'Ambiente della shell',
+      workspaceFiles: 'File ed esecuzione',
+      safetyApprovals: 'Approvazioni',
+      safetyPrivacy: 'Privacy e rete',
+      safetyCheckpoints: 'Punti di ripristino',
+      browserProfile: 'Profilo del browser',
+      browserNetwork: 'URL locali e privati',
+      memoryPersistent: 'Memoria persistente',
+      memoryContext: 'Contesto e compressione',
+      voiceConversation: 'Conversazione vocale',
+      voiceTranscription: 'Trascrizione vocale',
+      voiceSpeech: 'Sintesi vocale',
+      advancedRuntime: 'Limiti dell’agente',
+      advancedTools: 'Accesso agli strumenti',
+      advancedTerminal: 'Motore del terminale',
+      advancedOutput: 'Limiti dei risultati',
+      advancedDelegation: 'Agenti secondari',
+      advancedDesktop: 'Desktop e avvio',
+      gatewayConnection: 'Questa finestra',
+      gatewayDevices: 'Connessioni salvate',
+      gatewayManagedUpdates: 'Aggiornamenti remoti',
+      gatewayManagedUpdatesUnavailable:
+        'Gli aggiornamenti remoti richiedono una versione desktop che supporti gli aggiornamenti gestiti tramite SSH.',
+      gatewayManagedUpdatesEmpty:
+        'Aggiungi una connessione SSH in Connessioni salvate per gestirne gli aggiornamenti qui.',
+      keyboardShortcuts: 'Scorciatoie da tastiera',
+      hudGesture: 'Gesto per il pannello HUD',
+      screenCapture: 'Acquisizione dello schermo',
+      notificationAlerts: 'Avvisi sul desktop',
+      notificationSounds: 'Suoni',
+      archivedSessions: 'Archivio e conservazione',
+      defaultDirectory: 'Cartella predefinita dei progetti',
+      vaultCredentials: 'Credenziali salvate',
+      vaultSources: 'Gestori di password',
       appUpdates: 'Versione e aggiornamenti',
-      uninstall: 'Disinstalla'
+      uninstall: 'Disinstalla',
+      billingOverview: 'Panoramica',
+      billingPlans: 'Piani'
     },
     resetToDefaults: 'Ripristina valori predefiniti',
     nav: {
@@ -285,7 +338,10 @@ export const it = defineLocale({
       computerControl: 'Controllo del computer',
       apiKeys: 'Strumenti e chiavi',
       keybinds: 'Scorciatoie da tastiera',
+      keysTools: 'Strumenti',
       keysSettings: 'Impostazioni',
+      mcp: 'MCP',
+      archivedChats: 'Chat archiviate',
       about: 'Informazioni',
       billing: 'Fatturazione',
       notifications: 'Notifiche',
@@ -333,21 +389,168 @@ export const it = defineLocale({
       advanced: 'Avanzate'
     },
     modeOptions: {
+      light: { label: 'Chiara', description: 'Interfaccia desktop luminosa' },
+      dark: { label: 'Scura', description: 'Spazio di lavoro con meno abbagliamento' },
       system: {
-        label: 'Sistema'
+        label: 'Sistema',
+        description: 'Segui l’aspetto del sistema operativo'
       }
     },
     appearance: {
-      translucencyModeClear: 'Cancella',
-      embedsOff: 'Disattivato',
-      themeTitle: 'Tema',
-      installButton: 'Installa',
-      pet: {
-        deleteConfirm: 'Elimina',
-        renameSave: 'Salva'
-      },
       title: 'Aspetto',
-      chatFontPreview: 'Anteprima'
+      intro: 'Solo per il desktop. La modalità regola la luminosità; il tema definisce i colori e lo stile della chat.',
+      colorMode: 'Modalità colore',
+      colorModeDesc: 'Scegli una modalità fissa oppure usa le impostazioni del sistema.',
+      toolViewTitle: 'Visualizzazione degli strumenti',
+      toolViewDesc:
+        'La vista Semplice nasconde i dati grezzi; la vista Tecnica mostra tutti i dati in ingresso e in uscita.',
+      hideCodeDiffsTitle: 'Nascondi le differenze nel codice',
+      hideCodeDiffsDesc:
+        'Mostra le modifiche ai file come righe degli strumenti, con il numero di righe aggiunte e rimosse, senza il codice.',
+      hideThreadTimelineTitle: 'Nascondi le barre cronologiche',
+      hideThreadTimelineDesc: 'Nascondi le barre di navigazione sul bordo destro di ogni conversazione.',
+      reasoningCollapsedTitle: 'Comprimi il ragionamento per impostazione predefinita',
+      reasoningCollapsedDesc: 'Mantieni disponibile il ragionamento in corso, ma espandilo solo quando lo apri.',
+      uiScaleTitle: 'Dimensione dell’interfaccia',
+      uiScaleDesc: percent =>
+        `Ridimensiona testo e controlli in tutta l’app. Puoi anche usare Cmd/Ctrl con +, - e 0. Valore attuale: ${percent}%.`,
+      sessionDensityTitle: 'Densità dell’elenco delle sessioni',
+      sessionDensityDesc: 'Scegli quanti dettagli mostrare sotto i titoli delle sessioni nella barra laterale.',
+      sessionDensityCompact: 'Compatta',
+      sessionDensityComfortable: 'Comoda',
+      sessionDensityDetailed: 'Dettagliata',
+      tabStripTitle: 'Barra delle schede',
+      tabStripDesc:
+        'Mostra le schede sopra un’area. In modalità automatica vengono nascoste quando c’è un solo riquadro, a meno che non sia aperta un’altra chat o area.',
+      tabStripAuto: 'Automatica',
+      tabStripAlways: 'Sempre',
+      tabStripNever: 'Mai',
+      appActionsTitle: 'Comandi dell’app',
+      appActionsDesc:
+        'Posizione di Impostazioni, Web, Disposizione e HUD nella barra del titolo. A destra lascia spazio alle schede sulla sinistra.',
+      appActionsLeft: 'A sinistra',
+      appActionsRight: 'A destra',
+      terminalFontTitle: 'Carattere del terminale',
+      terminalFontDesc:
+        'Scegli un carattere installato per i terminali desktop. I Nerd Font supportano Powerlevel10k e le icone della shell; lascia vuoto per usare JetBrains Mono incluso nell’app.',
+      terminalFontPlaceholder: 'MesloLGS NF o un elenco di caratteri CSS',
+      terminalFontPreview: 'Anteprima dei glifi',
+      terminalFontReset: 'Usa il carattere predefinito',
+      chatFontTitle: 'Carattere della chat',
+      chatFontDesc:
+        'Scegli un carattere installato per la chat e il resto dell’app, ad esempio OpenDyslexic per migliorare la leggibilità. Lascia vuoto per usare il carattere del tema.',
+      chatFontPlaceholder: 'OpenDyslexic o un elenco di caratteri CSS',
+      chatFontPreview: 'Anteprima',
+      chatFontSample: 'La volpe salta tra i fiori del giardino. È già un bel giorno! 0123456789',
+      chatFontReset: 'Usa il carattere del tema',
+      translucencyTitle: 'Trasparenza della finestra',
+      translucencyDesc:
+        'Mostra il desktop attraverso l’intera finestra, testo compreso. Si regola separatamente per la modalità chiara e scura.',
+      translucencyGlassDesc:
+        'Vetro opaco: il desktop appare sfocato, mentre il testo resta nitido. Si regola separatamente per la modalità chiara e scura.',
+      translucencyModeClear: 'Trasparente',
+      translucencyModeGlass: 'Vetro',
+      translucencyTintTitle: 'Tinta',
+      translucencyFadeTitle: 'Dissolvenza',
+      translucencyFrostTitle: 'Satinatura',
+      translucencyFrost: {
+        'under-window': 'Intensa',
+        popover: 'Morbida',
+        titlebar: 'Luminosa',
+        header: 'Riflesso'
+      },
+      translucencyScopeTitle: 'Area',
+      translucencyScope: { window: 'Intera finestra', sidebar: 'Solo barra laterale' },
+      backdropTitle: 'Sfondo della chat',
+      backdropDesc: 'L’immagine tenue della statua dietro la conversazione.',
+      userBubbleTitle: 'Bolla dei messaggi',
+      userBubbleDesc: 'Regola la trasparenza dei tuoi messaggi. A 0 sono opachi; a 100 rimane solo il contorno.',
+      textDirectionTitle: 'Direzione del testo',
+      textDirectionDesc:
+        'Scegli la direzione dei messaggi e del campo di scrittura. La modalità automatica segue la prima lettera di ogni paragrafo; imposta una direzione se il testo misto non si allinea correttamente. Il codice resta sempre da sinistra a destra.',
+      textDirection: { auto: 'Automatica', rtl: 'Da destra a sinistra', ltr: 'Da sinistra a destra' },
+      introSplashTitle: 'Schermata iniziale',
+      introSplashDesc: 'Il nome dell’app e il suggerimento mostrati in una chat vuota.',
+      reactionsTitle: 'Reazioni ai messaggi',
+      reactionsDesc: 'Reagisci ai messaggi con emoji, come in iMessage. Anche Hebri può reagire ai tuoi.',
+      tipsTitle: 'Suggerimenti nell’app',
+      tipsDesc:
+        'Suggerimenti occasionali dell’app e di Hebri. Ciascuno appare una sola volta. Si disattivano automaticamente dopo i primi 30 giorni; puoi riattivarli.',
+      tipsReset: count => `Mostra di nuovo ${count} ${count === 1 ? 'suggerimento' : 'suggerimenti'}`,
+      toursTitle: 'Visite guidate',
+      toursDesc:
+        'Consenti a Hebri di evidenziare ogni passaggio mentre ti guida nell’app. Si disattivano automaticamente dopo i primi 30 giorni; puoi riattivarle.',
+      composerPopoutTitle: 'Campo di scrittura mobile',
+      composerPopoutDesc:
+        'Consenti di trascinare il campo di scrittura fuori dalla sua posizione. Disattiva per mantenerlo bloccato in basso.',
+      vibeHeartsTitle: 'Cuori animati',
+      vibeHeartsDesc:
+        'Cuori fluttuanti quando scrivi “thanks” (grazie), “ily”, “good bot” o invii un cuore. Questa opzione è separata dalle reazioni ai messaggi.',
+      embedsTitle: 'Contenuti incorporati',
+      embedsDesc:
+        'Le anteprime interattive si caricano da siti esterni (YouTube, X, …). Chiedi mostra un segnaposto finché non le autorizzi; Sempre le carica automaticamente; Disattivato mantiene i semplici collegamenti.',
+      embedsAsk: 'Chiedi',
+      embedsAlways: 'Sempre',
+      embedsOff: 'Disattivato',
+      embedsReset: count => `Reimposta ${count} ${count === 1 ? 'servizio autorizzato' : 'servizi autorizzati'}`,
+      resumeLastSessionTitle: 'Riapri l’ultima chat all’avvio',
+      resumeLastSessionDesc:
+        'Se attivo, l’app riapre la chat più recente all’avvio. Disattiva per iniziare sempre con una nuova chat.',
+      product: 'Semplice',
+      productDesc: 'Attività degli strumenti descritta in modo chiaro, con riepiloghi concisi.',
+      technical: 'Tecnica',
+      technicalDesc: 'Mostra anche gli argomenti e i risultati grezzi degli strumenti e i dettagli tecnici.',
+      themeTitle: 'Tema',
+      themeDesc: 'Solo i colori del desktop. La modalità selezionata si applica al tema.',
+      themeSearchPlaceholder: 'Cerca tra i tuoi temi o nel Marketplace di VS Code…',
+      themeProfileNote: profile => `Salvato per il profilo ${profile}: ogni profilo mantiene il proprio tema.`,
+      installTitle: 'Installa da VS Code',
+      installDesc:
+        'Incolla l’identificativo di un’estensione del Marketplace (ad esempio dracula-theme.theme-dracula) per convertirne i colori in un tema desktop.',
+      installPlaceholder: 'publisher.extension',
+      installButton: 'Installa',
+      installing: 'Installazione…',
+      installError: 'Impossibile installare il tema.',
+      installed: name => `“${name}” installato.`,
+      removeTheme: 'Rimuovi tema',
+      importedBadge: 'Importato',
+      pet: {
+        title: 'Mascotte',
+        intro:
+          'Adotta una mascotte animata da petdex: si muove sopra l’app e reagisce alle attività di Hebri, correndo mentre gli strumenti lavorano, festeggiando i successi e rattristandosi in caso di errore.',
+        restartHint:
+          'Le mascotte richiedono un breve riavvio: l’app è stata avviata prima dell’aggiunta di questa funzione. Chiudi e riapri Hebri, poi torna qui.',
+        scaleTitle: 'Dimensione',
+        scaleDesc: 'Ridimensiona la mascotte. La modifica si applica subito ovunque.',
+        roamTitle: 'Movimento libero',
+        roamDesc: 'Lascia che la mascotte si muova da sola nella finestra quando è inattiva.',
+        chooseTitle: 'Scegli una mascotte',
+        chooseDesc: 'La selezione installa la mascotte, se necessario, e la attiva.',
+        searchPlaceholder: 'Cerca mascotte…',
+        unreachable: 'Impossibile raggiungere la galleria petdex. Controlla la connessione e riapri questa pagina.',
+        noMatch: query => `Nessuna mascotte corrisponde a “${query}”.`,
+        installedTag: 'installata',
+        generatedTag: 'Generata',
+        countCapped: (cap, total) => `Visualizzate ${cap} su ${total}: digita per restringere la ricerca.`,
+        count: n => `${n} mascotte.`,
+        uninstall: name => `Disinstalla ${name}`,
+        delete: name => `Elimina ${name}`,
+        deleteTitle: name => `Eliminare ${name}?`,
+        deleteBody: 'La mascotte verrà eliminata definitivamente e non potrà essere reinstallata.',
+        deleteConfirm: 'Elimina',
+        rename: name => `Rinomina ${name}`,
+        renameTitle: 'Rinomina mascotte',
+        renamePlaceholder: 'Dai un nome alla mascotte',
+        renameSave: 'Salva',
+        exportPet: name => `Esporta ${name}`,
+        adoptFailed: slug => `Impossibile adottare ${slug}`,
+        uninstallFailed: slug => `Impossibile disinstallare ${slug}`,
+        renameFailed: slug => `Impossibile rinominare ${slug}`,
+        exportFailed: slug => `Impossibile esportare ${slug}`,
+        noneAvailable: 'Non ci sono mascotte da attivare al momento.',
+        turnOnFailed: 'Impossibile attivare la mascotte.',
+        turnOffFailed: 'Impossibile disattivare la mascotte.'
+      }
     },
     customEndpoints: {
       fields: {
@@ -1226,4 +1429,11 @@ export const it = defineLocale({
     boundaryDetails: 'Dettagli',
     openLogs: 'Apri registri'
   }
-})
+} satisfies TranslationOverrides
+
+export const italianOverrides = italianSupplements.reduce<TranslationOverrides>(
+  (catalog, overrides) => mergeTranslations<TranslationOverrides>(catalog, overrides),
+  itBase
+)
+
+export const it = defineLocale(italianOverrides)
