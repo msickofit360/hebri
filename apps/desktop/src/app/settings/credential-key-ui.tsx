@@ -3,6 +3,7 @@ import { type ChangeEvent, type KeyboardEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { translateNow, useI18n } from '@/i18n'
+import { localizeBuiltinText } from '@/i18n/builtin-metadata'
 import { ChevronDown, ExternalLink, Loader2, Save, Trash2 } from '@/lib/icons'
 import { isSubmitEnter } from '@/lib/ime'
 import { cn } from '@/lib/utils'
@@ -256,7 +257,7 @@ export function CredentialKeyCard({
 export function ProviderKeyRows({ expanded, group, onExpand, onToggle, rowProps }: ProviderKeyRowsProps) {
   const { t } = useI18n()
   const docsUrl = group.docsUrl?.trim()
-  const description = group.description?.trim()
+  const description = localizeBuiltinText(group.description?.trim() ?? '', t)
   const expandable = Boolean(description || docsUrl || group.advanced.length > 0)
 
   return (
