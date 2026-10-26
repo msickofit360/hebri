@@ -2,6 +2,8 @@ import { useState } from 'react'
 
 import { ImageLightbox } from '@/components/chat/zoomable-image'
 import { useImageDownload } from '@/hooks/use-image-download'
+import { useI18n as useLocaleUpdates } from '@/i18n'
+import { useI18n as useDesktopLanguage } from '@/i18n'
 import { useI18n } from '@/i18n'
 import { X } from '@/lib/icons'
 
@@ -14,6 +16,10 @@ interface ReferenceChipProps {
 // The reference photo as an attachment chip: filename + thumbnail that opens
 // the shared image viewer (lightbox), with a remove affordance.
 export function ReferenceChip({ name, onRemove, src }: ReferenceChipProps) {
+  const { t: localeText } = useLocaleUpdates()
+
+  const { t: languageText } = useDesktopLanguage()
+
   const { t } = useI18n()
   const { download, saving } = useImageDownload(src)
   const [viewing, setViewing] = useState(false)
@@ -24,9 +30,11 @@ export function ReferenceChip({ name, onRemove, src }: ReferenceChipProps) {
         <img alt={name} className="size-4 rounded-md object-cover" src={src} />
       </button>
 
-      <span className="max-w-40 truncate text-[0.64rem] font-medium text-foreground/50">{name || 'Reference'}</span>
+      <span className="max-w-40 truncate text-[0.64rem] font-medium text-foreground/50">
+        {name || localeText.additional.display.reference}
+      </span>
       <button
-        aria-label="Remove reference"
+        aria-label={languageText.additional.ui.removeReference}
         className="text-(--ui-text-tertiary) transition not-hover:opacity-50"
         onClick={onRemove}
         type="button"
