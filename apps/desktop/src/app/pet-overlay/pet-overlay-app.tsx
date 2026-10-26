@@ -5,6 +5,7 @@ import { PetHeartField, playVibeHearts } from '@/components/chat/vibe-hearts'
 import { PetBubble } from '@/components/pet/pet-bubble'
 import { PetSprite } from '@/components/pet/pet-sprite'
 import { type PetZoomAnchor, usePetZoomGesture } from '@/components/pet/use-pet-zoom-gesture'
+import { useI18n as useDesktopLanguage } from '@/i18n'
 import { Mail } from '@/lib/icons'
 import { isSubmitEnter } from '@/lib/ime'
 import { $petActivity, $petInfo, setPetInfo } from '@/store/pet'
@@ -62,6 +63,8 @@ interface DragState {
 }
 
 export function PetOverlayApp() {
+  const { t: languageText } = useDesktopLanguage()
+
   const info = useStore($petInfo)
   const [composerOpen, setComposerOpen] = useState(false)
   const [draft, setDraft] = useState('')
@@ -398,7 +401,7 @@ export function PetOverlayApp() {
               setComposerOpen(false)
             }
           }}
-          placeholder="Message…"
+          placeholder={languageText.additional.ui.messagePlaceholder}
           ref={inputRef}
           style={{
             background: 'var(--ui-bg-elevated)',
@@ -448,7 +451,7 @@ export function PetOverlayApp() {
               stopPropagation keeps a click from starting a window drag. */}
           {unread && (
             <button
-              aria-label="Open in Hebri"
+              aria-label={languageText.additional.ui.openInHebri}
               onClick={openApp}
               onPointerDown={e => e.stopPropagation()}
               onPointerUp={e => e.stopPropagation()}

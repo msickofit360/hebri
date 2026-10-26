@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import { ErrorBoundary } from '@/components/error-boundary'
+import { I18nProvider } from '@/i18n'
 import { ThemeProvider } from '@/themes/context'
 
 import { PetOverlayApp } from './pet-overlay-app'
@@ -9,7 +10,7 @@ import { PetOverlayApp } from './pet-overlay-app'
 /**
  * Boot the pet-overlay window. Loaded by the same bundle as the main app but
  * via `?win=overlay`, so it shares CSS/atoms while mounting a minimal, transparent
- * surface (no app shell, no gateway, no I18n — the bubble strings are inline).
+ * surface with its own locale provider, without mounting the full app shell.
  *
  * The index.html boot script paints an OPAQUE themed background to avoid a flash
  * in normal windows; the overlay must be see-through, so we force every host
@@ -30,7 +31,9 @@ export function mountPetOverlay(): void {
     <StrictMode>
       <ErrorBoundary label="pet-overlay">
         <ThemeProvider>
-          <PetOverlayApp />
+          <I18nProvider>
+            <PetOverlayApp />
+          </I18nProvider>
         </ThemeProvider>
       </ErrorBoundary>
     </StrictMode>
