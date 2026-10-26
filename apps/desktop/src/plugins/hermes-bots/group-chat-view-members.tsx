@@ -1,12 +1,3 @@
-/**
- * Membership editing for an EXISTING group room (#91329, #110736): the
- * room-side "Manage members" picker, the per-Bot "Manage groups" toggle, and
- * the one write both doors share. The room reads membership from two places —
- * each local Bot's `groups[]` metadata and the room record's durable member
- * descriptors — so every edit rewrites both, or the removed Bot keeps its seat
- * through whichever source the edit skipped.
- */
-
 import {
   Button,
   cn,
@@ -21,6 +12,14 @@ import {
   RowButton,
   useValue
 } from '@hermes/plugin-sdk'
+/**
+ * Membership editing for an EXISTING group room (#91329, #110736): the
+ * room-side "Manage members" picker, the per-Bot "Manage groups" toggle, and
+ * the one write both doors share. The room reads membership from two places —
+ * each local Bot's `groups[]` metadata and the room record's durable member
+ * descriptors — so every edit rewrites both, or the removed Bot keeps its seat
+ * through whichever source the edit skipped.
+ */
 import { useEffect, useMemo, useState } from 'react'
 
 import { $botMeta, $lastRoster, botHandle, botRosterKey, saveBotMeta } from './data'
@@ -35,6 +34,7 @@ import {
   groupSessionMemberKey
 } from './group-membership'
 import { harvestStrandedGroupReply } from './group-turns'
+import { useBots as useExtraBots } from './i18n'
 import { displayName } from './labels'
 import { botRosterMeta } from './routing'
 import type { BotMeta, RosterRow } from './types'
@@ -135,6 +135,8 @@ interface GroupMemberPickerProps {
  *  checklist, pre-checked with the room's current seats. Nothing is written
  *  until Save; Cancel leaves membership untouched. */
 export function GroupMemberPicker({ group, members, open, onClose }: GroupMemberPickerProps) {
+  const extraBots = useExtraBots().additional
+
   const allMeta: Record<string, BotMeta> = useValue($botMeta)
   const liveRoster: RosterRow[] = useValue($lastRoster)
 
@@ -179,8 +181,8 @@ export function GroupMemberPicker({ group, members, open, onClose }: GroupMember
     <Dialog onOpenChange={value => !value && onClose()} open={open}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Manage members</DialogTitle>
-          <DialogDescription>{`Pick 2–${GROUP_CHAT_MAX_MEMBERS} bots for “${group}”. The room, its history and its member sessions stay as they are.`}</DialogDescription>
+          <DialogTitle>{extraBots.manageMembers}</DialogTitle>
+          <DialogDescription>{extraBots.pickMembers(GROUP_CHAT_MAX_MEMBERS, group)}</DialogDescription>
         </DialogHeader>
         <div className="grid max-h-80 gap-0.5 overflow-y-auto" data-testid="group-member-picker">
           {roster.map(bot => {
@@ -229,10 +231,10 @@ export function GroupMemberPicker({ group, members, open, onClose }: GroupMember
         </div>
         <DialogFooter>
           <Button onClick={onClose} variant="secondary">
-            Cancel
+            {extraBots.cancel}
           </Button>
           <Button disabled={selected.size < 2 || selected.size > GROUP_CHAT_MAX_MEMBERS} onClick={() => void save()}>
-            Save members
+            {extraBots.saveMembers}
           </Button>
         </DialogFooter>
       </DialogContent>

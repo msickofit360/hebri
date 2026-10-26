@@ -1,11 +1,11 @@
+import { Button, cn, GlyphSpinner, host, Input, LruCache, RowButton, useQuery } from '@hermes/plugin-sdk'
 /**
  * The Pet tab: browse the petdex gallery and use a companion's first sprite
  * frame as the bot's profile picture.
  */
-
-import { Button, cn, GlyphSpinner, host, Input, LruCache, RowButton, useQuery } from '@hermes/plugin-sdk'
 import { useEffect, useState } from 'react'
 
+import { useBots as useExtraBots } from './i18n'
 import { useBots } from './i18n'
 import { ID } from './shared'
 
@@ -130,6 +130,8 @@ interface PetTabProps {
 }
 
 export function PetTab({ image, onImage }: PetTabProps) {
+  const extraBots = useExtraBots().additional
+
   const b = useBots()
   // Selection is dialog-local: committed by the dialog's Save like any
   // uploaded/generated image (a direct meta write here gets clobbered by
@@ -157,11 +159,7 @@ export function PetTab({ image, onImage }: PetTabProps) {
   }
 
   if (!pets.length) {
-    return (
-      <div className="px-2 py-3 text-center text-xs text-(--ui-text-tertiary)">
-        No pets in the petdex gallery. Run `hermes pets` to explore.
-      </div>
-    )
+    return <div className="px-2 py-3 text-center text-xs text-(--ui-text-tertiary)">{extraBots.noPets}</div>
   }
 
   const q = query.trim().toLowerCase()
@@ -196,7 +194,7 @@ export function PetTab({ image, onImage }: PetTabProps) {
           setQuery(event.target.value)
           setLimit(24)
         }}
-        placeholder={`Search ${pets.length} pets…`}
+        placeholder={extraBots.searchPets(pets.length)}
         value={query}
       />
       {image && selectedSlug ? (
@@ -214,7 +212,7 @@ export function PetTab({ image, onImage }: PetTabProps) {
         </Button>
       ) : null}
       {filtered.length === 0 ? (
-        <div className="py-3 text-center text-xs text-(--ui-text-quaternary)">No pets match.</div>
+        <div className="py-3 text-center text-xs text-(--ui-text-quaternary)">{extraBots.noPetsMatch}</div>
       ) : (
         <div
           className="overflow-y-auto"
@@ -260,7 +258,9 @@ export function PetTab({ image, onImage }: PetTabProps) {
             ))}
           </div>
           {limit < ranked.length ? (
-            <div className="py-2 text-center text-[0.65rem] text-(--ui-text-quaternary)">{`Scroll for more (${limit} of ${ranked.length})`}</div>
+            <div className="py-2 text-center text-[0.65rem] text-(--ui-text-quaternary)">
+              {extraBots.scrollPets(limit, ranked.length)}
+            </div>
           ) : null}
         </div>
       )}

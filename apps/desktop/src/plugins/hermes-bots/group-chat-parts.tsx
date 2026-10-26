@@ -1,3 +1,5 @@
+import { Button, cn, Codicon, host, Input, RowButton, Textarea, useI18n, useValue } from '@hermes/plugin-sdk'
+import type { ClipboardEvent } from 'react'
 /**
  * The leaf components a group-chat room composes: the room picture controls,
  * the mention-aware composer input, and the card a member's pending
@@ -7,9 +9,6 @@
  * `group-chat-view.tsx` — and the group-creation dialog can share the picture
  * controls without either surface importing the other.
  */
-
-import { Button, cn, Codicon, host, Input, RowButton, Textarea, useI18n, useValue } from '@hermes/plugin-sdk'
-import type { ClipboardEvent } from 'react'
 import { useRef, useState } from 'react'
 
 import { $imagenAvailable, normalizeAvatarImage, pickImageFromDevice, probeImagen } from './avatar-image'
@@ -17,6 +16,7 @@ import { $botMeta, botHandle, botMentionTag } from './data'
 import { appendGroupChatEntry } from './group-chat'
 import { groupMemberKey } from './group-membership'
 import { answerGroupClarify } from './group-turns'
+import { useBots as useExtraBots } from './i18n'
 import { useBots } from './i18n'
 import { displayName } from './labels'
 import { botRosterMeta } from './routing'
@@ -379,6 +379,8 @@ interface GroupClarifyCardProps {
  *    (once/session/always/deny) as buttons — no free text; approvals are a
  *    closed choice. Answer sends via the member's own source. */
 export function GroupClarifyCard({ entry, members }: GroupClarifyCardProps) {
+  const extraBots = useExtraBots().additional
+
   const b = useBots()
   const { group } = entry
   const isApproval = entry.kind === 'approval'
@@ -566,7 +568,7 @@ export function GroupClarifyCard({ entry, members }: GroupClarifyCardProps) {
                   void submit()
                 }
               }}
-              placeholder={q.choices.length ? 'Or type your own answer…' : 'Type your answer…'}
+              placeholder={q.choices.length ? extraBots.ownAnswer : extraBots.typeAnswer}
               value={drafts[q.qid] || ''}
             />
           )}
@@ -576,7 +578,7 @@ export function GroupClarifyCard({ entry, members }: GroupClarifyCardProps) {
       {isApproval ? null : (
         <div className="flex justify-end">
           <Button disabled={sending || !allAnswered || !member} onClick={() => void submit()} size="sm">
-            {sending ? 'Sending…' : 'Answer'}
+            {sending ? extraBots.sending : extraBots.answer}
           </Button>
         </div>
       )}

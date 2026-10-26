@@ -1,11 +1,3 @@
-/**
- * The two rows the Bots rail lists: one bot, and one group chat.
- *
- * Rows only. Both take their bot or room and their context-menu callbacks as
- * props and own no roster state, so the pane above them decides what to list
- * and the row decides only how it reads.
- */
-
 import {
   cn,
   coarseElapsed,
@@ -31,6 +23,13 @@ import {
 } from '@hermes/plugin-sdk'
 
 import { avatarColor, botAppearance, BotFace } from './avatar'
+/**
+ * The two rows the Bots rail lists: one bot, and one group chat.
+ *
+ * Rows only. Both take their bot or room and their context-menu callbacks as
+ * props and own no roster state, so the pane above them decides what to list
+ * and the row decides only how it reads.
+ */
 import { isBackfilledFacePng } from './avatar-image'
 import {
   $botChatFocused,
@@ -60,6 +59,7 @@ import { botGroups, groupLastActivity } from './group-membership'
 import { toggleGroupChatPinned } from './group-pin'
 import { $activeGroupMemberKeys } from './group-presence'
 import { fallbackSelectionAfterHide, isBotHidden, isBotPinned } from './hidden-bots'
+import { useBots as useExtraBots } from './i18n'
 import { useBots } from './i18n'
 import { displayName, stripPreviewMarkdown } from './labels'
 import { duplicateBot } from './profile-ops'
@@ -112,6 +112,8 @@ interface BotRowProps {
 }
 
 export function BotRow({ bot, onDelete, onEdit, onGroup, onNewSection, showHandle }: BotRowProps) {
+  const extraBots = useExtraBots().additional
+
   const { t } = useI18n()
   const b = useBots()
   const focusedOwner = focusedRosterOwner(useValue($focusedBotOwner))
@@ -412,7 +414,7 @@ export function BotRow({ bot, onDelete, onEdit, onGroup, onNewSection, showHandl
           onSelect={() => {
             host.notify({
               kind: 'info',
-              message: `Duplicating ${displayName(bot, meta)}…`
+              message: extraBots.duplicatingBot(displayName(bot, meta))
             })
             duplicateBot(bot, $lastRoster.get())
               .then(name => {
@@ -421,7 +423,7 @@ export function BotRow({ bot, onDelete, onEdit, onGroup, onNewSection, showHandl
                 })
                 host.notify({
                   kind: 'success',
-                  message: `Created ${name} — full copy of ${bot.name}`
+                  message: extraBots.botDuplicated(name, bot.name)
                 })
               })
               .catch(err => host.notifyError(err, b.bot.duplicateFailed))
@@ -443,7 +445,7 @@ export function BotRow({ bot, onDelete, onEdit, onGroup, onNewSection, showHandl
             a delegated job, a side thread — without moving the row click off
             the canonical Bot Chat. */}
         <ContextMenuItem disabled={!botRecentSession(bot)} onSelect={() => void openBotRecentSession(bot)}>
-          Open recent session
+          {extraBots.openRecent}
         </ContextMenuItem>
         <ContextMenuSeparator />
         {/* Filing. Membership is one field on the bot's meta (`sectionId`), so
@@ -501,6 +503,8 @@ interface GroupRowProps {
 }
 
 export function GroupRow({ active, group, members, needsYou, onOpen, onDisband, onNewSection }: GroupRowProps) {
+  const extraBots = useExtraBots().additional
+
   const { t } = useI18n()
   const b = useBots()
   const rooms = useValue($groupChats)
@@ -615,7 +619,7 @@ export function GroupRow({ active, group, members, needsYou, onOpen, onDisband, 
     <ContextMenu>
       <ContextMenuTrigger asChild>{row}</ContextMenuTrigger>
       <ContextMenuContent>
-        <ContextMenuItem onSelect={() => onOpen(group)}>Open Group Chat</ContextMenuItem>
+        <ContextMenuItem onSelect={() => onOpen(group)}>{extraBots.openGroup}</ContextMenuItem>
         <ContextMenuSeparator />
         {/* Same affordance as a bot row's pin; pinned rooms lead the roster
             band, and the flag lives on the room record. */}
@@ -628,7 +632,7 @@ export function GroupRow({ active, group, members, needsYou, onOpen, onDisband, 
             }
           }}
         >
-          {room.pinned ? 'Unpin' : 'Pin to top'}
+          {room.pinned ? extraBots.unpin : extraBots.pinTop}
         </ContextMenuItem>
         {/* Filing — the same submenu a bot row gets, driving the room-record
             assignment instead of profile meta. */}

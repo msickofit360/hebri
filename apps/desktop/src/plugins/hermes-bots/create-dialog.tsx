@@ -1,12 +1,3 @@
-/**
- * The two creation dialogs: New Bot, and the group-chat creation flow the
- * roster's group button opens (plus the per-bot group membership dialog it
- * sits beside).
- *
- * New Bot creates its profile LAZILY, so it owns the single-flight guard and
- * the name pattern that gates the draft.
- */
-
 import {
   Badge,
   Button,
@@ -36,6 +27,14 @@ import {
   useI18n,
   useValue
 } from '@hermes/plugin-sdk'
+/**
+ * The two creation dialogs: New Bot, and the group-chat creation flow the
+ * roster's group button opens (plus the per-bot group membership dialog it
+ * sits beside).
+ *
+ * New Bot creates its profile LAZILY, so it owns the single-flight guard and
+ * the name pattern that gates the draft.
+ */
 import { useEffect, useRef, useState } from 'react'
 
 import { avatarColor, blobatarSvg, botAppearance, BotFace } from './avatar'
@@ -56,6 +55,7 @@ import {
   knownGroups,
   liveGroupChatNames
 } from './group-membership'
+import { useBots as useExtraBots } from './i18n'
 import { useBots } from './i18n'
 import { botProfileIdentity, displayName } from './labels'
 import { McpSetupButton } from './mcp-setup'
@@ -116,6 +116,8 @@ interface CreateAgentDialogProps {
 }
 
 export function CreateAgentDialog({ open, onClose, roster }: CreateAgentDialogProps) {
+  const extraBots = useExtraBots().additional
+
   const { t } = useI18n()
   const b = useBots()
   const [name, setName] = useState('')
@@ -252,10 +254,10 @@ export function CreateAgentDialog({ open, onClose, roster }: CreateAgentDialogPr
       .then(() =>
         host.notify({
           kind: 'success',
-          message: `Draft agent "${draft}" discarded`
+          message: extraBots.draftDiscarded(draft)
         })
       )
-      .catch(err => host.notifyError(err, `Could not clean up draft profile "${draft}"`))
+      .catch(err => host.notifyError(err, extraBots.draftCleanupFailed(draft)))
   }
 
   const reset = () => {
@@ -667,7 +669,7 @@ export function CreateAgentDialog({ open, onClose, roster }: CreateAgentDialogPr
           ) : null}
           {labeled(
             b.editor.title,
-            <Input onChange={event => setTitle(event.target.value)} placeholder="Inbox Triage" value={title} />
+            <Input onChange={event => setTitle(event.target.value)} placeholder={extraBots.inboxTriage} value={title} />
           )}
           {labeled(
             b.editor.description,
@@ -1011,6 +1013,8 @@ interface GroupDialogProps {
  *  Existing groups are independent toggles; the input creates and joins a new
  *  one. Canonical groups + the legacy scalar projection ride ui_meta. */
 export function GroupDialog({ bot, onClose }: GroupDialogProps) {
+  const extraBots = useExtraBots().additional
+
   const b = useBots()
   const meta = useValue($botMeta)
   const [name, setName] = useState('')
@@ -1073,11 +1077,11 @@ export function GroupDialog({ bot, onClose }: GroupDialogProps) {
           <Input
             autoFocus
             onChange={event => setName(event.target.value)}
-            placeholder={groups.length ? 'New group…' : 'Group name (e.g. Research)'}
+            placeholder={groups.length ? extraBots.newGroup : extraBots.groupExample}
             value={name}
           />
           <Button disabled={!name.trim()} size="sm" type="submit">
-            Create & join
+            {extraBots.createJoin}
           </Button>
         </form>
         {current.length ? (
@@ -1114,6 +1118,8 @@ interface CreateGroupChatDialogProps {
  *  group membership list, so the room appears in the roster and syncs
  *  cross-machine via ui_meta without replacing its other groups. */
 export function CreateGroupChatDialog({ open, roster, onClose, onCreated }: CreateGroupChatDialogProps) {
+  const extraBots = useExtraBots().additional
+
   const { t } = useI18n()
   const b = useBots()
   const allMeta: Record<string, BotMeta> = useValue($botMeta)
@@ -1209,7 +1215,7 @@ export function CreateGroupChatDialog({ open, roster, onClose, onCreated }: Crea
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{b.group.newTitle}</DialogTitle>
-          <DialogDescription>{`Pick 2–${GROUP_CHAT_MAX_MEMBERS} bots. Local memberships sync through each Bot profile; cross-machine members stay scoped to this room.`}</DialogDescription>
+          <DialogDescription>{extraBots.createGroupDescription(GROUP_CHAT_MAX_MEMBERS)}</DialogDescription>
         </DialogHeader>
         {/* TODO(bot-mode-types): this search box never takes focus when the dialog
             opens — SearchField accepts no `autoFocus` prop and forwards no extra
@@ -1298,7 +1304,7 @@ export function CreateGroupChatDialog({ open, roster, onClose, onCreated }: Crea
               })
             ) : (
               <div className="px-1.5 py-3 text-center text-xs text-(--ui-text-tertiary)">
-                {query.trim() ? `No bots match “${query.trim()}”` : 'No bots yet — create one first.'}
+                {query.trim() ? extraBots.noBotsMatch(query.trim()) : extraBots.createBotFirst}
               </div>
             )}
           </div>
@@ -1329,10 +1335,9 @@ export function CreateGroupChatDialog({ open, roster, onClose, onCreated }: Crea
           <Button onClick={onClose} variant="secondary">
             {t.common.cancel}
           </Button>
-          <Button
-            disabled={!canCreate}
-            onClick={create}
-          >{`Create Group${selected.length ? ` (${selected.length})` : ''}`}</Button>
+          <Button disabled={!canCreate} onClick={create}>
+            {extraBots.createGroupCount(selected.length)}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

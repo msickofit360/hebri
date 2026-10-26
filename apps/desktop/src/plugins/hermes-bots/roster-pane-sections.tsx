@@ -2,6 +2,7 @@ import { host } from '@hermes/plugin-sdk'
 import type { ReactNode } from 'react'
 
 import { botRosterKey } from './data'
+import { botsText } from './i18n'
 import type { useBots } from './i18n'
 import type { RosterGroupRow } from './roster-pane-derivation'
 import { GatewayKindGlyph, GatewaySectionHeading, RosterSectionHeader } from './roster-sections'
@@ -197,7 +198,7 @@ export function rosterSectionRenderers({
       <div className="flex min-w-0 items-center gap-1.5 px-2 py-1 text-[0.625rem] font-semibold uppercase tracking-wider text-(--ui-text-quaternary)">
         <GatewayKindGlyph kind={section.option?.kind} />
         <span className="min-w-0 flex-1 truncate">
-          {section.option?.label || section.option?.connectionId || 'Current gateway'}
+          {section.option?.label || section.option?.connectionId || botsText().additional.currentGateway}
         </span>
         <span className="shrink-0 font-normal tabular-nums">{section.rows.length}</span>
       </div>

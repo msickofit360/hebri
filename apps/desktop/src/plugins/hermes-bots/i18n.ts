@@ -23,7 +23,7 @@
  *    English where it is WRITTEN (`group-chat-parts.tsx`, `group-rounds.ts`);
  *    the places that RENDER the reader's own lines use `group.you` instead.
  *
- * Locales follow kanban: `en` / `ja` / `zh` / `zh-hant`. Arabic falls through
+ * Locales follow kanban: `en` / `it` / `ja` / `zh` / `zh-hant`. Arabic falls through
  * the resolution chain (active locale → this plugin's `en` → the key) the
  * same way a missing string in any locale does. Nouns match core: ボット /
  * 机器人 / 機器人, プロファイル / 配置档案 / 設定檔, ゲートウェイ / 网关 / 閘道.
@@ -32,9 +32,12 @@
 import { type PluginLocaleBundles, type PluginTranslate, usePluginI18n } from '@hermes/plugin-sdk'
 import { useMemo } from 'react'
 
+import { botsAdditionalEn } from './i18n-additional'
+import { botsIt } from './i18n-it'
 import { getPluginCtx } from './shared'
 
-type BotsMessages = {
+export type BotsMessages = {
+  additional: typeof botsAdditionalEn
   /** Left rail: the bot + group-chat roster. */
   editor: {
     fullConfigHint: string
@@ -472,6 +475,7 @@ type BotsMessages = {
 }
 
 const en: BotsMessages = {
+  additional: botsAdditionalEn,
   editor: {
     fullConfigHint: 'Full configuration needs a newer gateway (restart it after updating Hebri).',
     liveCapabilities: 'Capabilities (applies immediately — skills, tools, MCP)',
@@ -896,6 +900,7 @@ const en: BotsMessages = {
 }
 
 const ja: BotsMessages = {
+  additional: botsAdditionalEn,
   editor: {
     fullConfigHint: 'すべての設定を使うには新しいゲートウェイが必要です（Hebri 更新後に再起動してください）。',
     liveCapabilities: '機能（即時適用 — スキル、ツール、MCP）',
@@ -1324,6 +1329,7 @@ const ja: BotsMessages = {
 }
 
 const zh: BotsMessages = {
+  additional: botsAdditionalEn,
   editor: {
     fullConfigHint: '完整配置需要更新网关（更新 Hebri 后请重启网关）。',
     liveCapabilities: '功能（立即生效 — 技能、工具、MCP）',
@@ -1737,6 +1743,7 @@ const zh: BotsMessages = {
 }
 
 const zhHant: BotsMessages = {
+  additional: botsAdditionalEn,
   editor: {
     fullConfigHint: '完整設定需要更新閘道（更新 Hebri 後請重新啟動閘道）。',
     liveCapabilities: '功能（立即生效 — 技能、工具、MCP）',
@@ -2150,7 +2157,7 @@ const zhHant: BotsMessages = {
 }
 
 /** Registered via `ctx.i18n.register` at plugin load (disposer tracked). */
-export const BOTS_LOCALES: PluginLocaleBundles = { en, ja, zh, 'zh-hant': zhHant }
+export const BOTS_LOCALES: PluginLocaleBundles = { en, it: botsIt, ja, zh, 'zh-hant': zhHant }
 
 // Bind the message SHAPE to a plugin translator: string leaves resolve now,
 // function leaves forward their args through t(path, …).

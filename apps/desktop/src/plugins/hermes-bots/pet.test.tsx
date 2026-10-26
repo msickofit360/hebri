@@ -39,11 +39,16 @@ vi.mock('@hermes/plugin-sdk', () => ({
   useQuery: useQueryMock
 }))
 
-vi.mock('./i18n', () => ({
-  useBots: () => ({
-    avatar: { petLoadFailed: 'Could not load that pet.', pickPet: 'Pick a pet', removeBackToShape: 'Remove' }
-  })
-}))
+vi.mock('./i18n', async () => {
+  const { botsAdditionalEn } = await import('./i18n-additional')
+
+  return {
+    useBots: () => ({
+      additional: botsAdditionalEn,
+      avatar: { petLoadFailed: 'Could not load that pet.', pickPet: 'Pick a pet', removeBackToShape: 'Remove' }
+    })
+  }
+})
 
 vi.mock('./shared', () => ({ ID: 'hermes-bots' }))
 
