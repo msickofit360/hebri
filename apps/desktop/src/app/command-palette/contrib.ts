@@ -1,10 +1,11 @@
+import { useContributions } from '@/contrib/react/use-contributions'
+import { useI18n } from '@/i18n'
 /**
  * Command-palette contribution surface — `palette` data contributions become
  * rows in the ⌘K root list, same schema as every other area. Contributions
  * with an `action` id render that action's live keybind as their hotkey hint.
  */
-
-import { useContributions } from '@/contrib/react/use-contributions'
+import { localizeBuiltinText } from '@/i18n/builtin-metadata'
 import type { IconComponent } from '@/lib/icons'
 
 export const PALETTE_AREA = 'palette'
@@ -32,9 +33,12 @@ export interface PaletteContribution {
 
 /** Contributed palette rows, with stable render keys. */
 export function usePaletteContributions(): Array<PaletteContribution & { key: string }> {
+  const { t } = useI18n()
+
   return useContributions(PALETTE_AREA)
     .map(c => ({ key: `${c.source ?? 'core'}:${c.id}`, ...(c.data as PaletteContribution) }))
     .filter(item => Boolean(item.label && item.run))
+    .map(item => ({ ...item, label: localizeBuiltinText(item.label, t) }))
 }
 
 /**
