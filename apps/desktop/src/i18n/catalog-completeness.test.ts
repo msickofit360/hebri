@@ -3,10 +3,9 @@ import { describe, expect, it } from 'vitest'
 import { TRANSLATIONS } from './catalog'
 import type { Locale } from './types'
 
-// Locales that shipped fully translated. They are `defineLocale` overlays like
-// ja/ru, so an English key added later falls back to English instead of
-// failing typecheck; these checks keep the translated copy structurally sound.
-const COMPLETE_LOCALES = ['fr', 'de', 'es'] as const satisfies readonly Locale[]
+// Merged locale overlays must preserve the English structure and interpolation,
+// including keys using the normal English fallback.
+const COMPLETE_LOCALES = ['fr', 'de', 'es', 'it'] as const satisfies readonly Locale[]
 
 type Leaf = { path: string; value: unknown }
 

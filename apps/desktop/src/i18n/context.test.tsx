@@ -80,7 +80,8 @@ describe('I18nProvider', () => {
   it.each([
     ['fr', 'fr'],
     ['de-DE', 'de'],
-    ['es', 'es']
+    ['es', 'es'],
+    ['it-IT', 'it']
   ] as const)('loads display.language=%s and renders the %s catalog', async (configured, locale) => {
     const configClient: I18nConfigClient = {
       getConfig: vi.fn().mockResolvedValue({ display: { language: configured } }),
@@ -123,7 +124,7 @@ describe('I18nProvider', () => {
 
   it('does not overwrite unsupported configured languages', async () => {
     const configClient: I18nConfigClient = {
-      getConfig: vi.fn().mockResolvedValue({ display: { language: 'it' } }),
+      getConfig: vi.fn().mockResolvedValue({ display: { language: 'unsupported' } }),
       saveConfig: vi.fn()
     }
 
@@ -158,7 +159,7 @@ describe('I18nProvider', () => {
 
     render(
       <I18nProvider configClient={configClient}>
-        <LanguageProbe />
+        <LanguageProbe target="it" />
       </I18nProvider>
     )
 
@@ -167,7 +168,7 @@ describe('I18nProvider', () => {
 
     await waitFor(() => expect(saveConfig).toHaveBeenCalledTimes(1))
     expect(saveConfig).toHaveBeenCalledWith({
-      display: { language: 'zh', skin: 'slate' },
+      display: { language: 'it', skin: 'slate' },
       terminal: { cwd: '/new' }
     })
   })

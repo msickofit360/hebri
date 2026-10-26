@@ -10,6 +10,18 @@ interface BillingCopy {
   website: string
 }
 export const billingCopy: Record<Locale, BillingCopy> = {
+  it: {
+    plan: 'Piano attuale',
+    manage: 'Gestisci piano',
+    buy: 'Acquista crediti',
+    unavailable: 'Saldo non disponibile. Aggiorna oppure apri la fatturazione su Synapsek.',
+    managed:
+      'Accesso gestito dall’amministratore. Questa autorizzazione non include un abbonamento a pagamento né crediti mensili.',
+    disabled:
+      'L’inferenza a carico di Synapsek non è attiva su questo dispositivo. Gli altri fornitori di modelli restano disponibili.',
+    website:
+      'Modifiche al piano, fatture e acquisto di crediti si aprono su Synapsek. I pacchetti di crediti richiedono un abbonamento a pagamento idoneo.'
+  },
   en: {
     plan: 'Current plan',
     manage: 'Manage plan',

@@ -1,6 +1,11 @@
 import type { Locale } from '@/i18n'
 
 export const developerCopy: Record<Locale, { plan: string; quota: string; usage: string }> = {
+  it: {
+    plan: 'Accesso sviluppatore',
+    quota: 'Nessun limite mensile di crediti; restano attivi i limiti per richiesta e di frequenza.',
+    usage: 'Utilizzo a carico di Synapsek'
+  },
   en: {
     plan: 'Developer access',
     quota: 'No monthly credit quota',

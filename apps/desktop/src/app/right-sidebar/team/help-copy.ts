@@ -10,6 +10,17 @@ interface TeamHelp {
 }
 
 export const teamHelp: Record<Locale, TeamHelp> = {
+  it: {
+    title: 'Come funzionano Team e Chat del team',
+    local:
+      'Team mostra le persone e le attività condivise. Chat del team usa le stesse stanze. Aggiungi il tuo nome per inviare messaggi su questo servizio Hebri.',
+    join: 'Per collegare computer diversi, chiedi all’host l’indirizzo HTTPS del server Hebri e un invito alla stanza, poi unisciti qui sotto. L’accesso a Synapsek non collega automaticamente un team.',
+    privacy:
+      'I messaggi sono archiviati sull’host e non sono crittografati da un’estremità all’altra. Condividi gli inviti solo con persone fidate. Mantieni il servizio personale su loopback, salvo aver configurato un server del team protetto.',
+    toggle: 'Unisciti alla stanza di un altro computer',
+    address:
+      'Inserisci l’indirizzo HTTPS dell’host e l’invito. Un indirizzo localhost o 127.0.0.1 non può raggiungere un altro computer. I messaggi sono crittografati durante il trasferimento.'
+  },
   en: {
     title: 'How Team and Team Chat work',
     local:

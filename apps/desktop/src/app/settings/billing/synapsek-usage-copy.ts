@@ -2,6 +2,15 @@ import type { Locale } from '@/i18n'
 
 type UsageCopy = { enabled: string; remaining: string; held: string; purchased: string; tokens: string; debt: string }
 export const usageCopy: Record<Locale, UsageCopy> = {
+  it: {
+    enabled:
+      'Scegli Synapsek nel selettore dei modelli per utilizzare i crediti condivisi tra sito e desktop. Ogni chiamata al modello, incluse quelle successive all’uso di strumenti, utilizza questo saldo. Riavvia Hebri dopo aver cambiato account.',
+    remaining: 'Crediti inclusi rimanenti',
+    held: 'Crediti riservati',
+    purchased: 'Crediti acquistati disponibili',
+    tokens: 'Token di questo mese',
+    debt: 'Rettifica crediti da saldare'
+  },
   en: {
     enabled:
       'Choose Synapsek in the model picker to use your shared website and desktop credits. Each model call, including tool follow-ups, uses this balance. Restart Hebri after switching accounts.',
