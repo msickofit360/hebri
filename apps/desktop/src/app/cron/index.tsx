@@ -48,6 +48,7 @@ import { type Translations, useI18n } from '@/i18n'
 import { AlertTriangle } from '@/lib/icons'
 import { requestModelOptions } from '@/lib/model-options'
 import { asText } from '@/lib/text'
+import { uiDateLocale } from '@/lib/time'
 import { $cronFocusJobId, $cronJobs, invalidateCronJobsRequests, setCronFocusJobId } from '@/store/cron'
 import { $changeEventsAvailable, $cronChangeTick } from '@/store/live-sync'
 import { notify, notifyError } from '@/store/notifications'
@@ -169,7 +170,7 @@ function formatCronTime(minute: string, hour: string): string {
     return `${hour}:${minute}`
   }
 
-  return new Date(2000, 0, 1, numericHour, numericMinute).toLocaleTimeString(undefined, {
+  return new Date(2000, 0, 1, numericHour, numericMinute).toLocaleTimeString(uiDateLocale(), {
     hour: 'numeric',
     minute: '2-digit'
   })
