@@ -1,5 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 
+import { useI18n as useLocaleUpdates } from '@/i18n'
 import { createRendererLoopPauseController } from '@/lib/renderer-loop-pause'
 import { $petState, type PetInfo, type PetState } from '@/store/pet'
 
@@ -159,6 +160,8 @@ interface PetSpriteProps {
  * the pet itself changes.
  */
 function PetSpriteImpl({ info, zoom = 1, stateOverride, rowOverride, pauseWhenUnfocused = false }: PetSpriteProps) {
+  const { t: localeText } = useLocaleUpdates()
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const stateRef = useRef<PetState>($petState.get())
   const overrideRef = useRef<PetState | undefined>(stateOverride)
@@ -404,7 +407,9 @@ function PetSpriteImpl({ info, zoom = 1, stateOverride, rowOverride, pauseWhenUn
 
   return (
     <canvas
-      aria-label={info.displayName ? `${info.displayName} pet` : 'pet'}
+      aria-label={
+        info.displayName ? localeText.additional.display.petNamed(info.displayName) : localeText.additional.display.pet
+      }
       height={backingH}
       ref={canvasRef}
       style={{ height: drawH, width: drawW }}
