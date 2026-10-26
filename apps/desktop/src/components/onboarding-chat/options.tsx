@@ -1,6 +1,8 @@
 import { selectableClass } from '@/components/onboarding-chat/chip'
 import { Codicon } from '@/components/ui/codicon'
 import { Tip } from '@/components/ui/tooltip'
+import { useI18n } from '@/i18n'
+import { localizeBuiltinText } from '@/i18n/builtin-metadata'
 import { IS_MAC } from '@/lib/keybinds/combo'
 import { cn } from '@/lib/utils'
 import type { InterfaceMode } from '@/store/interface-mode'
@@ -206,6 +208,8 @@ export function LayoutPreviewCard({
   onSelect: () => void
   tree: MiniNode
 }) {
+  const { t } = useI18n()
+
   return (
     <button aria-pressed={active} className="group flex flex-col items-center gap-2" onClick={onSelect} type="button">
       <span className={cn('flex aspect-[10/7] w-full flex-col gap-1.5 rounded-[8px] p-2', selectableClass(active))}>
@@ -215,8 +219,12 @@ export function LayoutPreviewCard({
         </span>
       </span>
       <span className="flex flex-col items-center gap-0.5">
-        <span className={cn('text-xs', active ? 'text-foreground' : 'text-muted-foreground')}>{name}</span>
-        {description && <span className="text-[0.68rem] text-muted-foreground/70">{description}</span>}
+        <span className={cn('text-xs', active ? 'text-foreground' : 'text-muted-foreground')}>
+          {localizeBuiltinText(name, t)}
+        </span>
+        {description && (
+          <span className="text-[0.68rem] text-muted-foreground/70">{localizeBuiltinText(description, t)}</span>
+        )}
       </span>
     </button>
   )
