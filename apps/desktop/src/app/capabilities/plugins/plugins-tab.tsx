@@ -19,6 +19,7 @@ import { $pluginRecords, type PluginRecord, setPluginEnabled } from '@/contrib/p
 import { discoverRuntimePlugins, uninstallDiskPlugin } from '@/contrib/runtime-loader'
 import type { ProfileScope } from '@/hermes'
 import { useI18n } from '@/i18n'
+import { localizeBuiltinText } from '@/i18n/builtin-metadata'
 import { triggerHaptic } from '@/lib/haptics'
 import { FolderOpen, Loader2, Monitor, Package, RefreshCw, Trash2 } from '@/lib/icons'
 import { CATALOG_ORIGIN, CATALOG_PICKER_URL } from '@/lib/plugin-catalog'
@@ -314,7 +315,7 @@ function PackageRow({
                   desktop?.status === 'error' ? 'text-(--ui-danger,#f87171)' : 'text-(--ui-text-tertiary)'
                 )}
               >
-                {desktop?.status === 'error' ? desktop.error : pkg.description}
+                {desktop?.status === 'error' ? desktop.error : localizeBuiltinText(pkg.description ?? '', t)}
               </div>
             )}
             {unavailableServers.map(server =>
