@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
+import { localizeBuiltinText } from '@/i18n/builtin-metadata'
 import { isSubmitEnter } from '@/lib/ime'
 import { type ProjectIdeaTemplate, randomIdeaTemplates } from '@/lib/project-idea-templates'
 import { cn } from '@/lib/utils'
@@ -303,11 +304,11 @@ export function ProjectDialog() {
                   className="flex items-center gap-1 rounded-full border border-(--ui-stroke-tertiary) px-2 py-0.5 text-[0.6875rem] text-(--ui-text-secondary) transition-colors hover:border-(--ui-stroke-secondary) hover:bg-(--ui-control-hover-background) hover:text-foreground disabled:opacity-50"
                   disabled={submitting}
                   key={template.label}
-                  onClick={() => setIdea(template.idea)}
+                  onClick={() => setIdea(localizeBuiltinText(template.idea, t))}
                   type="button"
                 >
                   <span aria-hidden>{template.emoji}</span>
-                  {template.label}
+                  {localizeBuiltinText(template.label, t)}
                 </button>
               ))}
               <Tip label={p.ideaShuffle}>
