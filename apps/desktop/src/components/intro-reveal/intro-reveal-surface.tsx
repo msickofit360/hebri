@@ -2,6 +2,7 @@ import './intro-reveal.css'
 
 import type { Ref } from 'react'
 
+import { useI18n as useDesktopLanguage } from '@/i18n'
 import { cn } from '@/lib/utils'
 
 import { BrandClose } from './scenes/brand'
@@ -101,6 +102,8 @@ interface HeroChatProps {
 }
 
 function HeroChat({ frame, viewportRef }: HeroChatProps) {
+  const { t: languageText } = useDesktopLanguage()
+
   const beat = frame.beat
   const sent = beat >= INTRO_BEAT_INDEX.send
   const replying = beat >= INTRO_BEAT_INDEX.reply
@@ -224,7 +227,7 @@ function HeroChat({ frame, viewportRef }: HeroChatProps) {
         >
           <div className="min-h-[2rem] px-1.5 pt-0.5 text-[1.02rem] leading-7 text-white/90">
             {sent || typedText.length === 0 ? (
-              <span className="text-white/28">Ask anything. Build anything.</span>
+              <span className="text-white/28">{languageText.additional.ui.introSlogan}</span>
             ) : (
               typedText
             )}
