@@ -8,6 +8,7 @@ import { SCAFFOLD_GLYPH_CLASS, SCAFFOLD_LABEL_CLASS, ScaffoldRow } from '@/compo
 import { Codicon } from '@/components/ui/codicon'
 import { LogView } from '@/components/ui/log-view'
 import { ToolIcon } from '@/components/ui/tool-icon'
+import { useI18n as useDesktopLanguage } from '@/i18n'
 import { LinkifiedText } from '@/lib/external-link'
 import { cn } from '@/lib/utils'
 
@@ -61,6 +62,8 @@ export const BackgroundResult: FC<BackgroundResultProps> = ({ text, report, proc
 }
 
 export const SystemMessage: FC = () => {
+  const { t: languageText } = useDesktopLanguage()
+
   const text = useAuiState(s => messageContentText(s.message.content))
   const asyncResult = useAuiState(s => s.message.metadata.custom?.asyncResult)
   const processResult = useAuiState(s => s.message.metadata.custom?.asyncResultKind === 'process')
@@ -123,7 +126,7 @@ export const SystemMessage: FC = () => {
         data-slot="aui_system-message-root"
       >
         <Codicon className="text-muted-foreground/55" name="compass" size="0.75rem" />
-        <span className="text-muted-foreground/55">steered</span>
+        <span className="text-muted-foreground/55">{languageText.additional.ui.steered}</span>
         <span className="text-muted-foreground/35">·</span>
         <span className="whitespace-pre-wrap">{steerNote.groups.text.trim()}</span> <MessageTimelineTimestamp />
       </MessagePrimitive.Root>

@@ -16,6 +16,7 @@ import { UserMessageText } from '@/components/assistant-ui/thread/user-message-t
 import { Codicon } from '@/components/ui/codicon'
 import { Tip } from '@/components/ui/tooltip'
 import { useResizeObserver } from '@/hooks/use-resize-observer'
+import { useI18n as useDesktopLanguage } from '@/i18n'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
 import { StopFilled } from '@/lib/icons'
@@ -176,6 +177,8 @@ export async function resolveAgentAvatar(handle: string): Promise<null | string>
 }
 
 const AgentMessageNote: FC<{ text: string }> = ({ text }) => {
+  const { t: languageText } = useDesktopLanguage()
+
   const match = AGENT_MESSAGE_RE.exec(text)
   const sender = (match?.[1] || match?.[3] || 'agent').trim()
   const handle = (match?.[2] || match?.[3] || sender).trim()
@@ -214,12 +217,14 @@ const AgentMessageNote: FC<{ text: string }> = ({ text }) => {
             🤖
           </span>
         )}
-        <span className="wrap-anywhere">Message from {sender}</span>
+        <span className="wrap-anywhere">
+          {languageText.additional.ui.messageFrom} {sender}
+        </span>
       </span>
       {body && (
         <details className="self-center">
           <summary className="cursor-pointer select-none text-center text-muted-foreground/45 hover:text-muted-foreground/70">
-            show message
+            {languageText.additional.ui.showMessage}
           </summary>
           <div className="mt-1 max-w-[36rem] rounded-lg border border-(--ui-stroke-tertiary) px-3 py-2 text-left text-[0.75rem] leading-5 text-foreground/85">
             <UserMessageText text={body} />
