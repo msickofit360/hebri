@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('hermesDesktop', {
   onSynapsekAccountChanged: (callback: () => void) => {
     const listener = () => callback()
     ipcRenderer.on('hebri:synapsek-account-changed', listener)
+
     return () => ipcRenderer.removeListener('hebri:synapsek-account-changed', listener)
   },
   glassSupported: translucencySupport?.glass === true,
@@ -374,6 +375,7 @@ contextBridge.exposeInMainWorld('hermesDesktop', {
   stopPreviewFileWatch: id => ipcRenderer.invoke('hermes:stopPreviewFileWatch', id),
   setActiveWork: payload => ipcRenderer.send('hermes:active-work', payload),
   setTitleBarTheme: payload => ipcRenderer.send('hermes:titlebar-theme', payload),
+  setNativeLocale: locale => ipcRenderer.send('hermes:native-language', locale),
   setNativeTheme: mode => ipcRenderer.send('hermes:native-theme', mode),
   setTranslucency: payload => ipcRenderer.send('hermes:translucency', payload),
   setKeepAwake: on => ipcRenderer.send('hermes:keep-awake', on),

@@ -1,6 +1,8 @@
 import type { BrowserWindow, MessageBoxOptions, MessageBoxReturnValue } from 'electron'
 import type { AppUpdater } from 'electron-updater'
 
+import { nativeText } from './native-i18n'
+
 const FIRST_CHECK_DELAY_MS = 30_000
 const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1_000
 
@@ -153,7 +155,7 @@ export function createReleaseUpdater(options: ReleaseUpdaterOptions): ReleaseUpd
         }
 
         if (!current.updateAvailable) {
-          return { ok: false, error: 'no-update', message: 'No newer Hebri release is available.' }
+          return { ok: false, error: 'no-update', message: nativeText('No newer Hebri release is available.') }
         }
 
         const files = await updater.downloadUpdate()
@@ -165,7 +167,10 @@ export function createReleaseUpdater(options: ReleaseUpdaterOptions): ReleaseUpd
         return {
           ok: true,
           manualRestart: true,
-          message: `Hebri ${current.releaseVersion} is downloaded. Quit Hebri completely, then reopen it to finish installing. Your running work has not been stopped.`
+          message: nativeText(
+            'Hebri {version} is downloaded. Quit Hebri completely, then reopen it to finish installing. Your running work has not been stopped.',
+            { version: current.releaseVersion ?? '' }
+          )
         }
       } catch (error) {
         return { ok: false, error: 'download-failed', message: errorMessage(error) }
@@ -189,22 +194,22 @@ export function createReleaseUpdater(options: ReleaseUpdaterOptions): ReleaseUpd
       result.error
         ? {
             type: 'error',
-            title: 'Could not check for updates',
-            message: 'Hebri could not check GitHub Releases.',
+            title: nativeText('Could not check for updates'),
+            message: nativeText('Hebri could not check GitHub Releases.'),
             detail: result.message
           }
         : result.updateAvailable
           ? {
               type: 'info',
-              title: 'Hebri update found',
-              message: `Hebri ${result.releaseVersion} is available.`,
-              detail: 'Open Settings > About > Update now to download the release.'
+              title: nativeText('Hebri update found'),
+              message: nativeText('Hebri {version} is available.', { version: result.releaseVersion ?? '' }),
+              detail: nativeText('Open Settings > About > Update now to download the release.')
             }
           : {
               type: 'info',
-              title: 'Hebri is up to date',
-              message: 'You already have the latest Hebri release.',
-              detail: `Installed version: ${options.currentVersion}`
+              title: nativeText('Hebri is up to date'),
+              message: nativeText('You already have the latest Hebri release.'),
+              detail: nativeText('Installed version: {version}', { version: options.currentVersion })
             }
     )
   }

@@ -312,6 +312,7 @@ import { fetchLocalMedia } from './media-range'
 import { createMinimizeToTray } from './minimize-to-tray'
 import { createNativeAccessTokenCoordinator, NativeAuthChangedError } from './native-access-token'
 import { oauthSessionIsLive, resolveJsonBody, resolveReadinessProbeAuth } from './native-auth-decisions'
+import { nativeRoleLabel, nativeText, setNativeLocale } from './native-i18n'
 import {
   nativeRefreshUrl,
   type NativeTokenSet,
@@ -1116,6 +1117,15 @@ function writePersistedThemeSource(mode) {
 }
 
 nativeTheme.themeSource = readPersistedThemeSource()
+
+// Cache the last primary-window UI language for native prompts shown before renderer startup.
+const NATIVE_LANGUAGE_CONFIG_PATH = path.join(app.getPath('userData'), 'native-language.json')
+
+try {
+  setNativeLocale(JSON.parse(fs.readFileSync(NATIVE_LANGUAGE_CONFIG_PATH, 'utf8')).locale)
+} catch {
+  // A first launch keeps the existing English native copy until config resolves.
+}
 
 // Window translucency (see-through window). One lever, 0–100; 0 = off (the
 // default). Two modes share the lever (see electron/translucency.ts and
@@ -2608,8 +2618,8 @@ async function waitForUpdateToFinish() {
       rememberLog(`[updates] detached update finished with manual action (branch ${result.branch}): ${result.message}`)
       dialog.showMessageBox({
         type: 'warning',
-        title: 'Hebri update',
-        message: 'The update finished, but needs one more step',
+        title: nativeText('Hebri update'),
+        message: nativeText('The update finished, but needs one more step'),
         detail: result.message
       })
     } else if (result && result.ok) {
@@ -2624,12 +2634,13 @@ async function waitForUpdateToFinish() {
       void dialog
         .showMessageBox({
           type: 'error',
-          title: 'Hebri update',
-          message: "Hebri couldn't finish updating",
-          detail:
-            "You're still on the previous version and can keep using it. Try the update again, or open the update log to report the problem.\n\n" +
-            `Details: ${result.message}`,
-          buttons: ['Try again', 'Open log', 'Close'],
+          title: nativeText('Hebri update'),
+          message: nativeText("Hebri couldn't finish updating"),
+          detail: nativeText(
+            "You're still on the previous version and can keep using it. Try the update again, or open the update log to report the problem.\n\nDetails: {details}",
+            { details: result.message }
+          ),
+          buttons: [nativeText('Try again'), nativeText('Open log'), nativeText('Close')],
           defaultId: 0,
           cancelId: 2,
           noLink: true
@@ -6550,11 +6561,11 @@ async function saveImageFromUrl(rawUrl) {
   }
 
   const result = await dialog.showSaveDialog(mainWindow, {
-    title: 'Save Image',
+    title: nativeText('Save Image'),
     defaultPath: downloadsDir ? path.join(downloadsDir, fallbackName) : fallbackName,
     filters: [
-      { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] },
-      { name: 'All Files', extensions: ['*'] }
+      { name: nativeText('Images'), extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] },
+      { name: nativeText('All Files'), extensions: ['*'] }
     ]
   })
 
@@ -7228,7 +7239,7 @@ async function showPluginCompatNoticeOnce() {
       title: notice.title,
       message: notice.message,
       detail: notice.detail,
-      buttons: ['Open Plugins', 'OK'],
+      buttons: [nativeText('Open Plugins'), 'OK'],
       defaultId: 1,
       cancelId: 1,
       noLink: true
@@ -7298,7 +7309,7 @@ function buildApplicationMenu() {
   const template: MenuItemConstructorOptions[] = []
 
   const checkForUpdatesItem = {
-    label: 'Check for Updates…',
+    label: nativeText('Check for Updates…'),
     click: () => {
       if (releaseUpdater) {
         void releaseUpdater.check(true)
@@ -7312,7 +7323,7 @@ function buildApplicationMenu() {
     template.push({
       label: APP_NAME,
       submenu: [
-        { label: `About ${APP_NAME}`, click: () => showAboutPanelFresh() },
+        { label: nativeText('About {app}', { app: APP_NAME }), click: () => showAboutPanelFresh() },
         checkForUpdatesItem,
         { type: 'separator' },
         { role: 'services' },
@@ -7327,16 +7338,16 @@ function buildApplicationMenu() {
   }
 
   template.push({
-    label: 'File',
+    label: nativeText('File'),
     submenu: [
       // No accelerator: ⌘⇧N is a rebindable renderer keybind (session.newWindow);
       // a menu accelerator would fight the rebind panel and (on macOS) be
       // swallowed before the renderer sees it. Here purely for discoverability.
-      { click: () => createInstanceWindow(), label: 'New Window' },
+      { click: () => createInstanceWindow(), label: nativeText('New Window') },
       // Same no-accelerator rationale: ⌘O is the rebindable renderer keybind
       // (workspace.openFolder). Clicking runs the same open-folder-as-project
       // flow through the renderer.
-      { click: () => sendOpenFolderRequested(), label: 'Open Folder…' },
+      { click: () => sendOpenFolderRequested(), label: nativeText('Open Folder…') },
       { type: 'separator' },
       IS_MAC
         ? {
@@ -7347,13 +7358,13 @@ function buildApplicationMenu() {
             // renderer's close-active-tab. Clicking the item still closes the tab
             // (or window) via the same request.
             click: () => sendClosePreviewRequested(),
-            label: 'Close'
+            label: nativeText('Close')
           }
         : { role: 'quit' }
     ]
   })
   template.push({
-    label: 'Edit',
+    label: nativeText('Edit'),
     submenu: [
       { role: 'undo' },
       { role: 'redo' },
@@ -7373,7 +7384,7 @@ function buildApplicationMenu() {
         ? ([
             { type: 'separator' },
             {
-              label: 'Substitutions',
+              label: nativeText('Substitutions'),
               submenu: [{ role: 'showSubstitutions' }, { type: 'separator' }, { role: 'toggleTextReplacement' }]
             }
           ] satisfies MenuItemConstructorOptions[])
@@ -7381,7 +7392,7 @@ function buildApplicationMenu() {
     ]
   })
   template.push({
-    label: 'View',
+    label: nativeText('View'),
     submenu: [
       // Not `role: 'reload'`: that hard-reloads the RENDERER (every pane, the
       // whole shell) and a focused in-app browser needs ⌘R to mean "reload
@@ -7391,23 +7402,23 @@ function buildApplicationMenu() {
       // No accelerator: ⌘R is claimed in `installPreviewShortcut`, which works
       // on every platform (this menu exists only on macOS). Declaring it here
       // too would fire the item and the input hook for one keypress.
-      { click: () => sendPreviewNavCommand('reload'), label: 'Reload' },
+      { click: () => sendPreviewNavCommand('reload'), label: nativeText('Reload') },
       { role: 'forceReload' },
       {
-        label: 'Toggle Developer Tools',
+        label: nativeText('Toggle Developer Tools'),
         accelerator: process.platform === 'darwin' ? 'Alt+Cmd+I' : 'Ctrl+Shift+I',
         click: (_menuItem, browserWindow) => toggleDevTools(browserWindow || mainWindow)
       },
       { type: 'separator' },
       {
-        label: 'Actual Size',
+        label: nativeText('Actual Size'),
         accelerator: 'CommandOrControl+0',
         click: () => {
           setAndPersistZoomLevel(mainWindow, DEFAULT_ZOOM_LEVEL)
         }
       },
       {
-        label: 'Zoom In',
+        label: nativeText('Zoom In'),
         accelerator: 'CommandOrControl+Plus',
         click: () => {
           if (mainWindow && !mainWindow.isDestroyed()) {
@@ -7416,7 +7427,7 @@ function buildApplicationMenu() {
         }
       },
       {
-        label: 'Zoom Out',
+        label: nativeText('Zoom Out'),
         accelerator: 'CommandOrControl+-',
         click: () => {
           if (mainWindow && !mainWindow.isDestroyed()) {
@@ -7429,16 +7440,30 @@ function buildApplicationMenu() {
     ]
   })
   template.push({
-    label: 'Window',
+    label: nativeText('Window'),
     submenu: IS_MAC
       ? [{ role: 'minimize' }, { role: 'zoom' }, { role: 'front' }]
       : [{ role: 'minimize' }, { role: 'close' }]
   })
   template.push({
-    label: 'Help',
+    label: nativeText('Help'),
     role: 'help',
     submenu: [checkForUpdatesItem]
   })
+
+  const translateRoles = (items: MenuItemConstructorOptions[]) => {
+    for (const item of items) {
+      if (item.role && !item.label) {
+        item.label = nativeRoleLabel(item.role)
+      }
+
+      if (Array.isArray(item.submenu)) {
+        translateRoles(item.submenu)
+      }
+    }
+  }
+
+  translateRoles(template)
 
   return Menu.buildFromTemplate(template)
 }
@@ -7763,13 +7788,13 @@ function installDownloadHandling() {
 
     try {
       item.setSaveDialogOptions({
-        title: 'Save File',
+        title: nativeText('Save File'),
         defaultPath: path.join(app.getPath('downloads'), filename),
         filters:
           extension || /^image\//i.test(item.getMimeType() || '')
             ? [
-                { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] },
-                { name: 'All Files', extensions: ['*'] }
+                { name: nativeText('Images'), extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] },
+                { name: nativeText('All Files'), extensions: ['*'] }
               ]
             : undefined
       })
@@ -8499,7 +8524,7 @@ async function finalizeGatewayDownload(res, statusCode, headers, ctx: any = {}) 
 
   const result = await dialog.showSaveDialog(mainWindow, {
     defaultPath: filename,
-    title: 'Save File'
+    title: nativeText('Save File')
   })
 
   if (result.canceled || !result.filePath) {
@@ -8640,7 +8665,7 @@ async function saveGatewayFileViaDataUrl(
 
   const result = await dialog.showSaveDialog(mainWindow, {
     defaultPath: filename,
-    title: 'Save File'
+    title: nativeText('Save File')
   })
 
   if (result.canceled || !result.filePath) {
@@ -17651,7 +17676,7 @@ ipcMain.handle('hermes:selectPaths', async (_event, options: any = {}) => {
   }
 
   const result = await dialog.showOpenDialog(mainWindow, {
-    title: options?.title || 'Add context',
+    title: options?.title || nativeText('Add context'),
     defaultPath: resolvedDefaultPath,
     properties: properties as any,
     filters: Array.isArray(options?.filters) ? options.filters : undefined
@@ -17674,7 +17699,7 @@ ipcMain.handle('hermes:writeClipboard', (_event, text) => {
 // elsewhere (the backend, for profile archives); this only picks the path.
 ipcMain.handle('hermes:selectSavePath', async (_event, options: any = {}) => {
   const result = await dialog.showSaveDialog(mainWindow, {
-    title: options?.title || 'Save',
+    title: options?.title || nativeText('Save'),
     defaultPath: options?.defaultPath ? String(options.defaultPath) : undefined,
     filters: Array.isArray(options?.filters) ? options.filters : undefined
   })
@@ -17850,6 +17875,35 @@ ipcMain.on('hermes:titlebar-theme', (_event, payload) => {
   for (const win of BrowserWindow.getAllWindows()) {
     applyTitleBarOverlay(win)
   }
+})
+
+// Only the primary app window owns global native menus. This IPC cannot read or write credentials.
+ipcMain.on('hermes:native-language', (event, locale) => {
+  if (
+    event.sender !== mainWindow?.webContents ||
+    typeof locale !== 'string' ||
+    !['en', 'it', 'zh', 'zh-hant', 'ja', 'ar', 'ru', 'fr', 'de', 'es'].includes(locale)
+  ) {
+    return
+  }
+
+  if (!setNativeLocale(locale)) {
+    return
+  }
+
+  try {
+    fs.mkdirSync(path.dirname(NATIVE_LANGUAGE_CONFIG_PATH), { recursive: true })
+    fs.writeFileSync(`${NATIVE_LANGUAGE_CONFIG_PATH}.tmp`, JSON.stringify({ locale }), 'utf8')
+    fs.renameSync(`${NATIVE_LANGUAGE_CONFIG_PATH}.tmp`, NATIVE_LANGUAGE_CONFIG_PATH)
+  } catch (error) {
+    rememberLog(`[language] could not persist native language: ${error.message}`)
+  }
+
+  if (IS_MAC && app.isReady()) {
+    Menu.setApplicationMenu(buildApplicationMenu())
+  }
+
+  minimizeToTray.refreshLabels()
 })
 
 // Pin the native appearance to the app theme (see NATIVE_THEME_CONFIG_PATH).
@@ -18193,7 +18247,7 @@ ipcMain.handle('hermes:setting:defaultProjectDir:set', async (_event, dir) => {
 
 ipcMain.handle('hermes:setting:defaultProjectDir:pick', async () => {
   const result = await dialog.showOpenDialog({
-    title: 'Choose default project directory',
+    title: nativeText('Choose default project directory'),
     properties: ['openDirectory', 'createDirectory'],
     defaultPath: readDefaultProjectDir() || app.getPath('home')
   })
