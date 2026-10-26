@@ -10,6 +10,7 @@ import {
   takeGuideShape
 } from '@/components/onboarding-chat/assembly'
 import { $setupSession, guideSourceConnectionId, SETUP_CHAT_TITLE } from '@/components/onboarding-chat/setup-profile'
+import { translateNow } from '@/i18n/runtime'
 import { isOnboardingEnabled } from '@/lib/onboarding-enabled'
 import { prefetchConnectorCatalog } from '@/store/connector-catalog'
 import { activeGatewayConnectionId, requestGatewayForProfile } from '@/store/gateway'
@@ -203,14 +204,18 @@ export function useOnboardingKickoff({
             ? ensureGatewayAgent(previousConnectionId, previousProfile)
             : ensureGatewayProfile(previousProfile)
         ).catch(restoreError => {
-          notify({ kind: 'error', title: 'Could not restore your profile', message: String(restoreError) })
+          notify({
+            kind: 'error',
+            title: translateNow('additional.notice.restoreProfileFailed'),
+            message: String(restoreError)
+          })
         })
       }
 
       console.error('[setup] welcome chat could not start', error)
       notify({
         kind: 'error',
-        title: 'Welcome chat needs attention',
+        title: translateNow('additional.notice.welcomeAttention'),
         message: error instanceof Error ? error.message : 'The welcome chat could not start.'
       })
 
