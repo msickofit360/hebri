@@ -52,7 +52,7 @@ _ACCESS_DENIED_PATTERN = re.compile(rf"({_ACCESS_DENIED_WORDS})", re.IGNORECASE)
 # shell exits. Dict (not bare bool) so the flag is mutable without ``global``.
 _LAST_SPAWN_BREAKAWAY_FALLBACK: dict = {"fallback": False}
 
-_TASK_NAME_DEFAULT = "Hermes_Gateway"
+_TASK_NAME_DEFAULT = "Hebri_Gateway"
 _TASK_DESCRIPTION = "Hebri Gateway - Messaging Platform Integration"
 _TASK_LOGON_DELAY = "PT30S"
 _TASK_RESTART_INTERVAL = "PT1M"
@@ -132,7 +132,7 @@ def hermes_owns_windows_service(name: str, binpath: str, hermes_roots: tuple[str
     ``svchost.exe`` hosting ``Schedule``; without this gate the updater took Task Scheduler for the
     gateway's supervisor and ``sc.exe stop Schedule`` aborted every update (#97208)."""
     normalized_name = "".join(char for char in name.casefold() if char.isalnum())
-    if normalized_name.startswith("hermes"):
+    if normalized_name.startswith("hebri"):
         return True
     candidate = _normalize_windows_path(binpath)
     return any(candidate.startswith(_normalize_windows_path(root) + "/") for root in hermes_roots if root)
@@ -288,7 +288,28 @@ def get_task_name() -> str:
     from hermes_cli.gateway import _profile_suffix  # local: avoids circular init during boot
 
     suffix = _profile_suffix()
-    return f"{_TASK_NAME_DEFAULT}_{suffix}" if suffix else _TASK_NAME_DEFAULT
+    current = f"{_TASK_NAME_DEFAULT}_{suffix}" if suffix else _TASK_NAME_DEFAULT
+    legacy = f"Hermes_Gateway_{suffix}" if suffix else "Hermes_Gateway"
+    service_dir = _hermes_home() / "gateway-service"
+    # Preserve an existing Hebri autostart registration until explicitly
+    # uninstalled/reinstalled. A name alone never proves it belongs to Hebri.
+    if not (service_dir / f"{current}.cmd").exists():
+        legacy_script = service_dir / f"{legacy}.cmd"
+        try:
+            content = legacy_script.read_text(encoding="utf-8")
+            if f'set "HERMES_HOME={_hermes_home()}"' not in content:
+                return current
+            code, xml, _err = _exec_schtasks(["/Query", "/TN", legacy, "/XML"])
+            marker = _normalize_windows_path(str(service_dir)) + "/"
+            if code == 0 and marker in _normalize_windows_path(xml):
+                return legacy
+            for ext in ("vbs", "cmd"):
+                entry = _startup_dir() / f"{legacy}.{ext}"
+                if entry.exists() and marker in _normalize_windows_path(entry.read_text(encoding="utf-8")):
+                    return legacy
+        except OSError:
+            pass
+    return current
 
 
 def _sanitize_filename(value: str) -> str:
@@ -479,7 +500,7 @@ def _atomic_write(path: Path, content: str, tmp: Path) -> None:
 
     The staging file is removed even when the rename fails: the Startup-folder caller stages
     inside the Startup folder itself, and Windows opens every file there at login — a leftover
-    ``Hermes_Gateway.tmp`` pops up in Notepad after every sign-in (#114093).
+    ``Hebri_Gateway.tmp`` pops up in Notepad after every sign-in (#114093).
     """
     try:
         tmp.write_text(content, encoding="utf-8", newline="")
@@ -871,14 +892,14 @@ def install(
 
     task_name = get_task_name()
     script_path = _write_task_script()
-    # A pre-fix install that failed its Startup-folder swap left `Hermes_Gateway.tmp` there, and the
+    # A pre-fix install that failed its Startup-folder swap left `Hebri_Gateway.tmp` there, and the
     # Scheduled Task path below never touches that folder — sweep it so a re-run clears the debris.
     try:
         _startup_staging_path().unlink(missing_ok=True)
     except OSError:
         pass
     if force:
-        # Pre-suffix strays (task ``Hermes_Gateway``, Startup ``Hermes_Gateway.vbs``) are unreachable by
+        # Pre-suffix strays (task ``Hebri_Gateway``, Startup ``Hebri_Gateway.vbs``) are unreachable by
         # the current names, so a plain reconcile never heals them (#116157).
         from hermes_cli.gateway_windows_legacy import remove_legacy_launchers
         remove_legacy_launchers()

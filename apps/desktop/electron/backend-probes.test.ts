@@ -6,6 +6,7 @@
  */
 
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import net from 'node:net'
 import os from 'node:os'
@@ -28,6 +29,33 @@ import {
 // non-zero) and as a way to script verifyHermesCli's success path
 // (a tiny script we write to disk that exits 0 on --version).
 const NODE_BIN = process.execPath
+
+const python = process.env.PYTHON_FOR_TESTS || (process.platform === 'win32' ? 'python' : 'python3')
+const hasPython = spawnSync(python, ['--version'], { windowsHide: true }).status === 0
+
+test.skipIf(!hasPython)(
+  'system Python adoption requires Hebri identity while managed legacy imports still work',
+  async () => {
+    const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'hebri-runtime-identity-'))
+
+    try {
+      fs.mkdirSync(path.join(fixture, 'hermes_cli'))
+
+      for (const file of ['yaml.py', 'dotenv.py', 'hermes_cli/__init__.py', 'hermes_cli/config.py']) {
+        fs.writeFileSync(path.join(fixture, file), '')
+      }
+
+      const opts = { env: { PYTHONPATH: fixture, PYTHONDONTWRITEBYTECODE: '1' }, requireHebriIdentity: true }
+      fs.writeFileSync(path.join(fixture, 'hermes_constants.py'), 'APPLICATION_ID = "original.hermes"')
+      assert.equal(await canImportHermesCli(python, opts), false)
+      assert.equal(await canImportHermesCli(python, { env: opts.env }), true)
+      fs.writeFileSync(path.join(fixture, 'hermes_constants.py'), 'APPLICATION_ID = "com.synapsek.hebri"')
+      assert.equal(await canImportHermesCli(python, opts), true)
+    } finally {
+      fs.rmSync(fixture, { recursive: true, force: true })
+    }
+  }
+)
 
 test('execProbe keeps the parent event loop available to the child', async () => {
   let unexpectedSocketError: Error | undefined

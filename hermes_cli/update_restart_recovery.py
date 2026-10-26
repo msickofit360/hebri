@@ -25,7 +25,7 @@ covers both and an abort can strand either one (#92145):
 
 - **gateway profiles**, relaunched through the existing per-profile
   ``hermes_cli.main -p <profile> gateway restart`` command; and
-- **``hermes-serve*`` systemd units**, restarted directly through
+- **``hebri-serve*`` systemd units**, restarted directly through
   ``systemctl``.  ``hermes serve`` is not a gateway profile and has no
   per-profile relaunch command, but it is the runtime that hosts
   ``tui_gateway.server``: the process the original report saw answering every
@@ -34,8 +34,8 @@ covers both and an abort can strand either one (#92145):
   inventory, so a manually launched or Desktop-owned ``hermes serve`` — which
   has no relaunch authority — can never enter this path.
 
-Serve-unit identity is always ``<scope>/<unit>`` (``user/hermes-serve``,
-``system/hermes-serve``).  The two managers can each own a unit of the same
+Serve-unit identity is always ``<scope>/<unit>`` (``user/hebri-serve``,
+``system/hebri-serve``).  The two managers can each own a unit of the same
 name and they are different processes: an identity that projects the scope
 away lets one settled unit suppress recovery of the other, and lets one
 scope's outcome speak for the other's.  Scope is therefore never dropped and
@@ -50,11 +50,13 @@ import json
 import os
 import re
 import shutil
+import shlex
 import subprocess
 import sys
 import time
 from collections.abc import Callable, Iterable, Mapping
 from typing import Any
+from pathlib import Path
 
 _RECOVERY_ENV = "HERMES_UPDATE_RESTART_RECOVERY"
 _GATEWAY_MARKERS = ("_HERMES_GATEWAY", "HERMES_GATEWAY", "HERMES_GATEWAY_MODE")
@@ -63,8 +65,8 @@ _VERIFY_TIMEOUT = 15
 from hermes_constants import PROFILE_ID_RE as _PROFILE_ID_RE
 
 _SUPERVISOR_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,31}$")
-_UNIT_RE = re.compile(r"^hermes-serve(-[a-z0-9][a-z0-9_-]{0,63})?\.service$")
-_SERVE_UNIT_PATTERN = "hermes-serve*"
+_UNIT_RE = re.compile(r"^(?:hebri|hermes)-serve(-[a-z0-9][a-z0-9_-]{0,63})?\.service$")
+_SERVE_UNIT_PATTERN = "he*-serve*"
 _SCOPE_LABELS = ("user", "system")
 _UNIT_RESTART_TIMEOUT = 60
 _UNIT_SETTLE_ATTEMPTS = 10
@@ -134,8 +136,8 @@ def _run_profile_restart(profile: str, *, run: Callable[..., Any]) -> bool:
 def _systemd_unit_candidates(profile: str) -> tuple[str, ...]:
     """Unit names the existing systemd gateway lifecycle produces per profile."""
     if profile == "default":
-        return ("hermes-gateway.service", "gateway.service", "gateway-default.service")
-    return (f"hermes-gateway-{profile}.service", f"gateway-{profile}.service")
+        return ("hebri-gateway.service", "hermes-gateway.service", "gateway.service", "gateway-default.service")
+    return (f"hebri-gateway-{profile}.service", f"hermes-gateway-{profile}.service", f"gateway-{profile}.service")
 
 
 def _systemd_verified_active(profile: str, *, run: Callable[..., Any]) -> bool:
@@ -144,7 +146,8 @@ def _systemd_verified_active(profile: str, *, run: Callable[..., Any]) -> bool:
     ``active``) means we could NOT verify, never that the restart failed."""
     systemctl = shutil.which("systemctl")
     return bool(systemctl) and any(
-        _unit_is_active([systemctl, "--user"], unit, run=run, require_rc0=True)
+        _unit_targets_install([systemctl, "--user"], unit, run=run)
+        and _unit_is_active([systemctl, "--user"], unit, run=run, require_rc0=True)
         for unit in _systemd_unit_candidates(profile)
     )
 
@@ -161,7 +164,7 @@ def _host_state_dir() -> str:
     state_home = os.environ.get("XDG_STATE_HOME") or ""
     if not os.path.isabs(state_home):
         state_home = os.path.join(os.path.expanduser("~"), ".local", "state")
-    return os.path.join(state_home, "hermes", "gateway-locks")
+    return os.path.join(state_home, "hebri", "gateway-locks")
 
 
 def _pid_is_live(pid: int) -> bool:
@@ -269,8 +272,8 @@ def _listed_serve_units(scope: list[str], *, run: Callable[..., Any]) -> list[st
     )
     if result is None:
         return []
-    # The glob is a systemd pattern, not a name gate (`hermes-serve*` also matches
-    # `hermes-server.service`): require the exact base unit or the profile family.
+    # The glob is a systemd pattern, not a name gate (`hebri-serve*` also matches
+    # `hebri-server.service`): require the exact base unit or the profile family.
     units: list[str] = []
     for line in (getattr(result, "stdout", "") or "").splitlines():
         parts = line.split()
@@ -286,6 +289,35 @@ def _unit_main_pid(scope: list[str], unit: str, *, run: Callable[..., Any]) -> i
         return int(_stdout(result) or 0) if _succeeded(result) else 0
     except ValueError:
         return 0
+
+
+def _unit_targets_install(scope: list[str], unit: str, *, run: Callable[..., Any]) -> bool:
+    """Cold recovery must not restart the original Hermes or another Hebri home.
+
+    Keep this stdlib-only: recovery can run while the main runtime cannot import.
+    No pinned home means no authority to restart the unit.
+    """
+    raw_home = os.environ.get("HERMES_HOME", "").strip()
+    if not raw_home:
+        return False
+    try:
+        root = Path(raw_home).expanduser().resolve()
+        if root.parent.name == "profiles":
+            root = root.parent.parent
+        result = _run_quiet(run, scope + ["show", unit, "--property=Environment", "--value"], timeout=_VERIFY_TIMEOUT)
+        if not _succeeded(result):
+            return False
+        for token in shlex.split(_stdout(result)):
+            key, sep, value = token.partition("=")
+            if sep and key == "HERMES_HOME" and value:
+                home = Path(value).expanduser().resolve()
+                if home == root:
+                    return True
+                relative = home.relative_to(root).parts
+                return len(relative) == 2 and relative[0] == "profiles" and bool(_PROFILE_ID_RE.fullmatch(relative[1]))
+    except (OSError, ValueError, RuntimeError):
+        pass
+    return False
 
 
 def _unit_is_active(scope: list[str], unit: str, *, run: Callable[..., Any], require_rc0: bool = False) -> bool:
@@ -327,7 +359,7 @@ def _split_skip_entry(entry: Any) -> tuple[str, str]:
 
 
 def _normalized_skips(skip_units: Iterable[Any]) -> tuple[set[tuple[str, str]], set[str]]:
-    """Split already-settled units into scope-qualified and legacy entries (a bare ``"hermes-serve"``
+    """Split already-settled units into scope-qualified and legacy entries (a bare ``"hebri-serve"``
     carries no scope and cannot say WHICH of two same-named processes was settled)."""
     qualified: set[tuple[str, str]] = set()
     legacy: set[str] = set()
@@ -341,7 +373,7 @@ def _normalized_skips(skip_units: Iterable[Any]) -> tuple[set[tuple[str, str]], 
 def restart_serve_units(
     *, skip_units: Iterable[Any] = (), run: Callable[..., Any] = subprocess.run, sleep: Callable[[float], Any] = time.sleep
 ) -> dict[str, list[str]]:
-    """Restart every active ``hermes-serve*`` systemd unit from this process.
+    """Restart every active ``hebri-serve*`` systemd unit from this process.
 
     Units are enumerated from systemd, never from the update inventory, so a manually launched or
     Desktop-owned ``hermes serve`` (no unit) structurally cannot be touched here.
@@ -358,6 +390,8 @@ def restart_serve_units(
             if target in seen or target in skipped_qualified or base in skipped_legacy:
                 continue
             seen.add(target)
+            if not _unit_targets_install(scope, unit, run=run):
+                continue
             if not _unit_is_active(scope, unit, run=run):
                 continue  # not running: nothing serves a stale generation from it
             previous_pid = _unit_main_pid(scope, unit, run=run)
@@ -408,7 +442,7 @@ def _parse_payload(stream) -> tuple[list[str], dict[str, str], bool, list[str]]:
             raise ValueError("recovery serve_units skip list is invalid")
         for entry in raw_skip:
             # A skip entry names one already-settled process. The qualified shape carries the systemd
-            # scope (`hermes-serve.service` can exist in BOTH managers; settling one says nothing about
+            # scope (`hebri-serve.service` can exist in BOTH managers; settling one says nothing about
             # the other). A bare string is the legacy shape a pre-update interpreter can still send,
             # read as scope-agnostic by `restart_serve_units`.
             if isinstance(entry, dict):

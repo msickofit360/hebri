@@ -46,41 +46,37 @@ test('mode predicates classify what each mode removes', () => {
 
 test('resolveRemovableAppPath finds the .app bundle on macOS', () => {
   assert.equal(
-    resolveRemovableAppPath('/Applications/Hermes.app/Contents/MacOS/Hermes', 'darwin'),
-    '/Applications/Hermes.app'
+    resolveRemovableAppPath('/Applications/Hebri.app/Contents/MacOS/Hebri', 'darwin'),
+    '/Applications/Hebri.app'
   )
   assert.equal(
-    resolveRemovableAppPath('/Users/x/Applications/Hermes.app/Contents/MacOS/Hermes', 'darwin'),
-    '/Users/x/Applications/Hermes.app'
+    resolveRemovableAppPath('/Users/x/Applications/Hebri.app/Contents/MacOS/Hebri', 'darwin'),
+    '/Users/x/Applications/Hebri.app'
   )
 })
 
-test('resolveRemovableAppPath: dev-run .app resolves (safety is shouldRemoveAppBundle, not null)', () => {
-  // A dev run from node_modules' Electron DOES resolve to a .app — the real
-  // dev-run safety gate is shouldRemoveAppBundle(isPackaged=false,...), not a
-  // null return here. This test documents that contract.
+test('resolveRemovableAppPath leaves other app bundles and upstream Hermes alone', () => {
+  assert.equal(resolveRemovableAppPath('/Applications/Hermes.app/Contents/MacOS/Hermes', 'darwin'), null)
   assert.equal(
     resolveRemovableAppPath('/repo/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron', 'darwin'),
-    '/repo/node_modules/electron/dist/Electron.app'
+    null
   )
-  assert.equal(shouldRemoveAppBundle(false, '/repo/node_modules/electron/dist/Electron.app'), false)
-  // A bare path with no .app ancestor → null.
-  assert.equal(resolveRemovableAppPath('/usr/bin/electron', 'darwin'), null)
+  assert.equal(resolveRemovableAppPath(String.raw`C:\Users\x\AppData\Local\Programs\Hermes\Hermes.exe`, 'win32'), null)
 })
 
 test('resolveRemovableAppPath finds the install dir on Windows', () => {
   assert.equal(
-    resolveRemovableAppPath('C:\\Users\\x\\AppData\\Local\\Programs\\Hermes\\Hermes.exe', 'win32'),
-    'C:\\Users\\x\\AppData\\Local\\Programs\\Hermes'
+    resolveRemovableAppPath('C:\\Users\\x\\AppData\\Local\\Programs\\Hebri\\Hebri.exe', 'win32'),
+    'C:\\Users\\x\\AppData\\Local\\Programs\\Hebri'
   )
   assert.equal(
-    resolveRemovableAppPath('C:\\Users\\x\\AppData\\Local\\hermes-desktop\\Hermes.exe', 'win32'),
-    'C:\\Users\\x\\AppData\\Local\\hermes-desktop'
+    resolveRemovableAppPath('C:\\Users\\x\\AppData\\Local\\hebri-desktop\\Hebri.exe', 'win32'),
+    'C:\\Users\\x\\AppData\\Local\\hebri-desktop'
   )
 })
 
 test('resolveRemovableAppPath returns null for an unrecognized Windows dir', () => {
-  assert.equal(resolveRemovableAppPath('C:\\Temp\\foo\\Hermes.exe', 'win32'), null)
+  assert.equal(resolveRemovableAppPath('C:\\Temp\\foo\\Hebri.exe', 'win32'), null)
 })
 
 test('resolveRemovableAppPath uses APPIMAGE on Linux when set', () => {
@@ -104,8 +100,8 @@ test('resolveRemovableAppPath returns null for an empty exe path', () => {
 // --- shouldRemoveAppBundle ---
 
 test('shouldRemoveAppBundle requires packaged AND a resolved path', () => {
-  assert.equal(shouldRemoveAppBundle(true, '/Applications/Hermes.app'), true)
-  assert.equal(shouldRemoveAppBundle(false, '/Applications/Hermes.app'), false)
+  assert.equal(shouldRemoveAppBundle(true, '/Applications/Hebri.app'), true)
+  assert.equal(shouldRemoveAppBundle(false, '/Applications/Hebri.app'), false)
   assert.equal(shouldRemoveAppBundle(true, null), false)
   assert.equal(shouldRemoveAppBundle(false, null), false)
 })
@@ -202,7 +198,7 @@ test('buildWindowsCleanupScript waits (bounded) for PID, runs uninstall, rmdir b
     pythonPath: 'C:\\hermes',
     agentRoot: 'C:\\hermes',
     uninstallArgs: ['-m', 'hermes_cli.uninstall', '--mode', 'full'],
-    appPath: 'C:\\Users\\x\\AppData\\Local\\Programs\\Hermes',
+    appPath: 'C:\\Users\\x\\AppData\\Local\\Programs\\Hebri',
     hermesHome: 'C:\\Users\\x\\AppData\\Local\\hermes'
   })
 
@@ -216,7 +212,7 @@ test('buildWindowsCleanupScript waits (bounded) for PID, runs uninstall, rmdir b
   assert.match(script, /findstr \/r \/c:" %PID% "/)
   // Removal is a retry loop (Windows releases dir handles lazily).
   assert.match(script, /:rmloop/)
-  assert.match(script, /rmdir \/s \/q "C:\\Users\\x\\AppData\\Local\\Programs\\Hermes" >nul 2>&1/)
+  assert.match(script, /rmdir \/s \/q "C:\\Users\\x\\AppData\\Local\\Programs\\Hebri" >nul 2>&1/)
   assert.match(script, /if %tries% geq 10 goto rmdone/)
   assert.match(script, /del "%~f0"/)
 })

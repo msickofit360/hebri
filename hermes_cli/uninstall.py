@@ -71,19 +71,17 @@ _SHELL_RC_NAMES = (".bashrc", ".bash_profile", ".profile", ".zshrc", ".zprofile"
 
 
 def _strip_hermes_path_lines(content: str) -> str:
-    """Drop the ``# Hermes Agent`` marker (+ its PATH line) and any hermes PATH line; squash blank runs."""
+    """Drop marked private Hebri paths; preserve shared bin dirs and user-written PATH lines."""
     new_lines = []
     skip_next = False
     for line in content.split('\n'):
-        if '# Hermes Agent' in line or '# hermes-agent' in line:
+        if '# Hebri Agent' in line or '# hebri-agent' in line:
             skip_next = True
             continue
-        if skip_next and ('hermes' in line.lower() and 'PATH' in line):
+        if skip_next and ('hebri' in line.lower() and 'PATH' in line):
             skip_next = False
             continue
         skip_next = False
-        if 'hermes' in line.lower() and ('PATH=' in line or 'path=' in line.lower()):
-            continue
         new_lines.append(line)
     new_content = '\n'.join(new_lines)
     while '\n\n\n' in new_content:
@@ -115,12 +113,12 @@ def remove_wrapper_script():
     def _unlink_ours(wrapper: Path) -> bool:
         # Only our wrapper (contains a hermes_cli / hermes-agent reference).
         content = wrapper.read_text(encoding="utf-8")
-        return _unlink_if('hermes_cli' in content or 'hermes-agent' in content, wrapper)
+        return _unlink_if(str(get_project_root()) in content or str(get_hermes_home()) in content, wrapper)
 
     candidates = (
         bin_dir / name
         for bin_dir in (Path.home() / ".local" / "bin", Path("/usr/local/bin"))
-        for name in ("hermes", "hermes-acp", "hermes-agent"))
+        for name in ("hebri", "hebri-acp", "hebri-agent"))
     return _remove_each((w for w in candidates if w.exists()), _unlink_ours)
 
 
@@ -293,7 +291,7 @@ def remove_path_from_windows_registry(hermes_home: Path, *, include_managed_bin:
 def remove_hermes_env_vars_windows() -> list[str]:
     """Delete HERMES_HOME and HERMES_GIT_BASH_PATH from User-scope env vars."""
     def edit(winreg, key, removed):
-        for name in ("HERMES_HOME", "HERMES_GIT_BASH_PATH"):
+        for name in ("HEBRI_HOME", "HEBRI_GIT_BASH_PATH"):
             try:
                 winreg.QueryValueEx(key, name)
             except FileNotFoundError:

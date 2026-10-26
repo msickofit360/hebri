@@ -590,16 +590,16 @@ def _kill_stale_dashboard_processes(
     Manually-started dashboards are not auto-restarted because we don't know the original launch args
     (--host, --port, --insecure, --tui, --no-open). See #68934.
     *already_restarted_units* names units (no ``.service`` suffix) the caller already restarted directly —
-    e.g. ``hermes update``'s systemd fleet-restart loop, which restarts ``hermes-serve*`` units before this
+    e.g. ``hermes update``'s systemd fleet-restart loop, which restarts ``hebri-serve*`` units before this
     function runs. Without excluding them, a Serve-only install's freshly restarted process is found again
     here and restarted a second time for no benefit (review on #83595).
     """
     from hermes_cli import main_dashboard as _dash
 
     if restart_managed and _dash._restart_managed_dashboard_service(reason):
-        # The dashboard unit is handled but other backends (e.g. hermes-serve.service) are not:
+        # The dashboard unit is handled but other backends (e.g. hebri-serve.service) are not:
         # mark the unit handled so the filter below drops its PIDs, and keep going.
-        _dash_unit = getattr(_dash, "_DASHBOARD_SYSTEMD_UNIT", "hermes-dashboard.service")
+        _dash_unit = getattr(_dash, "_DASHBOARD_SYSTEMD_UNIT", "hebri-dashboard.service")
         already_restarted_units = set(already_restarted_units or ()) | {
             str(_dash_unit).removesuffix(".service")}
     exclude = _exclude_pids_from_env()

@@ -1,10 +1,10 @@
 """Home scoping for ``hermes update``'s fleet restart (#93349).
 
-The restart phase enumerates ``hermes-gateway*``/``hermes-serve*`` units, ``ai.hermes.gateway*``
+The restart phase enumerates ``hebri-gateway*``/``hebri-serve*`` units, ``com.synapsek.hebri.gateway*``
 LaunchAgents and every ``gateway run`` process on the host. Those are HOST-wide namespaces: a
 second Hermes install (another ``HERMES_HOME`` root under the same account, its own checkout and
 venv) shares them, and the update used to restart that install's gateway too — including the
-account's real ``hermes-gateway.service`` when a scratch home ran ``hermes update``.
+account's real ``hebri-gateway.service`` when a scratch home ran ``hermes update``.
 
 The fleet an update owns is the set of homes its plan inventories: the updating root plus every
 ``<root>/profiles/<name>``. Ownership is judged from what a runtime actually runs on — the live
@@ -111,7 +111,7 @@ def systemd_unit_hermes_home(scope_cmd: list, svc_name: str) -> str | None:
         key, sep, value = token.partition("=")
         if sep and key == "HERMES_HOME" and value.strip():
             return value.strip()
-    if "--user" in scope_cmd:
+    if "--user" in scope_cmd and svc_name.startswith("hebri-"):
         return str(Path.home() / ".hebri")
     return None
 
@@ -127,7 +127,7 @@ def systemd_unit_in_update_scope(scope_cmd: list, svc_name: str, scope: set[Path
 def launchd_label_foreign_home(label: str, scope: set[Path] | None = None) -> str | None:
     """The HERMES_HOME a derived launchd label's installed plist pins when that home is NOT one of
     this update's — labels are account-global, so root B's default profile derives the same bare
-    ``ai.hermes.gateway`` root A installed. ``None`` = ours, or no/unreadable plist (the locate step
+    ``com.synapsek.hebri.gateway`` root A installed. ``None`` = ours, or no/unreadable plist (the locate step
     decides whether a job exists; only a proven foreign home is refused)."""
     import plistlib
     with suppress(Exception):

@@ -36,7 +36,7 @@ _FRESH_RESTART_SUPERVISORS = frozenset({"systemd", "launchd", "service", "s6"})
 _FLEET_PROBE_SETTLE_TIMEOUT_SECONDS = 120.0
 
 _SYSTEMD_SCOPES = (("user", ["systemctl", "--user"]), ("system", ["systemctl"]))
-_LIST_GATEWAY_UNITS = ["list-units", "hermes-gateway*", "hermes-serve*", "--plain", "--no-legend", "--no-pager"]
+_LIST_GATEWAY_UNITS = ["list-units", "hebri-gateway*", "hebri-serve*", "hermes-gateway*", "hermes-serve*", "--plain", "--no-legend", "--no-pager"]
 
 
 def _write_gateway_update_exit_code(ok: bool) -> None:
@@ -559,10 +559,10 @@ def _unit_main_pid(scope_cmd: list, svc_name: str) -> int:
 
 
 def _restart_systemd_gateway_units_best_effort(failed: list, listings) -> None:
-    """Restart every hermes-gateway/serve unit ONCE PER LIVE HOST PROCESS.
+    """Restart every hebri-gateway/serve unit ONCE PER LIVE HOST PROCESS.
 
     One host runs one multiplexing gateway, so leftover per-profile units
-    (``hermes-gateway-<profile>.service``) all point at the SAME live ``MainPID``; restarting
+    (``hebri-gateway-<profile>.service``) all point at the SAME live ``MainPID``; restarting
     each in turn restarts the host gateway N times — a self-inflicted N-fold outage triggered
     by one update. Units that share a live main PID are collapsed to one representative and the
     others are named as LEGACY units to migrate, never silently dropped.
@@ -675,7 +675,7 @@ def _run_pending_fleet_restart() -> bool:
         return True
     print("→ Restarting gateways left on pre-update code...")
     # Warn if legacy Hermes gateway unit files are still installed. When both hermes.service (from a
-    # pre-rename install) and the current hermes-gateway.service are enabled, they SIGTERM-fight for the
+    # pre-rename install) and the current hebri-gateway.service are enabled, they SIGTERM-fight for the
     # same bot token (see PR #11909). Flagging here means every `hermes update` surfaces the issue until the
     # user migrates.
     try:
@@ -715,11 +715,11 @@ def _run_pending_fleet_restart() -> bool:
                 with _best_effort('Pending fleet restart: PID stop failed: %s'):
                     kill_gateway_processes(all_profiles=True)
                     _wait_for_gateway_exit(timeout=5.0, force_after=None)
-        # --- Systemd services (Linux) --- Discover all hermes-gateway* units (default + profiles) plus
-        # hermes-serve* units (the Desktop app's backend, #83438).
+        # --- Systemd services (Linux) --- Discover all hebri-gateway* units (default + profiles) plus
+        # hebri-serve* units (the Desktop app's backend, #83438).
         if systemd_listings is not None:
             _restart_systemd_gateway_units_best_effort(failed, systemd_listings)
-        # --- Launchd services (macOS) --- Restart EVERY ai.hermes.gateway* LaunchAgent, not only the
+        # --- Launchd services (macOS) --- Restart EVERY com.synapsek.hebri.gateway* LaunchAgent, not only the
         # invoking profile's — parity with the systemd branch above (#41403). Per-label TimeoutExpired
         # isolation happens inside.
         if is_macos():
@@ -889,8 +889,8 @@ def _systemctl_reset_and_restart(manage_cmd: list, svc_name: str, *, scope_cmd: 
 def _systemd_unit_owned_by_update(scope_cmd: list, svc_name: str) -> bool:
     """Gate a unit restart on the unit's home being one this update owns (#93349).
 
-    ``hermes-gateway*`` is an account-wide namespace: a second install's ``hermes update`` used
-    to drain and restart the account's real ``hermes-gateway.service`` because the unit was
+    ``hebri-gateway*`` is an account-wide namespace: a second install's ``hermes update`` used
+    to drain and restart the account's real ``hebri-gateway.service`` because the unit was
     listed, not because it ran the updated code. Foreign or unreadable ownership prints a notice
     and leaves the unit alone; it is not a failed restart.
     """
@@ -915,8 +915,8 @@ def _scoped_manual_gateway_pids(pids, *, keep=(), quiet: bool = False) -> list[i
 
 
 def _is_hermes_gateway_unit(unit: str) -> bool:
-    """Exact base unit or hyphenated profile family only: ``startswith("hermes-serve")``
-    would accept ``hermes-server.service``."""
+    """Exact base unit or hyphenated profile family only: ``startswith("hebri-serve")``
+    would accept ``hebri-server.service``."""
     return (
         # list-units is already pattern-filtered, but keep the name gate so a stray non-gateway/serve line
         # cannot enter the restart path. See #83595.
@@ -924,11 +924,15 @@ def _is_hermes_gateway_unit(unit: str) -> bool:
         or unit.startswith("hermes-gateway-")
         or unit == "hermes-serve.service"
         or unit.startswith("hermes-serve-")
+        or unit == "hebri-gateway.service"
+        or unit.startswith("hebri-gateway-")
+        or unit == "hebri-serve.service"
+        or unit.startswith("hebri-serve-")
     )
 
 
 def _for_each_systemd_gateway_unit(list_units_stdout: str, *, process_unit, on_unit_timeout) -> None:
-    """Process each hermes-gateway*/hermes-serve* unit from ``systemctl list-units``.
+    """Process each hebri-gateway*/hebri-serve* unit from ``systemctl list-units``.
 
     ``TimeoutExpired`` from ``process_unit`` is isolated per unit via ``on_unit_timeout``
     so one wedged systemctl call cannot abort the rest of the fleet.
@@ -952,14 +956,14 @@ def _for_each_systemd_gateway_unit(list_units_stdout: str, *, process_unit, on_u
 def _service_unit_supports_graceful_sigusr1_restart(svc_name: str) -> bool:
     """Whether *svc_name* wires SIGUSR1 to a graceful drain-then-restart.
 
-    Only ``hermes-gateway*`` runs ``gateway/run.py`` (the handler); SIGUSR1 would just
-    kill ``hermes-serve*`` and burn the drain budget, so those go straight to the blunt
+    Only ``hebri-gateway*`` runs ``gateway/run.py`` (the handler); SIGUSR1 would just
+    kill ``hebri-serve*`` and burn the drain budget, so those go straight to the blunt
     restart. Same exact/hyphenated shape as ``_for_each_systemd_gateway_unit`` so a
-    near-prefix unit like ``hermes-gatewayd`` is never signalled.
+    near-prefix unit like ``hebri-gatewayd`` is never signalled.
 
     See #83438.
     """
-    return svc_name == "hermes-gateway" or svc_name.startswith("hermes-gateway-")
+    return svc_name in ("hebri-gateway", "hermes-gateway") or svc_name.startswith(("hebri-gateway-", "hermes-gateway-"))
 
 
 def _warn_incomplete_gateway_fleet_restart(failed_units: list) -> None:
@@ -1076,7 +1080,7 @@ def _restart_macos_launchd_gateways(
 ) -> None:
     """Restart every launchd-managed gateway after an update (macOS).
 
-    The pull is shared across profiles, so every ``ai.hermes.gateway*`` LaunchAgent
+    The pull is shared across profiles, so every ``com.synapsek.hebri.gateway*`` LaunchAgent
     must reload it or siblings stay on pre-update ``sys.modules`` (systemd parity).
     Invoking profile uses ``launchd_restart()``; siblings get the same drain-first
     sequence with their domain (``gui/<uid>`` vs ``user/<uid>``) resolved per label so
@@ -1104,7 +1108,7 @@ def _restart_macos_launchd_gateways(
     current_label = get_launchd_label()
 
     derived_labels = launchd_gateway_labels_for_install()
-    # Units labelled before the profile-name suffix scheme (ai.hermes.gateway-<hash>) are invisible
+    # Units labelled before the profile-name suffix scheme (com.synapsek.hebri.gateway-<hash>) are invisible
     # to the derivation; legacy_launchd_labels_for_install() credits one only when its plist is
     # provably this install's, so the #41403 boundary (never touch another install's fleet) holds.
     # See #115254.
@@ -1189,7 +1193,7 @@ _DESKTOP_SERVE_SKIP_REASON = (
 # child's systemd pass; survivors reported by _surviving_pre_update_serve_runtimes.
 _SERVE_SKIP_REASON = (
     "no per-profile relaunch command reaches a serve/dashboard runtime; recovered by the fresh"
-    " systemd unit pass when it owns a hermes-serve* unit, else left running for explicit"
+    " systemd unit pass when it owns a hebri-serve* unit, else left running for explicit"
     " operator restart"
 )
 # A launchd-owned backend (#116503): the fresh child has no per-label kickstart for serve/dashboard
@@ -1209,7 +1213,7 @@ def _gateway_recovery_partition(plan, *, skip_profiles: set[str] | None = None) 
     ``(candidates, skipped)``: profile → supervisor for supervised gateways the fresh
     process may restart; every other inventoried runtime with an explicit reason so
     nothing vanishes silently. Skipped serve/dashboard is NOT unrecoverable: the fresh
-    child's ``hermes-serve*`` systemd pass enumerates units from systemd; leftovers are
+    child's ``hebri-serve*`` systemd pass enumerates units from systemd; leftovers are
     caught by :func:`_surviving_pre_update_serve_runtimes`.
     """
     skip_profiles = skip_profiles or set()
@@ -1346,7 +1350,7 @@ def _resolve_manage_cmd(cache: dict, scope_: str, scope_cmd_: list, svc_name_: s
     Manage-units verbs on a *system* service trigger a polkit prompt for non-root
     users, which flashes and dies inside our captured 10-15s subprocess. Root → plain
     systemctl; else ``sudo -n`` blanket probe, then a targeted ``reset-failed`` probe
-    so a least-privilege sudoers entry scoped to hermes-gateway* qualifies (idempotent
+    so a least-privilege sudoers entry scoped to hebri-gateway* qualifies (idempotent
     no-op we run before every privileged restart anyway). On None the caller must SKIP
     the restart (without draining first!). ``--no-ask-password`` prevents polkit hangs.
     """
@@ -1416,7 +1420,7 @@ def _restart_one_systemd_gateway_unit(
     _manage_cmd = _resolve_manage_cmd(_manage_cmd_cache, scope, scope_cmd, svc_name)
 
     # Graceful SIGUSR1 first so in-flight runs drain: handler → request_restart(via_service=True)
-    # → drain → exit, Restart=always respawns. hermes-serve has no handler → blunt restart below.
+    # → drain → exit, Restart=always respawns. hebri-serve has no handler → blunt restart below.
     _main_pid = 0
     if _service_unit_supports_graceful_sigusr1_restart(svc_name):
         try:
@@ -1506,7 +1510,7 @@ def _restart_one_systemd_gateway_unit(
 def _restart_systemd_gateway_units(
     restarted_services, failed_or_stale_units, restarted_scoped_units, drain_budget, self_restart_pending=None,
 ):
-    """Restart every active hermes-gateway*/hermes-serve* systemd unit (user + system).
+    """Restart every active hebri-gateway*/hebri-serve* systemd unit (user + system).
 
     Settled units → ``restarted_services`` (bare) and ``restarted_scoped_units``
     (``scope/name``); failures → ``failed_or_stale_units``. Per-unit timeouts isolated.
@@ -1811,7 +1815,7 @@ def _restart_gateway_fleet_after_update(_pre_update_plan, gateway_mode: bool):
         incomplete=False, phase_errors=[], pre_restart_gateway_pids=[], restarted_services=[], failed_or_stale_units=[],
         relaunched_profiles=[], externally_supervised_profiles=[], killed_pids=set(),
     )
-    # Scope-qualified twin (``user/hermes-serve`` vs ``system/hermes-serve`` are different
+    # Scope-qualified twin (``user/hebri-serve`` vs ``system/hebri-serve`` are different
     # processes; abort recovery needs WHICH settled). Bare names stay in
     # ``restarted_services`` for the fleet probe, receipt and summary.
     # Snapshot of gateways running before we touch anything. Stays empty until we successfully import the
@@ -1851,7 +1855,7 @@ def _restart_gateway_fleet_after_update(_pre_update_plan, gateway_mode: bool):
             out.self_restart_pending_pids,
         )
 
-        # macOS: EVERY ai.hermes.gateway* LaunchAgent (systemd parity).
+        # macOS: EVERY com.synapsek.hebri.gateway* LaunchAgent (systemd parity).
         if is_macos():
             with suppress(FileNotFoundError, ImportError):
                 _restart_macos_launchd_gateways(
@@ -1879,7 +1883,7 @@ def _restart_gateway_fleet_after_update(_pre_update_plan, gateway_mode: bool):
 
 
 def _print_legacy_units_warning() -> None:
-    """Legacy hermes.service fights hermes-gateway.service over the bot token; warn on
+    """Legacy hermes.service fights hebri-gateway.service over the bot token; warn on
     every update until migrated."""
     from hermes_cli.gateway import (has_legacy_hermes_units, _find_legacy_hermes_units, supports_systemd_services)
     if not (supports_systemd_services() and has_legacy_hermes_units()):
@@ -1891,7 +1895,7 @@ def _print_legacy_units_warning() -> None:
         print(f"    {path}  ({scope} scope)")
     print()
     print("  These pre-rename units (hermes.service) fight the current")
-    print("  hermes-gateway.service for the bot token and cause SIGTERM")
+    print("  hebri-gateway.service for the bot token and cause SIGTERM")
     print("  flap loops. Remove them with:")
     print()
     print("    hermes gateway migrate-legacy")

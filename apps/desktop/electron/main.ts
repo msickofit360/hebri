@@ -646,7 +646,9 @@ if (IS_WSL && !REMOTE_DISPLAY_REASON && fs.existsSync('/dev/dxg')) {
 // it). The value arrives via HERMES_DESKTOP_PASSWORD_STORE, bridged by the
 // `hermes desktop` launcher from detection or `desktop.password_store` in
 // config.yaml. Must run before app `ready` — the switch only applies pre-launch.
-const PASSWORD_STORE = resolveLinuxPasswordStore({ passwordStoreSwitch: app.commandLine.getSwitchValue('password-store') })
+const PASSWORD_STORE = resolveLinuxPasswordStore({
+  passwordStoreSwitch: app.commandLine.getSwitchValue('password-store')
+})
 
 if (PASSWORD_STORE.warning) {
   console.warn(`[hermes] ${PASSWORD_STORE.warning}`)
@@ -869,7 +871,12 @@ if (INSTALL_STAMP) {
 // HERMES_HOME beneath the throwaway userData dir so a fresh-install run never
 // touches the user's real ~/.hermes / %LOCALAPPDATA%\hermes.
 function resolveHermesHome() {
-  if (process.env.HERMES_HOME) {
+  if (process.env.HEBRI_HOME) {
+    return normalizeHermesHomeRoot(process.env.HEBRI_HOME)
+  }
+
+  // Keep old Hebri homes, never inherit upstream Hermes' .hermes directory.
+  if (process.env.HERMES_HOME && /(?:^|[\\/])\.?hebri(?:[\\/]|$)/i.test(process.env.HERMES_HOME)) {
     return normalizeHermesHomeRoot(process.env.HERMES_HOME)
   }
 
@@ -884,7 +891,7 @@ function resolveHermesHome() {
     // backend silently falls back to %LOCALAPPDATA%\hermes and reports "No
     // inference provider configured" despite a valid configured home (#45471).
     // Consult the live User-scoped registry value before the default below.
-    const fromRegistry = readWindowsUserEnvVar('HERMES_HOME')
+    const fromRegistry = readWindowsUserEnvVar('HEBRI_HOME')
 
     if (fromRegistry) {
       return normalizeHermesHomeRoot(fromRegistry)
@@ -3353,7 +3360,11 @@ async function resolveHealedBranch(updateRoot, branch) {
 // inside applyUpdates. `force` (menu item, Settings "Check now") skips the
 // cache; the renderer's background poller never passes it.
 async function checkUpdates(options: { force?: boolean } = {}) {
-  return routeDesktopUpdate<any>(app.isPackaged, releaseUpdater ? () => releaseUpdater.status(Boolean(options.force)) : undefined, () => checkSourceUpdates(options))
+  return routeDesktopUpdate<any>(
+    app.isPackaged,
+    releaseUpdater ? () => releaseUpdater.status(Boolean(options.force)) : undefined,
+    () => checkSourceUpdates(options)
+  )
 }
 
 async function checkSourceUpdates({ force = false }: { force?: boolean } = {}) {
@@ -4202,7 +4213,9 @@ async function releaseBackendLock(updateRoot, tag) {
 // Detection (checkUpdates / commit changelog / "N behind") stays in the UI;
 // only this apply action changed.
 async function applyUpdates(opts: { stopSafeBlockers?: boolean } = {}) {
-  return routeDesktopUpdate<any>(app.isPackaged, releaseUpdater ? () => releaseUpdater.apply() : undefined, () => applySourceUpdates(opts))
+  return routeDesktopUpdate<any>(app.isPackaged, releaseUpdater ? () => releaseUpdater.apply() : undefined, () =>
+    applySourceUpdates(opts)
+  )
 }
 
 async function applySourceUpdates(opts: { stopSafeBlockers?: boolean } = {}) {
@@ -5365,7 +5378,7 @@ async function resolveHermesBackend(backendArgs) {
         rememberLog(`Ignoring Windows Hebri override under WSL: ${hermesOverride}`)
       }
     } else {
-      hermesCommand = findOnPath('hermes')
+      hermesCommand = findOnPath('hebri')
     }
 
     if (hermesCommand) {
@@ -5435,7 +5448,7 @@ async function resolveHermesBackend(backendArgs) {
     // Verify the import works before trusting the candidate; on
     // failure, fall through to step 6 so the bootstrap runner pulls
     // a uv-managed 3.11 into %LOCALAPPDATA%\hermes\hermes-agent\venv.
-    if (await canImportHermesCli(python)) {
+    if (await canImportHermesCli(python, { requireHebriIdentity: true })) {
       return {
         kind: 'python',
         label: `installed hermes_cli module via ${python}`,
@@ -12763,7 +12776,7 @@ async function runPoolBackendStart(
           // Marks this dashboard backend as desktop-spawned so it runs the cron
           // scheduler tick loop (the gateway isn't running under the app).
           HERMES_DESKTOP: '1',
-          ...await synapsekBackendEnvironment(),
+          ...(await synapsekBackendEnvironment()),
           // Exact parent identity lets the backend self-exit after an unclean
           // Desktop death without mistaking a reused PID for its owner. If the
           // optional marker probe fails, retain legacy PID-only tracking.
@@ -13554,7 +13567,7 @@ async function runHermesStart({ supervisorRecovery = false }: { supervisorRecove
             // Marks this dashboard backend as desktop-spawned so it runs the cron
             // scheduler tick loop (the gateway isn't running under the app).
             HERMES_DESKTOP: '1',
-            ...await synapsekBackendEnvironment(),
+            ...(await synapsekBackendEnvironment()),
             // Exact parent identity lets the backend self-exit after an unclean
             // Desktop death without mistaking a reused PID for its owner. If the
             // optional marker probe fails, retain legacy PID-only tracking.

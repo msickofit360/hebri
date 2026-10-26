@@ -23,7 +23,7 @@ def xdg_home(tmp_path, monkeypatch) -> Path:
     data_home = tmp_path / "xdg-data"
     monkeypatch.setenv("XDG_DATA_HOME", str(data_home))
     # Isolate the known-wrapper probe too: tests must never see the real
-    # ~/.local/bin/hermes on the dev machine.
+    # ~/.local/bin/hebri on the dev machine.
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setattr(lde.sys, "platform", "linux")
     return data_home
@@ -48,7 +48,7 @@ def _png_ihdr(width: int, height: int) -> bytes:
 
 
 def _stub_install(tmp_path, monkeypatch) -> None:
-    hermes_bin = tmp_path / "bin" / "hermes"
+    hermes_bin = tmp_path / "bin" / "hebri"
     hermes_bin.parent.mkdir(exist_ok=True)
     hermes_bin.write_text("", encoding="utf-8")
     monkeypatch.setattr(
@@ -70,7 +70,7 @@ def test_install_writes_entry_with_absolute_exec_and_icon(
     tmp_path, xdg_home, monkeypatch
 ):
     root = _make_project(tmp_path)
-    hermes_bin = tmp_path / "bin" / "hermes"
+    hermes_bin = tmp_path / "bin" / "hebri"
     hermes_bin.parent.mkdir()
     hermes_bin.write_text("", encoding="utf-8")
     monkeypatch.setattr(
@@ -105,7 +105,7 @@ def test_install_prefers_themed_icon_from_hicolor(tmp_path, xdg_home, monkeypatc
     fixed for).
     """
     root = _make_project(tmp_path)
-    hermes_bin = tmp_path / "bin" / "hermes"
+    hermes_bin = tmp_path / "bin" / "hebri"
     hermes_bin.parent.mkdir()
     hermes_bin.write_text("", encoding="utf-8")
     monkeypatch.setattr(
@@ -131,7 +131,7 @@ def test_install_icon_copy_failure_falls_back_to_absolute(
 ):
     """An impossible icon copy keeps the absolute path (never breaks)."""
     root = _make_project(tmp_path)
-    hermes_bin = tmp_path / "bin" / "hermes"
+    hermes_bin = tmp_path / "bin" / "hebri"
     hermes_bin.parent.mkdir()
     hermes_bin.write_text("", encoding="utf-8")
     monkeypatch.setattr(
@@ -175,7 +175,7 @@ def test_exec_falls_back_to_interpreter_module(tmp_path, xdg_home, monkeypatch):
     entry = lde.install_desktop_entry(root)
     exec_line = _parse(entry.read_text(encoding="utf-8"))["Exec"]
 
-    assert exec_line.endswith("-m hermes_cli.main desktop")
+    assert exec_line.endswith("-m hermes_cli.hebri desktop")
     assert Path(exec_line.split(" ")[0]).is_absolute()
 
 
@@ -190,7 +190,7 @@ def test_exec_prefixes_interpreter_for_env_shebang_python_script(
     import sys
 
     root = _make_project(tmp_path)
-    hermes_bin = tmp_path / "bin" / "hermes"
+    hermes_bin = tmp_path / "bin" / "hebri"
     hermes_bin.parent.mkdir()
     hermes_bin.write_text(
         "#!/usr/bin/env python3\nimport hermes_cli\n", encoding="utf-8"
@@ -212,7 +212,7 @@ def test_exec_prefixes_interpreter_for_env_shebang_python_script(
 
 def test_exec_leaves_shell_wrapper_launchers_alone(tmp_path, xdg_home, monkeypatch):
     root = _make_project(tmp_path)
-    hermes_bin = tmp_path / "bin" / "hermes"
+    hermes_bin = tmp_path / "bin" / "hebri"
     hermes_bin.parent.mkdir()
     hermes_bin.write_text(
         '#!/bin/bash\nexec /opt/hermes/venv/bin/python "$@"\n', encoding="utf-8"
@@ -234,7 +234,7 @@ def test_exec_leaves_venv_shebang_scripts_alone(tmp_path, xdg_home, monkeypatch)
     import sys
 
     root = _make_project(tmp_path)
-    hermes_bin = tmp_path / "bin" / "hermes"
+    hermes_bin = tmp_path / "bin" / "hebri"
     hermes_bin.parent.mkdir()
     interpreter = os.path.abspath(sys.executable)
     hermes_bin.write_text(f"#!{interpreter}\nimport hermes_cli\n", encoding="utf-8")
@@ -280,7 +280,7 @@ def test_exec_converges_from_repo_script_argv0_to_installed_wrapper(
         "#!/usr/bin/env python3\nimport hermes_cli\n", encoding="utf-8"
     )
     repo_script.chmod(0o755)
-    wrapper = tmp_path / "installed" / "bin" / "hermes"
+    wrapper = tmp_path / "installed" / "bin" / "hebri"
     wrapper.parent.mkdir(parents=True)
     wrapper.write_text(f'#!/bin/bash\nexec {sys.executable} "$@"\n', encoding="utf-8")
     wrapper.chmod(0o755)
@@ -288,7 +288,7 @@ def test_exec_converges_from_repo_script_argv0_to_installed_wrapper(
     # argv[0] = repo script; PATH lookup finds the installed wrapper.
     _argv0_context(monkeypatch, str(repo_script))
     monkeypatch.setattr(
-        "shutil.which", lambda name: str(wrapper) if name == "hermes" else None
+        "shutil.which", lambda name: str(wrapper) if name == "hebri" else None
     )
     monkeypatch.setattr(lde, "refresh_desktop_databases", lambda _dir: [])
 
@@ -307,7 +307,7 @@ def test_exec_never_persists_a_bare_interpreter_command(
     `Exec=<python> desktop` — a command line no DE can run."""
 
     root = _make_project(tmp_path)
-    wrapper = tmp_path / "installed" / "bin" / "hermes"
+    wrapper = tmp_path / "installed" / "bin" / "hebri"
     wrapper.parent.mkdir(parents=True)
     wrapper.write_text("#!/bin/bash\nexit 0\n", encoding="utf-8")
     wrapper.chmod(0o755)
@@ -320,7 +320,7 @@ def test_exec_never_persists_a_bare_interpreter_command(
     # argv[0] IS the interpreter (python -m context); PATH has the wrapper.
     _argv0_context(monkeypatch, str(interpreter))
     monkeypatch.setattr(
-        "shutil.which", lambda name: str(wrapper) if name == "hermes" else None
+        "shutil.which", lambda name: str(wrapper) if name == "hebri" else None
     )
     monkeypatch.setattr(lde, "refresh_desktop_databases", lambda _dir: [])
 
@@ -343,7 +343,7 @@ def test_exec_keeps_resolver_fallback_when_no_wrapper_on_path(
 
     With argv[0] checkout-internal and PATH + known locations both empty,
     the resolver returns None and resolve_exec_command emits the runnable
-    `sys.executable -m hermes_cli.main desktop` fallback. Persisting the
+    `sys.executable -m hermes_cli.hebri desktop` fallback. Persisting the
     interpreter itself (`<python> desktop`) would be unrunnable by any DE;
     persisting the repo script alone dies on its env shebang.
     """
@@ -371,7 +371,7 @@ def test_exec_keeps_resolver_fallback_when_no_wrapper_on_path(
 
     # The runnable module fallback — NOT the bare repo script (its env
     # shebang would escape the venv under a DE) and NOT `<python> desktop`.
-    assert exec_line.endswith("-m hermes_cli.main desktop")
+    assert exec_line.endswith("-m hermes_cli.hebri desktop")
     assert Path(exec_line.split(" ")[0].strip('"')).is_absolute()
     assert str(repo_script) not in exec_line
 
@@ -399,7 +399,7 @@ def test_exec_uses_known_wrapper_when_path_lookup_misses(
     # Realistic installer shim: execs this checkout's venv python on the
     # checkout's hermes script (the aidiyet check requires it to target
     # the writing checkout).
-    known_wrapper = tmp_path / "known-home" / ".local" / "bin" / "hermes"
+    known_wrapper = tmp_path / "known-home" / ".local" / "bin" / "hebri"
     known_wrapper.parent.mkdir(parents=True)
     known_wrapper.write_text(
         f'#!/bin/bash\nexec {root / "venv" / "bin" / "python"} {root / "hermes"} "$@"\n',
@@ -441,12 +441,12 @@ def test_exec_never_persists_a_checkout_internal_path_hit(tmp_path, xdg_home, mo
     checkout must fall through to the durable probe.
     """
     root = _make_project(tmp_path)
-    venv_script = root / "venv" / "bin" / "hermes"
+    venv_script = root / "venv" / "bin" / "hebri"
     venv_script.parent.mkdir(parents=True)
     venv_script.write_text("#!/bin/bash\nexec true\n", encoding="utf-8")
     venv_script.chmod(0o755)
 
-    known_wrapper = tmp_path / "path-home" / ".local" / "bin" / "hermes"
+    known_wrapper = tmp_path / "path-home" / ".local" / "bin" / "hebri"
     known_wrapper.parent.mkdir(parents=True)
     known_wrapper.write_text(
         f'#!/bin/bash\nexec {root / "venv" / "bin" / "python"} {root / "hermes"} "$@"\n',
@@ -488,7 +488,7 @@ def test_exec_finds_known_wrapper_when_resolver_has_no_candidate(
     `python -m`, and PATH has no `hermes`) makes resolve_hermes_bin return
     None outright. The early `return primary` that used to fire here skipped
     the durable-wrapper probe, so the persisted Exec flipped to the bare
-    `<python> -m hermes_cli.main desktop` module form. Each flip between the
+    `<python> -m hermes_cli.hebri desktop` module form. Each flip between the
     wrapper and module forms rewrites hebri.desktop on the next launch; any
     rewrite that lands while gnome-shell's ShellApp for the entry is still
     STARTING crashes the shell (shell_app_dispose `state == STOPPED`
@@ -497,7 +497,7 @@ def test_exec_finds_known_wrapper_when_resolver_has_no_candidate(
     """
     root = _make_project(tmp_path)
 
-    known_wrapper = tmp_path / "cold-home" / ".local" / "bin" / "hermes"
+    known_wrapper = tmp_path / "cold-home" / ".local" / "bin" / "hebri"
     known_wrapper.parent.mkdir(parents=True)
     known_wrapper.write_text(
         f'#!/bin/bash\nexec {root / "venv" / "bin" / "python"} {root / "hermes"} "$@"\n',
@@ -532,7 +532,7 @@ def test_exec_rejects_known_wrapper_from_another_checkout(
 ):
     """A known-location wrapper that targets a DIFFERENT checkout is skipped.
 
-    On machines with multiple installs over time, ~/.local/bin/hermes may
+    On machines with multiple installs over time, ~/.local/bin/hebri may
     belong to another checkout. Persisting it would make the entry stable
     but silently point at that other installation — the failure class the
     aidiyet check exists to prevent. The runnable module fallback must win
@@ -550,7 +550,7 @@ def test_exec_rejects_known_wrapper_from_another_checkout(
     # A shim belonging to a DIFFERENT checkout.
     other_root = tmp_path / "other-install"
     other_root.mkdir()
-    foreign_wrapper = tmp_path / "known-home" / ".local" / "bin" / "hermes"
+    foreign_wrapper = tmp_path / "known-home" / ".local" / "bin" / "hebri"
     foreign_wrapper.parent.mkdir(parents=True)
     foreign_wrapper.write_text(
         f"#!/bin/bash\nexec {other_root / 'venv' / 'bin' / 'python'} "
@@ -574,7 +574,7 @@ def test_exec_rejects_known_wrapper_from_another_checkout(
 
     # The foreign wrapper was rejected; the runnable module fallback won.
     assert str(foreign_wrapper) not in exec_line
-    assert exec_line.endswith("-m hermes_cli.main desktop")
+    assert exec_line.endswith("-m hermes_cli.hebri desktop")
 
 
 @pytest.mark.parametrize(
@@ -583,25 +583,25 @@ def test_exec_rejects_known_wrapper_from_another_checkout(
         pytest.param(
             "user",
             {},
-            "HOME-SET-BY-TEST/.local/bin/hermes",
+            "HOME-SET-BY-TEST/.local/bin/hebri",
             id="user-layout",
         ),
         pytest.param(
             "termux",
             {"PREFIX": "PREFIX-SET-BY-TEST"},
-            "PREFIX-SET-BY-TEST/bin/hermes",
+            "PREFIX-SET-BY-TEST/bin/hebri",
             id="termux-prefix-first",
         ),
         pytest.param(
             "root-fhs",
             {"__EUID0__": "1"},
-            "/usr/local/bin/hermes",
+            "/usr/local/bin/hebri",
             id="root-fhs",
         ),
         pytest.param(
             "non-root-no-fhs",
             {"__EUID0__": "0"},
-            "HOME-SET-BY-TEST/.local/bin/hermes",
+            "HOME-SET-BY-TEST/.local/bin/hebri",
             id="non-root-excludes-fhs",
         ),
     ],
@@ -634,12 +634,12 @@ def test_known_wrapper_candidates_cover_installer_layouts(
         assert candidates[0] == expected_resolved
     if layout == "root-fhs":
         # Root FHS outranks the user layout.
-        assert candidates.index("/usr/local/bin/hermes") < candidates.index(
-            f"{sentinel_home}/.local/bin/hermes"
+        assert candidates.index("/usr/local/bin/hebri") < candidates.index(
+            f"{sentinel_home}/.local/bin/hebri"
         )
     if layout == "non-root-no-fhs":
         # Non-root euid: /usr/local/bin must be excluded outright.
-        assert "/usr/local/bin/hermes" not in candidates
+        assert "/usr/local/bin/hebri" not in candidates
 
 
 def test_install_is_idempotent_and_skips_cache_refresh(tmp_path, xdg_home, monkeypatch):
@@ -676,6 +676,7 @@ def test_install_without_source_icon_uses_themed_name(tmp_path, xdg_home, monkey
 
 
 @pytest.mark.macos_only
+@pytest.mark.skipif(sys.platform != "darwin", reason="native macOS only")
 def test_install_is_a_noop_on_macos(tmp_path):
     """Faking darwin only renamed the host — the real macOS runner is the
     only place the `sys.platform` guard is exercised against a real host."""
@@ -683,6 +684,7 @@ def test_install_is_a_noop_on_macos(tmp_path):
 
 
 @pytest.mark.windows_only
+@pytest.mark.skipif(sys.platform != "win32", reason="native Windows only")
 def test_install_is_a_noop_on_windows(tmp_path):
     """As above for Windows: a fake left POSIX paths and a POSIX XDG layout
     in place, so the no-op was never proven against a real one."""
@@ -816,7 +818,7 @@ def test_exec_falls_back_to_running_interpreter_when_probe_fails(
 
     # Runnable module form under the RUNNING interpreter - never the
     # unprobeable ELF fake, never a bare "<python> desktop".
-    assert exec_line.endswith("-m hermes_cli.main desktop")
+    assert exec_line.endswith("-m hermes_cli.hebri desktop")
     first = exec_line.split(" ")[0].strip('"')
     assert first == os.path.abspath(sys.executable)
     assert str(interpreter) not in exec_line
@@ -862,7 +864,7 @@ def test_wrapper_ownership_accepts_shim_via_symlinked_home(tmp_path, monkeypatch
     lexical_checkout = home_link / "hermes-agent"
     (home_real / "hermes-agent").mkdir()
 
-    shim = home_link / ".local" / "bin" / "hermes"
+    shim = home_link / ".local" / "bin" / "hebri"
     shim.parent.mkdir(parents=True)
     shim.write_text(
         f"#!/bin/bash\n"
@@ -985,7 +987,7 @@ def test_probe_skips_wrapper_with_escaping_python_shebang(
     repo_script.chmod(0o755)
 
     # A wrapper that targets this checkout but cannot run itself.
-    broken_wrapper = xdg_home / ".local" / "bin" / "hermes"
+    broken_wrapper = xdg_home / ".local" / "bin" / "hebri"
     broken_wrapper.parent.mkdir(parents=True)
     broken_wrapper.write_text(
         f"#!/usr/bin/env python3\n# launcher for {root}\nimport hermes_cli\n",
@@ -1006,7 +1008,7 @@ def test_probe_skips_wrapper_with_escaping_python_shebang(
     exec_line = _parse(entry.read_text(encoding="utf-8"))["Exec"]
 
     assert str(broken_wrapper) not in exec_line
-    assert exec_line.endswith("-m hermes_cli.main desktop")
+    assert exec_line.endswith("-m hermes_cli.hebri desktop")
 
 
 def test_probe_accepts_shell_launcher_wrapper(tmp_path, xdg_home, monkeypatch):
@@ -1018,7 +1020,7 @@ def test_probe_accepts_shell_launcher_wrapper(tmp_path, xdg_home, monkeypatch):
     )
     repo_script.chmod(0o755)
 
-    good_wrapper = xdg_home / ".local" / "bin" / "hermes"
+    good_wrapper = xdg_home / ".local" / "bin" / "hebri"
     good_wrapper.parent.mkdir(parents=True)
     good_wrapper.write_text(
         f"#!/bin/bash\nexec {root / 'venv' / 'bin' / 'python'} "
@@ -1050,7 +1052,7 @@ def test_install_icon_handles_truncated_png_header(tmp_path, xdg_home, monkeypat
     icon.write_bytes(
         b"\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR\x00\x00"  # 22 bytes
     )
-    hermes_bin = tmp_path / "bin" / "hermes"
+    hermes_bin = tmp_path / "bin" / "hebri"
     hermes_bin.parent.mkdir()
     hermes_bin.write_text("", encoding="utf-8")
     monkeypatch.setattr(
@@ -1097,7 +1099,7 @@ def test_install_places_1024_png_in_256x256_not_scalable(
     assert not stale.exists()
 
 
-def test_install_removes_stale_scalable_png(tmp_path, xdg_home, monkeypatch):
+def test_install_preserves_original_hermes_scalable_png(tmp_path, xdg_home, monkeypatch):
     """v2026.8.31 wrote the PNG into scalable/. A later hermes desktop
     must delete that leftover so Cinnamon does not keep using it."""
     root = _make_project(tmp_path)
@@ -1112,7 +1114,7 @@ def test_install_removes_stale_scalable_png(tmp_path, xdg_home, monkeypatch):
 
     dest = xdg_home / "icons" / "hicolor" / "256x256" / "apps" / "hebri.png"
     assert dest.is_file()
-    assert not stale.exists()
+    assert stale.read_bytes() == b"old scalable png"
 
 
 def test_install_exact_48_png_uses_48x48_dir(tmp_path, xdg_home, monkeypatch):
