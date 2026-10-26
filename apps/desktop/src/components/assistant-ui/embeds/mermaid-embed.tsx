@@ -1,4 +1,6 @@
-'use client'
+import { useI18n as useDesktopLanguage } from '@/i18n'
+
+;('use client')
 
 import mermaid from 'mermaid'
 import { useEffect, useState } from 'react'
@@ -43,6 +45,8 @@ function SourcePreview({ code, muted }: { code: string; muted?: boolean }) {
 // the source while the message streams (partial syntax throws) and falls back
 // to source on parse failure.
 export default function MermaidRenderer({ code, streaming }: RichFenceProps) {
+  const { t: languageText } = useDesktopLanguage()
+
   const isDark = useIsDark()
   const [svg, setSvg] = useState('')
   const [failed, setFailed] = useState(false)
@@ -95,7 +99,7 @@ export default function MermaidRenderer({ code, streaming }: RichFenceProps) {
   // renders before any zoom; the inline version stays capped at 33dvh.
   return (
     <Zoomable
-      label="Open diagram"
+      label={languageText.additional.ui.openDiagram}
       onCopy={() => copySvgAsPng(svg)}
       overlay={
         <div

@@ -1,4 +1,6 @@
-'use client'
+import { useI18n as useDesktopLanguage } from '@/i18n'
+
+;('use client')
 
 import { type CSSProperties, useMemo } from 'react'
 
@@ -22,6 +24,8 @@ function spotifySrc(embedUrl: string, isDark: boolean): string {
 }
 
 export default function SpotifyEmbedRenderer({ descriptor }: { descriptor: FrameEmbed }) {
+  const { t: languageText } = useDesktopLanguage()
+
   const isDark = useIsDark()
   const src = useMemo(() => spotifySrc(descriptor.embedUrl, isDark), [descriptor.embedUrl, isDark])
 
@@ -39,7 +43,7 @@ export default function SpotifyEmbedRenderer({ descriptor }: { descriptor: Frame
       loading="lazy"
       src={src}
       style={style}
-      title="Spotify embed"
+      title={languageText.additional.ui.spotifyEmbed}
     />
   )
 }
