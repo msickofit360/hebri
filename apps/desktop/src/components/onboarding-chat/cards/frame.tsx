@@ -1,13 +1,13 @@
+import { useStore } from '@nanostores/react'
+
+import { requestComposerSubmit } from '@/app/chat/composer/focus'
 /**
  * The parts every in-chat onboarding card shares: the frame it renders in, the props it receives, and the commit
  * helper that submits the pick as a hidden [setup] message so the model moves on.
  */
-
-import { useStore } from '@nanostores/react'
-
-import { requestComposerSubmit } from '@/app/chat/composer/focus'
 import { useSessionView } from '@/app/chat/session-view'
 import { Button } from '@/components/ui/button'
+import { useI18n as useLocaleUpdates } from '@/i18n'
 import { cn } from '@/lib/utils'
 import { $onboardingAnswers, markStepCommitted } from '@/store/onboarding-answers'
 
@@ -46,7 +46,7 @@ export function useCardCommit(step: string) {
  *  a form. */
 export function CardFrame({
   children,
-  continueLabel = 'Continue',
+  continueLabel,
   disabled = false,
   done,
   locked = false,
@@ -61,6 +61,8 @@ export function CardFrame({
   locked?: boolean
   onContinue: () => void
 }) {
+  const { t: localeText } = useLocaleUpdates()
+
   return (
     <div
       className={cn(
@@ -78,7 +80,7 @@ export function CardFrame({
           onClick={onContinue}
           size="sm"
         >
-          {done ? '✓ Done' : continueLabel}
+          {done ? localeText.additional.display.done : (continueLabel ?? localeText.common.continue)}
         </Button>
       </div>
     </div>
