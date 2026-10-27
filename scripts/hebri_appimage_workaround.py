@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Install or roll back a persistent-extraction workaround for Hebri AppImage."""
 import argparse
+import fcntl
+import hashlib
 import os
 from pathlib import Path
 import shlex
@@ -36,9 +38,9 @@ def replacement(original, image, destination):
     if len(matches) != 1:
         raise ValueError('Expected exactly one standalone exec of the supplied AppImage with "$@"; launcher left unchanged.')
     lines[matches[0]] = (
-        '# Persistent files avoid AppImage teardown while Crashpad is still running.\n'
-        'unset APPIMAGE APPDIR\n'
-        f'exec {shlex.quote(str(destination / "AppRun"))} "$@"\n'
+        '# Refresh persistent files when the updater replaces the stable AppImage.\n'
+        f'exec python3 {shlex.quote(str(destination / "runner.py"))} launch '
+        f'{shlex.quote(str(destination))} -- "$@"\n'
     )
     return ''.join(lines)
 
@@ -52,19 +54,13 @@ def install(image, launcher, destination):
     updated = replacement(original.decode(), image, destination).encode()
     subprocess.run(['sh', '-n'], input=updated, check=True)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    # Stage on the target filesystem so publication is atomic.
     with tempfile.TemporaryDirectory(prefix='.hebri-extract-', dir=destination.parent) as stage:
-        log = Path(stage) / 'extract.log'
-        with log.open('wb') as output:
-            result = subprocess.run([str(image), '--appimage-extract'], cwd=stage,
-                                    stdout=output, stderr=subprocess.STDOUT)
-        if result.returncode:
-            raise ValueError('AppImage extraction failed; launcher left unchanged.')
-        root = Path(stage) / 'squashfs-root'
-        for name in ('AppRun', 'Hebri', 'chrome_crashpad_handler'):
-            if not (root / name).is_file() or not os.access(root / name, os.X_OK):
-                raise ValueError(f'Extracted executable is missing: {name}')
-        subprocess.run(['bash', '-n', str(root / 'AppRun')], check=True)
+        root = Path(stage) / 'installation'
+        root.mkdir()
+        # A versionless name keeps electron-updater's replacement at this path.
+        shutil.copy2(image, root / 'Hebri.AppImage')
+        shutil.copy2(Path(__file__), root / 'runner.py')
+        prepare(root)
         if launcher.read_bytes() != original:
             raise ValueError('Launcher changed during extraction; refusing to overwrite it.')
         mode = launcher.stat().st_mode & 0o777
@@ -75,9 +71,54 @@ def install(image, launcher, destination):
             stream.write(updated)
         root.rename(destination)
         replace_atomically(launcher, updated, mode)
-    print(f'Installed. Future launches use {destination / "AppRun"}')
+    print(f'Installed. Future launches use {destination / "runner.py"}')
     print(f'Original launcher saved at {backup}')
     print('Running sessions were not restarted. Crash prevention still requires a launch/exit check.')
+
+
+def prepare(directory):
+    image = directory / 'Hebri.AppImage'
+    # Serialize extractions, but never hold the lock for the app's lifetime.
+    with (directory / '.extract.lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        with image.open('rb') as stream:
+            digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+        target = directory / ('files-' + digest)
+        if target.exists():
+            if not (target / '.complete').is_file():
+                raise ValueError('Incomplete persistent extraction; refusing to launch.')
+            return target
+        with tempfile.TemporaryDirectory(prefix='.extract-', dir=directory) as stage:
+            # Snapshot the image so a concurrent updater cannot change extraction input.
+            snapshot = Path(stage) / 'Hebri.AppImage'
+            shutil.copy2(image, snapshot)
+            with snapshot.open('rb') as stream:
+                if hashlib.file_digest(stream, 'sha256').hexdigest() != digest:
+                    raise ValueError('AppImage changed during preparation; retry launch.')
+            env = dict(os.environ)
+            for key in ('APPIMAGE', 'APPDIR', 'APPIMAGE_EXIT_AFTER_INSTALL', 'APPIMAGE_SILENT_INSTALL'):
+                env.pop(key, None)
+            result = subprocess.run([str(snapshot), '--appimage-extract'], cwd=stage,
+                                    env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+            if result.returncode:
+                raise ValueError('AppImage extraction failed; refusing to launch an older release.')
+            root = Path(stage) / 'squashfs-root'
+            for name in ('AppRun', 'Hebri', 'chrome_crashpad_handler'):
+                if not (root / name).is_file() or not os.access(root / name, os.X_OK):
+                    raise ValueError(f'Extracted executable is missing: {name}')
+            subprocess.run(['bash', '-n', str(root / 'AppRun')], check=True)
+            (root / '.complete').touch()
+            root.rename(target)
+        return target
+
+
+def launch(directory, arguments):
+    target = prepare(directory)
+    env = dict(os.environ)
+    for key in ('APPDIR', 'APPIMAGE_EXIT_AFTER_INSTALL', 'APPIMAGE_SILENT_INSTALL'):
+        env.pop(key, None)
+    env['APPIMAGE'] = str(directory / 'Hebri.AppImage')
+    os.execve(target / 'AppRun', [str(target / 'AppRun'), *arguments], env)
 
 
 def rollback(launcher):
@@ -100,9 +141,18 @@ def main():
     setup.add_argument('image', type=Path)
     setup.add_argument('launcher', type=Path)
     setup.add_argument('destination', type=Path)
+    run = commands.add_parser('launch', help='Launch the current stable image from persistent files')
+    run.add_argument('directory', type=Path)
+    run.add_argument('arguments', nargs=argparse.REMAINDER)
     undo = commands.add_parser('rollback')
     undo.add_argument('launcher', type=Path)
     args = parser.parse_args()
+    if args.command == 'launch':
+        try:
+            launch(args.directory.expanduser().absolute(), args.arguments)
+        except (OSError, ValueError, subprocess.CalledProcessError) as error:
+            parser.exit(1, f'Error: {error}\n')
+        return
     launcher = args.launcher.expanduser().absolute()
     if launcher.is_symlink():
         parser.error('Use the actual launcher file, not a symlink.')

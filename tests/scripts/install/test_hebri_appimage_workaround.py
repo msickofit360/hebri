@@ -49,12 +49,26 @@ def test_install_preserves_launch_contract_and_rollback(installation):
     launched = subprocess.run([str(launcher), 'argument with spaces', ''],
                               env=env, capture_output=True, text=True, timeout=15)
     assert launched.returncode == 0, launched.stderr
-    assert launched.stdout.splitlines() == ['preserved', 'unset', 'unset', 'argument with spaces', '']
+    assert launched.stdout.splitlines() == ['preserved', str(destination / 'Hebri.AppImage'), 'unset', 'argument with spaces', '']
+    old_files = list(destination.glob('files-*'))
+    # Model the updater replacing its stable image, then a normal user relaunch.
+    stable = destination / 'Hebri.AppImage'
+    stable.write_text(image.read_text().replace('"$PROFILE_FIXTURE"', '"updated:$PROFILE_FIXTURE"'))
+    launched = subprocess.run([str(launcher), 'new argument'], env=env,
+                              capture_output=True, text=True, timeout=15)
+    assert launched.returncode == 0, launched.stderr
+    assert launched.stdout.splitlines() == ['updated:preserved', str(stable), 'unset', 'new argument']
+    assert len(list(destination.glob('files-*'))) == 2
+    assert old_files[0].is_dir()  # Running helpers may still use the previous files.
+    stable.write_text('#!/bin/sh\nexit 1\n')
+    failed = subprocess.run([str(launcher)], capture_output=True, text=True, timeout=15)
+    assert failed.returncode != 0
+    assert 'refusing to launch an older release' in failed.stderr
     result = command('rollback', launcher)
     assert result.returncode == 0, result.stderr
     assert launcher.read_text(encoding='utf-8') == original
     assert os.access(launcher, os.X_OK)
-    assert (destination / 'chrome_crashpad_handler').is_file()
+    assert (old_files[0] / 'chrome_crashpad_handler').is_file()
 
 
 @pytest.mark.linux_only

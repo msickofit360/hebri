@@ -1,48 +1,66 @@
 # Hebri AppImage: persistent extraction workaround
 
-For the suspected Crashpad/AppImage shutdown race in [#34](https://github.com/satoshilove/hebri/issues/34),
-an opt-in workaround is to run Hebri from persistent extracted files. This avoids
-relying on a temporary mount for the executable backing files. It is **not a
-verified root-cause fix** and does not change normal installation or startup.
+This opt-in workaround for [#34](https://github.com/satoshilove/hebri/issues/34)
+runs Hebri from persistent extracted files, avoiding temporary executable mounts.
+It is **not a verified root-cause fix**. Normal installations are unchanged.
 
 ## Install
 
-Use a trusted AppImage and an existing shell launcher containing a standalone
-`exec /absolute/path/to/Hebri.AppImage "$@"` (the executable path may be quoted).
-Other launcher environment settings are preserved. Python 3, `sh`, and `bash`
-are required. Run as the user who owns the installation, without `sudo`.
+Use a trusted AppImage and an existing shell launcher with one standalone
+`exec /absolute/path/to/Hebri.AppImage "$@"` (quoted paths are supported).
+Python 3.11+, Linux, `sh`, and `bash` are required. Run as the installation owner,
+without `sudo`.
 
 ```sh
 python3 scripts/hebri_appimage_workaround.py install \
   /absolute/path/to/Hebri.AppImage \
   /absolute/path/to/hebri-desktop \
-  /absolute/path/to/hebri-persistent-version
+  /absolute/path/to/hebri-persistent
 ```
 
-Replace all three paths with your installation paths. The destination must be
-new. The script refuses to overwrite an existing backup or installation and
-rejects launcher layouts it cannot safely recognize. It saves the original
-launcher alongside it as `.before-crashpad-workaround` and records the installed
-launcher as `.crashpad-workaround-installed`.
+The destination must be new. The script preserves launcher environment settings
+and arguments, backs up the launcher as `.before-crashpad-workaround`, and saves
+an installation receipt as `.crashpad-workaround-installed`. It refuses existing
+installations/backups and unrecognized launchers. Running sessions are unchanged.
 
-The replacement clears inherited `APPIMAGE` and `APPDIR` values and executes the
-persistent `AppRun`, forwarding arguments. Existing application data is not
-modified, and running sessions are not restarted.
+## Updates
+
+The installation contains a private, versionless `Hebri.AppImage` copy, a
+`runner.py`, and persistent `files-<sha256>` directories. Every normal launcher
+invocation hashes the stable image and extracts changed contents before starting
+`AppRun`. The runner exports `APPIMAGE` pointing to that stable image and clears
+inherited `APPDIR` and install-only flags. This enables the AppImage updater while
+keeping executable files persistent. Extraction failure fails the launch; it
+never silently falls back to an older extracted version. Old extractions remain
+available to processes still using them.
+
+Hebri 0.17.20 downloads only after **Update now**, installs on a normal quit, and
+asks the user to reopen the app. Its bundled electron-updater preserves a
+versionless image filename during replacement. Reopen through the same repaired
+launcher so the new image is extracted and selected. Do not start an old
+`files-*/AppRun` directly. A downloaded update is not installed until Hebri quits
+normally. Other updater versions and forced automatic relaunch paths require
+separate validation; this script does not change application relaunch internals.
+
+The original input AppImage is retained and is no longer the update target.
+There is no automatic cache cleanup: removing files while helpers use them could
+reintroduce the suspected shutdown problem. Allow disk space for the stable
+image, a temporary extraction image, and old/new extracted releases.
 
 ## Verify
 
-Save your work, quit Hebri normally, and reopen through the usual launcher.
-Check that the executable path uses the persistent directory. Quit normally and
-check for new `chrome_crashpad_handler` crashes:
+Quit normally after saving work, then reopen through the launcher. Check About
+for the installed version and a successful GitHub update check. After an update,
+quit normally and reopen through the launcher again; verify the new version.
+Repeat launch/exit cycles and check for new Crashpad crashes before claiming the
+suspected shutdown race is fixed.
 
-```sh
-coredumpctl list --since '10 minutes ago' --no-pager
-```
-
-Repeat normal launch/exit cycles before claiming the suspected race is fixed.
-Installer tests cover extraction, argument/environment preservation, overwrite
-protection, and rollback with a fixture executable. They do not prove real
-AppImage startup, crash prevention, or updater compatibility.
+Two CLI contract tests exercise real fixture extraction/launch, arguments and
+environment, replacement-image selection, failure without stale fallback,
+overwrite protection, and guarded rollback. A separate local validation used the
+bundled 0.17.20 updater for a real GitHub check and its actual installation method
+against disposable fixture images. A future real-release download/install and
+crash-prevention check remain required; fixtures do not prove those outcomes.
 
 ## Roll back
 
@@ -50,16 +68,12 @@ AppImage startup, crash prevention, or updater compatibility.
 python3 scripts/hebri_appimage_workaround.py rollback /absolute/path/to/hebri-desktop
 ```
 
-Rollback restores the original launcher but refuses to overwrite later edits.
-It retains backups, the installation receipt, and extracted files. Do not remove
-an extracted directory while any application or helper process uses it. If the
-launcher has subsequently changed, review and restore the backup manually.
+Rollback restores the original launcher, including its original release target;
+review that version if the stable image has since updated. It refuses later
+launcher edits and retains the backup, receipt, and all installation files.
+Never delete extracted files while application/helper processes use them.
 
-## Updates and limitations
-
-The extracted copy is pinned to a release: updating the original AppImage does
-not refresh it. AppImage auto-update and relaunch integration are unverified in
-this layout. For a new release, restore the original launcher, retain old
-directories while processes use them, archive the backup/receipt, and install
-the new trusted release into a new directory. Review the launcher before every
-change. This workaround is not a permanent updater design.
+For an earlier fixed-directory version of this workaround, review and restore
+its original launcher first, archive its backup/receipt, then install this
+version into a new destination. Keep old extracted files until no process uses
+them. Profile data and settings do not need migration.
