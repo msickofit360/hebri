@@ -1,0 +1,52 @@
+# Fork-only sync. Merge conflicts fail without changing main; never force-push.
+# GitHub may disable scheduled workflows after 60 days without repository activity.
+name: Sync upstream main
+
+on:
+  schedule:
+    - cron: '23 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream-main
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository == 'msickofit360/hebri' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out fork main with full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Merge upstream main and push safely
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git remote add upstream https://github.com/satoshilove/hebri.git
+          git fetch --no-tags upstream main
+          before="$(git rev-parse HEAD)"
+          upstream="$(git rev-parse refs/remotes/upstream/main)"
+          if ! git merge --no-edit refs/remotes/upstream/main; then
+            git merge --abort
+            echo "::error::Upstream main conflicts with fork main. Resolve the conflict manually; the fork has not been pushed."
+            exit 1
+          fi
+          git merge-base --is-ancestor "$upstream" HEAD
+          after="$(git rev-parse HEAD)"
+          if [ "$before" = "$after" ]; then
+            echo "Already up to date with satoshilove/hebri main ($upstream)." >> "$GITHUB_STEP_SUMMARY"
+          else
+            # A normal push rejects concurrent updates rather than overwriting them.
+            git push origin HEAD:refs/heads/main
+            echo "Synced satoshilove/hebri main ($upstream) into fork main ($after)." >> "$GITHUB_STEP_SUMMARY"
+          fi
