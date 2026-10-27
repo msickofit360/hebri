@@ -201,6 +201,7 @@ import {
   uninstallArgsForMode
 } from './desktop-uninstall'
 import { describeDevCdpDecision, resolveDevCdpPort } from './dev-cdp'
+import { deviceBackendEnvironment } from './device-storage'
 import { installEmbedReferer } from './embed-referer'
 import { createAmbientClaimArbiter } from './event-dedupe'
 import {
@@ -12803,6 +12804,7 @@ async function runPoolBackendStart(
           // scheduler tick loop (the gateway isn't running under the app).
           HERMES_DESKTOP: '1',
           ...(await synapsekBackendEnvironment()),
+          ...deviceBackendEnvironment(),
           // Exact parent identity lets the backend self-exit after an unclean
           // Desktop death without mistaking a reused PID for its owner. If the
           // optional marker probe fails, retain legacy PID-only tracking.
@@ -13594,6 +13596,7 @@ async function runHermesStart({ supervisorRecovery = false }: { supervisorRecove
             // scheduler tick loop (the gateway isn't running under the app).
             HERMES_DESKTOP: '1',
             ...(await synapsekBackendEnvironment()),
+            ...deviceBackendEnvironment(),
             // Exact parent identity lets the backend self-exit after an unclean
             // Desktop death without mistaking a reused PID for its owner. If the
             // optional marker probe fails, retain legacy PID-only tracking.

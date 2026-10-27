@@ -263,6 +263,8 @@ async def _lifespan(app: "FastAPI"):
     try:
         yield
     finally:
+        from hermes_cli.devices.runtime import stop_all as stop_device_services
+        stop_device_services()
         hosted_room_start_cancel.set()
         _hosted_groups.stop_hosted_room_service(timeout=5.0)
         hosted_room_start_thread.join(timeout=1.0)
@@ -999,11 +1001,13 @@ from hermes_cli.web_routers import (  # noqa: E402
     chat_workspaces as _chat_workspaces_routes,
     dashboard_ui as _dashboard_ui_routes,
     team_chat as _team_chat_routes,
+    devices as _devices_routes,
 )
 
 app.include_router(_files_routes.router)
 app.include_router(_git_routes.router)
 app.include_router(_local_models_routes.router)
+app.include_router(_devices_routes.router)
 app.include_router(_status_routes.router)
 app.include_router(_actions_routes.router)
 app.include_router(_audio_routes.router)

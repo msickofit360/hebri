@@ -7,6 +7,7 @@ import { ProfileSwitcher } from '@/app/chat/sidebar/profile-dropdown-switcher'
 import type { CommandCenterSection } from '@/app/command-center'
 import { useApprovalModeStatusbarItem } from '@/app/shell/approval-mode-menu'
 import { ContextUsagePanel } from '@/app/shell/context-usage-panel'
+import { useDevicesStatusbarItem } from '@/app/shell/devices-statusbar'
 import { GatewayMenuPanel } from '@/app/shell/gateway-menu-panel'
 import { useContextBreakdown } from '@/app/shell/hooks/use-context-breakdown'
 import { useSystemResourcesStatusbarItem } from '@/app/shell/system-resources-statusbar'
@@ -327,6 +328,7 @@ export function useStatusbarItems({
 
   const approvalModeItem = useApprovalModeStatusbarItem(activeGatewayProfile, requestGateway)
   const systemResourcesItem = useSystemResourcesStatusbarItem()
+  const devicesItem = useDevicesStatusbarItem()
 
   const gatewayMenuContent = useMemo(
     () => (close: () => void) => (
@@ -697,6 +699,7 @@ export function useStatusbarItems({
         variant: 'text'
       },
       systemResourcesItem,
+      devicesItem,
       {
         ...approvalModeItem,
         hidden: gatewayState !== 'open',
@@ -732,6 +735,7 @@ export function useStatusbarItems({
       sessionStartedAt,
       gatewayState,
       systemResourcesItem,
+      devicesItem,
       terminalShowing,
       tokensPerSecond,
       turnStartedAt
