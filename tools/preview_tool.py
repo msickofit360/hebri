@@ -50,12 +50,18 @@ PREVIEW_SCHEMA = {
         "— returns {kind, url, title, text, start, end, total_chars}; a Browser "
         "tab's text is the rendered page's visible text, paged with start/count "
         "(char offsets); a file tab answers identity only (read the file with "
-        "read_file)."
+        "read_file). tabs: list available tabs and their IDs. select: focus a tab. "
+        "screenshot: capture the chosen tab's visible viewport for vision. "
+        "allow_background: ask the user to grant this chat and its delegated agents "
+        "10 minutes of access to this tab on its current origin, including while "
+        "another chat is active. User approval is required. revoke: stop that grant. "
+        "Browser access does not authorize purchases, trades or other consequential actions."
     ),
     "parameters": {
         "type": "object",
         "properties": {
-            "action": {"type": "string", "enum": ["open", "close", "read"]},
+            "action": {"type": "string", "enum": ["open", "close", "read", "tabs", "select", "screenshot", "allow_background", "revoke"]},
+            "tab_id": {"type": "string", "description": "Exact ID from tabs. Required for select, screenshot and allow_background; pass on reads to pin the tab."},
             "url": {
                 "type": "string",
                 "description": "open: the target. close: one tab (omit for the whole pane).",

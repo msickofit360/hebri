@@ -17,6 +17,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
+from hermes_cli.provider_identity import APP_ID, APP_NAME
+
 from agent.codex_responses_adapter import _format_responses_error
 from agent.redact import redact_sensitive_text
 from agent.transports.codex_app_server import (
@@ -218,6 +220,7 @@ class CodexAppServerSession:
         model: Optional[str] = None, model_provider: Optional[str] = None,
         developer_instructions: Optional[str] = None, resume_thread_id: Optional[str] = None,
         history_seed: Optional[str] = None,
+        browser_tools=None,
     ) -> None:
         self._cwd = cwd or os.getcwd()
         self._codex_bin = codex_bin
@@ -237,6 +240,8 @@ class CodexAppServerSession:
         # Hermes' prior transcript, appended to developerInstructions ONLY when a thread is started from
         # scratch: a resumed thread already holds the conversation (agent/codex_runtime_history_seed.py).
         self._history_seed = history_seed
+        self._browser_tools = browser_tools
+        self._browser_call_ids: set[str] = set()
         self._permission_profile = permission_profile or _HERMES_TO_CODEX_PERMISSION_PROFILE.get(
             os.environ.get("HERMES_TERMINAL_SECURITY_MODE", "auto"), "workspace-write"
         )
@@ -263,7 +268,10 @@ class CodexAppServerSession:
             return self._thread_id
         if self._client is None:
             self._client = self._client_factory(codex_bin=self._codex_bin, codex_home=self._codex_home)
-            self._client.initialize(client_name="hermes", client_title="Hebri", client_version=_get_hermes_version())
+            self._client.initialize(
+                client_name=APP_ID, client_title=APP_NAME, client_version=_get_hermes_version(),
+                **({"capabilities": {"experimentalApi": True}} if self._browser_tools else {}),
+            )
         # Permissions are NOT sent on thread/start: codex gates ``thread/start.permissions``
         # behind experimentalApi + a matching ``[permissions]`` table in ~/.codex/config.toml.
         # Hermes supplies the agent identity through its own system prompt; ``personality: "none"`` strips
@@ -280,6 +288,8 @@ class CodexAppServerSession:
             thread_id = self._resume_thread(wanted, params)
             logger.info("codex app-server thread resumed: id=%s cwd=%s", thread_id[:8], self._cwd)
         else:
+            if self._browser_tools:
+                params["dynamicTools"] = self._browser_tools.definitions()
             if self._history_seed:
                 params["developerInstructions"] = "\n\n".join(
                     part for part in (params.get("developerInstructions"), self._history_seed) if part)
@@ -481,6 +491,7 @@ class CodexAppServerSession:
         projector = CodexEventProjector()
         client = self._client
         result.turn_id = (ts.get("turn") or {}).get("id")
+        self._browser_call_ids.clear()
         with self._active_turn_lock:
             self._active_turn_id = result.turn_id
         # Post-tool quiet timer: armed on each tool completion, cleared by any other activity.
@@ -510,10 +521,10 @@ class CodexAppServerSession:
                 if not _notification_belongs_to_turn(pending, thread_id=self._thread_id, turn_id=result.turn_id):
                     logger.debug("ignoring foreign codex notification while draining server request: method=%s", pending.get("method"))
                     continue
-                proj, aborted = self._absorb_notification(result, projector, pending)
-                if proj.is_tool_iteration:
-                    last_tool_completion_at = time.monotonic()
-                turn_complete = turn_complete or aborted
+                turn_complete = on_note(pending, pending.get("method", "")) or turn_complete
+            if turn_complete:
+                with self._active_turn_lock:
+                    self._active_turn_id = None
             self._handle_server_request(sreq)
             # An approval round-trip is live signal — don't let it trip the quiet warning.
             last_tool_completion_at = None
@@ -703,7 +714,32 @@ class CodexAppServerSession:
         action = "accept" if (params.get("serverName") or "") == HERMES_TOOLS_MCP_SERVER_NAME else "decline"
         return {"action": action, "content": None, "_meta": None}
 
+    def _respond_browser_tool(self, params: dict) -> dict:
+        from agent.codex_browser_tools import browser_tool_response, browser_result_response
+
+        call_id = params.get("callId")
+        if (self._closed or self._interrupt_event.is_set() or not self._browser_tools
+                or not self._thread_id or not self._active_turn_id
+                or params.get("threadId") != self._thread_id
+                or params.get("turnId") != self._active_turn_id
+                or params.get("namespace") is not None
+                or not isinstance(call_id, str) or not call_id or len(call_id) > 256
+                or call_id in self._browser_call_ids or len(self._browser_call_ids) >= 1000):
+            return browser_tool_response("Browser request is unavailable, stale or already handled.", success=False)
+        self._browser_call_ids.add(call_id)
+        try:
+            raw = self._browser_tools.call(params.get("tool"), params.get("arguments"), call_id)
+            if (self._closed or self._interrupt_event.is_set()
+                    or params.get("turnId") != self._active_turn_id):
+                return browser_tool_response("Browser access ended before the result was delivered.", success=False)
+            return browser_result_response(raw)
+        except Exception:
+            # Do not return exception strings containing page input or credentials.
+            logger.warning("Embedded browser tool failed", exc_info=False)
+            return browser_tool_response("Browser request failed. Check that this chat's browser pane is open.", success=False)
+
     _SERVER_REQUEST_HANDLERS: dict[str, Callable[..., dict]] = {
+        "item/tool/call": _respond_browser_tool,
         "item/commandExecution/requestApproval": lambda self, p: {"decision": self._decide_exec_approval(p)},
         "item/fileChange/requestApproval": lambda self, p: {"decision": self._decide_apply_patch_approval(p)},
         "item/permissions/requestApproval": lambda self, p: {"decision": "decline"},

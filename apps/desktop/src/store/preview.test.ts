@@ -280,7 +280,7 @@ describe('preview store', () => {
     const stored = window.localStorage.getItem('hermes.desktop.previewTabs.v2') ?? ''
 
     expect(stored).toContain('/work/demo.html')
-    expect(stored).toContain('localhost:5174')
+    expect(window.localStorage.getItem('hebri.desktop.windowBrowserTabs.v1')).toContain('localhost:5174')
     expect(stored).not.toContain('dashboard')
   })
 

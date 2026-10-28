@@ -74,7 +74,7 @@ _CLONE_ALL_DEFAULT_EXCLUDE_ROOT: frozenset[str] = frozenset({
 # duplicate deliveries) the moment its gateway starts. The empty dir is recreated below.
 _CLONE_ALL_HISTORY_EXCLUDE_ROOT: frozenset[str] = frozenset({
     "state.db", "state.db-wal", "state.db-shm", "sessions", "backups", "state-snapshots", "checkpoints",
-    "cron",
+    "cron", "devices",  # Pairing grants and device identity never transfer to a clone.
 })
 
 # Marker written by `hermes profile create --no-skills`. When present at a profile root,
@@ -2065,7 +2065,7 @@ def _default_export_ignore(root_dir: Path):
 
 # Credential files dropped from named-profile exports. ``bot-desktop`` is the screen's runtime state:
 # its persistent Chromium profile (Cookies, Login Data — the bot's live web sessions), Xauthority, sockets.
-_EXPORT_CREDENTIAL_FILES = frozenset({"auth.json", ".env", "bot-desktop"})
+_EXPORT_CREDENTIAL_FILES = frozenset({"auth.json", ".env", "bot-desktop", "devices"})
 
 # Text/config suffixes secret-scrubbed on export; binary DBs, images etc. are left alone.
 _EXPORT_REDACT_SUFFIXES = frozenset({
@@ -2174,6 +2174,8 @@ def import_profile(archive_path: str, name: Optional[str] = None) -> Path:
         extracted = staging_root / archive_root
         if not extracted.is_dir():
             raise ValueError(f"Profile archive root is missing or invalid: {archive_root}")
+        if (extracted / "devices").exists() or (extracted / "devices").is_symlink():
+            raise ValueError("Device pairing identities are not portable. Export the profile without devices and pair again after import.")
         final_source = extracted
         if archive_root != canon:
             final_source = staging_root / canon

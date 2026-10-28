@@ -4,8 +4,16 @@ import { useEffect } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { assistantTextPart, type ChatMessage } from '@/lib/chat-messages'
-import { $previewTabs, $previewTarget, closeRightRail, type PreviewTarget } from '@/store/preview'
+import {
+  $previewTabs,
+  $previewTarget,
+  closeRightRail,
+  openPreview,
+  type PreviewTarget,
+  setPreviewScope
+} from '@/store/preview'
 import { $activeSessionId, $currentCwd, $messages, $selectedStoredSessionId } from '@/store/session'
+import { recordSessionEventScope } from '@/store/session-states'
 
 import { usePreviewRouting } from './use-preview-routing'
 
@@ -15,7 +23,7 @@ function assistantMessage(id: string, text: string): ChatMessage {
   return { id, parts: [assistantTextPart(text)], role: 'assistant' }
 }
 
-function fileTarget(path: string): PreviewTarget {
+function fileTarget(path: string): PreviewTarget & { kind: 'file' } {
   return { kind: 'file', label: path, path, previewKind: 'html', source: path, url: `file://${path}` }
 }
 
@@ -58,7 +66,10 @@ async function emitPreviewClose(url?: string, sessionId = RUNTIME_SESSION_ID) {
 describe('preview routing', () => {
   beforeEach(() => {
     // A live session always has a runtime id; only the STORED id lags.
+    recordSessionEventScope({ session_id: RUNTIME_SESSION_ID, profile: 'default', connectionId: 'local-test' })
+    recordSessionEventScope({ session_id: 'tile-runtime', profile: 'default', connectionId: 'local-test' })
     $activeSessionId.set(RUNTIME_SESSION_ID)
+    setPreviewScope('default')
     $currentCwd.set('/work')
     $messages.set([])
     closeRightRail()
@@ -78,6 +89,37 @@ describe('preview routing', () => {
     $selectedStoredSessionId.set(null)
     window.localStorage.clear()
     vi.restoreAllMocks()
+  })
+
+  it("cannot close or overwrite another bot's persistent browser tab", async () => {
+    setPreviewScope('other-bot')
+    openPreview({ kind: 'url', label: 'Private', source: 'https://example.com', url: 'https://example.com' })
+    const tab = $previewTabs.get()[0]
+    setPreviewScope('default')
+    render(<Harness />)
+    await emitPreviewClose()
+    expect($previewTabs.get()).toContain(tab)
+    await emitPreviewClose('https://example.com')
+    expect($previewTabs.get()).toContain(tab)
+    await emitPreviewOpen('/tmp/new.html')
+    expect($previewTabs.get()).toContain(tab)
+    expect($previewTabs.get().some(item => item.target.path === '/tmp/new.html')).toBe(true)
+  })
+
+  it('drops a delayed open when the user switches bots before normalization completes', async () => {
+    let finish!: (target: ReturnType<typeof fileTarget>) => void
+    window.hermesDesktop!.normalizePreviewTarget = vi.fn(
+      () =>
+        new Promise<ReturnType<typeof fileTarget>>(resolve => {
+          finish = resolve
+        })
+    )
+    render(<Harness />)
+    await emitPreviewOpen('/tmp/stale.html')
+    setPreviewScope('other-bot')
+    setPreviewScope('default')
+    await act(async () => finish(fileTarget('/tmp/stale.html')))
+    expect($previewTabs.get()).toEqual([])
   })
 
   describe('open_preview', () => {

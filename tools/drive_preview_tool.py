@@ -25,7 +25,7 @@ def drive_preview_tool(
     action: str = "", ref: Optional[str] = None, selector: Optional[str] = None, text: Optional[str] = None,
     key: Optional[str] = None, submit: Optional[bool] = None, amount: Optional[int] = None,
     to: Optional[str] = None, limit: Optional[int] = None, full: Optional[bool] = None,
-    callback: Optional[Callable] = None) -> str:
+    callback: Optional[Callable] = None, tab_id: Optional[str] = None) -> str:
     """Dispatch one interaction to the desktop renderer and return its outcome."""
     if callback is None:
         return tool_error("drive_preview is only available in the Hermes desktop app.")
@@ -42,7 +42,7 @@ def drive_preview_tool(
         return tool_error(f"to must be one of: {', '.join(SCROLL_TO)}.")
     try:
         fields = (
-            ("action", verb), ("ref", ref), ("selector", selector), ("text", text), ("key", key),
+            ("action", verb), ("tab_id", tab_id), ("ref", ref), ("selector", selector), ("text", text), ("key", key),
             ("submit", submit), ("full", full), ("to", to),
             ("amount", None if amount is None else int(amount)), ("max", None if limit is None else int(limit)),
         )
@@ -86,6 +86,7 @@ ACT_PREVIEW_SCHEMA = {
     "parameters": {
         "type": "object",
         "properties": {
+            "tab_id": {"type": "string", "description": "Exact tab ID from desktop_preview tabs. Pass it on every action to keep controlling the same tab."},
             "action": {
                 "type": "string",
                 "enum": list(ACTIONS),
@@ -137,7 +138,7 @@ registry.register(
     schema=ACT_PREVIEW_SCHEMA,
     handler=lambda args, **kw: drive_preview_tool(
         action=args.get("action", ""), limit=args.get("max"), callback=kw.get("callback"),
-        **{k: args.get(k) for k in ("ref", "selector", "text", "key", "submit", "amount", "to", "full")},
+        **{k: args.get(k) for k in ("ref", "selector", "text", "key", "submit", "amount", "to", "full", "tab_id")},
     ),
     emoji="🖱️")
 

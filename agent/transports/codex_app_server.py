@@ -17,6 +17,8 @@ import threading
 from dataclasses import dataclass
 from typing import Any, Optional
 
+from hermes_cli.provider_identity import APP_ID, APP_NAME
+
 from agent.deadline import kill_process_tree
 from agent.transports.hermes_tools_mcp_server import HERMES_TOOLS_MCP_SERVER_NAME
 from tools.environments.local import hermes_subprocess_env
@@ -163,7 +165,7 @@ class CodexAppServerClient:
         self._stderr_reader.start()
 
     def initialize(
-        self, client_name: str = "hermes", client_title: str = "Hebri",
+        self, client_name: str = APP_ID, client_title: str = APP_NAME,
         client_version: str = "0.1", capabilities: Optional[dict] = None, timeout: float = 10.0,
     ) -> dict:
         """Send ``initialize`` + ``initialized``; return the server's InitializeResponse."""

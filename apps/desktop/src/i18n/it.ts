@@ -10,6 +10,13 @@ import { italianSupplements } from './it-supplements'
 const itBase = {
   additional: additionalIt,
   intro: introIt,
+  browserAccess: {
+    useInChat: 'Consenti a questo agente di usare la scheda',
+    title: 'Consentire l’accesso al browser in background?',
+    body: 'Per 10 minuti, questa chat e i suoi agenti delegati possono leggere, acquisire immagini e utilizzare questa scheda sul sito indicato sopra, anche mentre usi un’altra chat. Questo non autorizza acquisti, operazioni finanziarie o altre azioni rilevanti. Puoi revocare l’accesso con il pulsante sopra il browser. Chiudere la scheda, cambiare profilo o lasciare il sito revoca l’accesso.',
+    allow: 'Consenti per 10 minuti',
+    stop: 'Revoca accesso al browser in background'
+  },
   connectors: {
     connect: 'Collega',
     connected: 'Collegato',
@@ -306,6 +313,7 @@ const itBase = {
       advancedDelegation: 'Agenti secondari',
       advancedDesktop: 'Desktop e avvio',
       gatewayConnection: 'Questa finestra',
+      gatewayHebriDevices: 'Dispositivi Hebri',
       gatewayDevices: 'Connessioni salvate',
       gatewayManagedUpdates: 'Aggiornamenti remoti',
       gatewayManagedUpdatesUnavailable:

@@ -8,15 +8,18 @@ import {
   $previewTabs,
   beginPreviewServerRestart,
   closePreviewMatching,
-  closeRightRail,
+  closeRightRailTab,
   completePreviewServerRestart,
   openPreview,
+  previewBelongsToScope,
+  previewScope,
+  previewScopeEpoch,
   progressPreviewServerRestart,
   renderedHtmlTarget,
   requestPreviewReload
 } from '@/store/preview'
 import { $activeSessionId, $currentCwd } from '@/store/session'
-import { $focusedRuntimeId, $sessionTiles } from '@/store/session-states'
+import { $focusedRuntimeId, $sessionTiles, knownOwnerForSession } from '@/store/session-states'
 
 type EventHandler = (event: GatewayEvent) => void
 
@@ -31,6 +34,19 @@ function asRecord(payload: unknown): Record<string, unknown> {
 }
 
 function sessionIsOnScreen(sessionId: string): boolean {
+  const owner = knownOwnerForSession(sessionId)
+  const activeOwner = knownOwnerForSession($activeSessionId.get())
+
+  const route = (value: typeof owner) =>
+    typeof value === 'string' ? [value, ''] : value ? [value.profile, value.connectionId || ''] : null
+
+  const source = route(owner)
+  const active = route(activeOwner)
+
+  if (!source || !active || source[0] !== previewScope() || source[0] !== active[0] || source[1] !== active[1]) {
+    return false
+  }
+
   return (
     sessionId === $focusedRuntimeId.get() ||
     sessionId === $activeSessionId.get() ||
@@ -73,6 +89,8 @@ export function usePreviewRouting({ baseHandleGatewayEvent, currentCwd, requestG
     event => {
       baseHandleGatewayEvent(event)
 
+      const epoch = previewScopeEpoch()
+
       if (event.type === 'preview.open') {
         // Agent-driven open in response to an explicit user request ("show
         // cnn.com in the preview pane"). Honor it for any session that's ON
@@ -87,7 +105,7 @@ export function usePreviewRouting({ baseHandleGatewayEvent, currentCwd, requestG
         const { url, label } = asRecord(event.payload)
         const target = typeof url === 'string' ? url.trim() : ''
 
-        if (target && (!event.session_id || sessionIsOnScreen(event.session_id))) {
+        if (target && event.session_id && sessionIsOnScreen(event.session_id)) {
           void normalizeOrLocalPreviewTarget(target, $currentCwd.get() || currentCwd || undefined).then(
             async resolved => {
               if (!resolved) {
@@ -100,6 +118,10 @@ export function usePreviewRouting({ baseHandleGatewayEvent, currentCwd, requestG
               // the user still sees the address the agent named.
               const url = resolved.kind === 'url' ? await reachablePreviewUrl(resolved.url) : resolved.url
               const reached = url === resolved.url ? resolved : { ...resolved, label: resolved.label || target, url }
+
+              if (epoch !== previewScopeEpoch() || !event.session_id || !sessionIsOnScreen(event.session_id)) {
+                return
+              }
 
               openPreview(renderedHtmlTarget(trimmedLabel ? { ...reached, label: trimmedLabel } : reached))
             }
@@ -116,12 +138,14 @@ export function usePreviewRouting({ baseHandleGatewayEvent, currentCwd, requestG
         const { url } = asRecord(event.payload)
         const target = typeof url === 'string' ? url.trim() : ''
 
-        if (event.session_id && !sessionIsOnScreen(event.session_id)) {
+        if (!event.session_id || !sessionIsOnScreen(event.session_id)) {
           return
         }
 
         if (!target) {
-          closeRightRail()
+          for (const tab of $previewTabs.get().filter(tab => previewBelongsToScope(tab))) {
+            closeRightRailTab(tab.id)
+          }
 
           return
         }
@@ -142,7 +166,9 @@ export function usePreviewRouting({ baseHandleGatewayEvent, currentCwd, requestG
               }
             }
 
-            closePreviewMatching(...candidates)
+            if (epoch === previewScopeEpoch() && event.session_id && sessionIsOnScreen(event.session_id)) {
+              closePreviewMatching(...candidates)
+            }
           }
         )
 
@@ -170,7 +196,11 @@ export function usePreviewRouting({ baseHandleGatewayEvent, currentCwd, requestG
       // Only refresh an already-open live preview when a file changes; never
       // open one unprompted. (Preview links are surfaced from the tool row into
       // the status stack — see tool-fallback.tsx.)
-      if ($previewTabs.get().some(tab => tab.target.kind === 'url') && gatewayEventCompletedFileDiff(event)) {
+      if (
+        $previewTabs.get().some(tab => tab.target.kind === 'url') &&
+        $previewTabs.get().every(tab => previewBelongsToScope(tab)) &&
+        gatewayEventCompletedFileDiff(event)
+      ) {
         requestPreviewReload()
       }
     },

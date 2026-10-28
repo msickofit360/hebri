@@ -5,6 +5,13 @@ import { introDe } from './intro-de'
 
 export const de = defineLocale({
   intro: introDe,
+  browserAccess: {
+    useInChat: 'Diesem Agenten Zugriff auf diesen Tab erlauben',
+    title: 'Browserzugriff im Hintergrund erlauben?',
+    body: 'Für 10 Minuten dürfen dieser Chat und seine delegierten Agenten diesen Tab auf der oben genannten Website lesen, aufnehmen und bedienen, auch während Sie einen anderen Chat verwenden. Käufe, Finanztransaktionen oder andere folgenreiche Aktionen sind damit nicht erlaubt. Der Button über dem Browser beendet den Zugriff. Schließen des Tabs, Profilwechsel oder Verlassen dieser Website widerruft den Zugriff.',
+    allow: 'Für 10 Minuten erlauben',
+    stop: 'Browserzugriff im Hintergrund beenden'
+  },
   connectors: {
     title: 'Verbinden Sie Ihre Apps',
     connect: 'Verbinden',
@@ -790,6 +797,7 @@ export const de = defineLocale({
       advancedDelegation: 'Subagenten',
       advancedDesktop: 'Desktop & Start',
       gatewayConnection: 'Dieses Fenster',
+      gatewayHebriDevices: 'Hebri-Geräte',
       gatewayDevices: 'Gespeicherte Verbindungen',
       gatewayManagedUpdates: 'Remote-Updates',
       gatewayManagedUpdatesUnavailable:
@@ -1540,8 +1548,7 @@ export const de = defineLocale({
           title: 'Oberfläche + Agent deinstallieren, Daten behalten',
           description:
             'Entfernt die App und den Hebri-Agent, behält aber Konfiguration, Chats und Geheimnisse für eine spätere Neuinstallation.',
-          consequence:
-            'die Chat-Oberfläche und den Hebri-Agent (Konfiguration, Chats und Geheimnisse bleiben erhalten)'
+          consequence: 'die Chat-Oberfläche und den Hebri-Agent (Konfiguration, Chats und Geheimnisse bleiben erhalten)'
         },
         full: {
           title: 'Alles deinstallieren',

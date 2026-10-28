@@ -23,6 +23,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+from hermes_cli.provider_identity import APP_ID, APP_NAME
+
 from agent.acp_openai_bridge import (
     completion_to_stream_chunks as _completion_to_stream_chunks,
     extract_tool_calls_from_text as _extract_tool_calls_from_text,
@@ -45,7 +47,7 @@ _ROLE_LABELS = {"system": "System", "user": "User", "assistant": "Assistant", "t
 # True/False is cached, so a CLI installed mid-session is picked up.
 _ACP_PROBE_CACHE: dict[str, bool] = {}
 _PROMPT_PREAMBLE = (
-    "You are being used as the active ACP agent backend for Hermes.",
+    "You are being used as the active ACP agent backend for Hebri.",
     "Use ACP capabilities to complete tasks.",
     "IMPORTANT: If you take an action with a tool, you MUST output tool calls using <tool_call>{...}</tool_call> blocks with JSON exactly in OpenAI function-call shape.",
     "If no tool is needed, answer normally.",
@@ -53,7 +55,7 @@ _PROMPT_PREAMBLE = (
 _INITIALIZE_PARAMS = {
     "protocolVersion": 1,
     "clientCapabilities": {"fs": {"readTextFile": True, "writeTextFile": True}},
-    "clientInfo": {"name": "hermes-agent", "title": "Hebri", "version": "0.0.0"},
+    "clientInfo": {"name": APP_ID, "title": APP_NAME, "version": "0.0.0"},
 }
 _DEPRECATED_CLI_ERROR = (
     "Hermes ACP mode requires the NEW GitHub Copilot CLI (github.com/github/copilot-cli), but the binary it just "

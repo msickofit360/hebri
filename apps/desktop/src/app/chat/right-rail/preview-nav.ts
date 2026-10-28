@@ -10,8 +10,8 @@
  */
 
 import { isElementInHiddenPane } from '@/components/pane-shell/pane-visibility'
-import { $rightRailActiveTabId } from '@/store/layout'
-import { $previewTabs } from '@/store/preview'
+
+import { resolvePreviewTab } from './preview-surface'
 
 /** Marks a live browser pane so a gesture can find the one holding focus. */
 export const PREVIEW_BROWSER_ATTR = 'data-preview-browser'
@@ -37,9 +37,8 @@ export function registerPreviewNav(tabId: string, handle: PreviewNavHandle): () 
 
 /** The ACTIVE preview tab's commands, for callers with no focus to key off —
  *  the agent's drive_preview, which runs while focus is in the composer. */
-export function activePreviewNav(): PreviewNavHandle | null {
-  const tabs = $previewTabs.get()
-  const tab = tabs.find(t => t.id === $rightRailActiveTabId.get()) ?? tabs[0]
+export function activePreviewNav(tabId?: string): PreviewNavHandle | null {
+  const tab = resolvePreviewTab(tabId)
 
   return (tab && handles.get(tab.id)) || null
 }

@@ -7,6 +7,13 @@ export const en: Translations = {
   additional: additionalEn,
   // English editorial copy stays in the shipped JSONL; other locales override it.
   intro: { stock: {}, custom: () => [] },
+  browserAccess: {
+    useInChat: 'Allow this agent to use this tab',
+    title: 'Allow background browser access?',
+    body: 'For 10 minutes, this chat and its delegated agents can read, capture and operate this tab on the site shown above, even while you use another chat. This does not authorize purchases, trades or other consequential actions. Stop access using the button above the browser. Closing the tab, switching profiles or leaving this site revokes access.',
+    allow: 'Allow for 10 minutes',
+    stop: 'Stop background browser access'
+  },
   connectors: {
     title: 'Connect your apps',
     connect: 'Connect',
@@ -776,6 +783,7 @@ export const en: Translations = {
       advancedDelegation: 'Subagents',
       advancedDesktop: 'Desktop & startup',
       gatewayConnection: 'This window',
+      gatewayHebriDevices: 'Hebri devices',
       gatewayDevices: 'Saved connections',
       gatewayManagedUpdates: 'Remote updates',
       gatewayManagedUpdatesUnavailable: 'Remote updates need a desktop version with managed SSH update support.',

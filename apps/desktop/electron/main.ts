@@ -201,6 +201,7 @@ import {
   uninstallArgsForMode
 } from './desktop-uninstall'
 import { describeDevCdpDecision, resolveDevCdpPort } from './dev-cdp'
+import { deviceBackendEnvironment } from './device-storage'
 import { installEmbedReferer } from './embed-referer'
 import { createAmbientClaimArbiter } from './event-dedupe'
 import {
@@ -361,7 +362,7 @@ import { resolvePortalBaseUrl } from './portal-origin'
 import { createPortalSession } from './portal-session'
 import { createKeepAwake } from './power-save'
 import { readPreUpdateBackupEnabled } from './pre-update-backup-config'
-import { capturePreviewContents } from './preview-capture'
+import { captureOwnedPreviewContents } from './preview-capture'
 import { PreviewReachRegistry } from './preview-reach'
 import {
   createPrimaryRemoteConnection,
@@ -449,6 +450,7 @@ import { createSshTeardownTracker } from './ssh-teardown'
 import { createStreamThrottle } from './stream-throttle'
 import { registerSynapsekAccountIpc } from './synapsek-account-ipc'
 import { synapsekBackendEnvironment } from './synapsek-account-runtime'
+import { registerTailscaleIpc } from './tailscale-ipc'
 import { registerTerminalIpc } from './terminal-ipc'
 import { nativeOverlayWidth as computeNativeOverlayWidth, titleBarOverlayOptions } from './titlebar-overlay-width'
 import {
@@ -12803,6 +12805,7 @@ async function runPoolBackendStart(
           // scheduler tick loop (the gateway isn't running under the app).
           HERMES_DESKTOP: '1',
           ...(await synapsekBackendEnvironment()),
+          ...deviceBackendEnvironment(),
           // Exact parent identity lets the backend self-exit after an unclean
           // Desktop death without mistaking a reused PID for its owner. If the
           // optional marker probe fails, retain legacy PID-only tracking.
@@ -13594,6 +13597,7 @@ async function runHermesStart({ supervisorRecovery = false }: { supervisorRecove
             // scheduler tick loop (the gateway isn't running under the app).
             HERMES_DESKTOP: '1',
             ...(await synapsekBackendEnvironment()),
+            ...deviceBackendEnvironment(),
             // Exact parent identity lets the backend self-exit after an unclean
             // Desktop death without mistaking a reused PID for its owner. If the
             // optional marker probe fails, retain legacy PID-only tracking.
@@ -17774,10 +17778,10 @@ ipcMain.handle('hermes:context-menu:guest-add-word', (_event, payload) => {
   }
 })
 
-ipcMain.handle('hermes:capturePreview', async (_event, payload) => {
+ipcMain.handle('hermes:capturePreview', async (event, payload) => {
   const guest = electronWebContents.fromId(Number(payload?.webContentsId))
 
-  return capturePreviewContents(guest, payload?.rect, payload?.viewport)
+  return captureOwnedPreviewContents(event, guest, payload?.rect, payload?.viewport)
 })
 
 ipcMain.handle('hermes:saveImageBuffer', async (_event, payload) => {
@@ -18405,6 +18409,7 @@ function showAboutPanelFresh() {
 }
 
 registerSynapsekAccountIpc(() => DEV_SERVER || pathToFileURL(resolveRendererIndex()).href)
+registerTailscaleIpc(() => DEV_SERVER || pathToFileURL(resolveRendererIndex()).href)
 
 ipcMain.handle('hermes:version', async () => {
   const skew = await detectRendererSkew()

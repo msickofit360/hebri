@@ -27,7 +27,7 @@ from typing import Any, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import TypeGuard
 
-from hermes_cli import __version__ as _HERMES_VERSION
+from hermes_cli.provider_identity import user_agent
 from hermes_cli.urllib_security import open_credentialed_url
 from hermes_cli.models_catalog_static import (
     CANONICAL_PROVIDERS,
@@ -66,7 +66,7 @@ logger = logging.getLogger(__name__)
 
 # Identify ourselves so endpoints fronted by Cloudflare's Browser Integrity
 # Check (error 1010) don't reject the default ``Python-urllib/*`` signature.
-_HERMES_USER_AGENT = f"hermes-cli/{_HERMES_VERSION}"
+_HERMES_USER_AGENT = user_agent()
 
 COPILOT_BASE_URL = "https://api.githubcopilot.com"
 COPILOT_MODELS_URL = f"{COPILOT_BASE_URL}/models"
@@ -2075,7 +2075,7 @@ def copilot_default_headers(*, is_agent_turn: bool = True) -> dict[str, str]:
     except ImportError:
         return {
             "Editor-Version": COPILOT_EDITOR_VERSION,
-            "User-Agent": "HermesAgent/1.0",
+            "User-Agent": user_agent(),
             "Openai-Intent": "conversation-edits",
             "x-initiator": "agent" if is_agent_turn else "user"}
 
@@ -2470,7 +2470,7 @@ def probe_api_models(
                 alternate_base if alternate_base != normalized else None)
     headers: dict[str, str] = {"User-Agent": _HERMES_USER_AGENT}
     if urllib.parse.urlparse(normalized).hostname == "generativelanguage.googleapis.com":
-        headers["X-Goog-Api-Client"] = f"hermes-agent/{_HERMES_VERSION}"
+        headers["X-Goog-Api-Client"] = user_agent()
     if api_key and api_mode == "anthropic_messages":
         headers["x-api-key"] = api_key
         headers["anthropic-version"] = "2023-06-01"

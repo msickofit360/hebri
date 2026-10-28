@@ -4,6 +4,13 @@ import { defineLocale } from './define-locale'
 import { introZhHant } from './intro-zh-hant'
 
 export const zhHant = defineLocale({
+  browserAccess: {
+    useInChat: '允許此代理程式使用此分頁',
+    title: '允許背景瀏覽器存取？',
+    body: '在10分鐘內，此對話及其委派的代理可讀取、擷取畫面和操作上方網站的此分頁，即使你正在使用其他對話。這不授權購買、交易或其他重大操作。可用瀏覽器上方的按鈕停止存取。關閉分頁、切換設定檔或離開此網站將撤銷存取權限。',
+    allow: '允許10分鐘',
+    stop: '停止背景瀏覽器存取'
+  },
   intro: introZhHant,
   sessionImport: {
     title: '從其他應用程式繼續',
@@ -331,6 +338,7 @@ export const zhHant = defineLocale({
       advancedDelegation: '子代理',
       advancedDesktop: '桌面與啟動',
       gatewayConnection: '目前視窗',
+      gatewayHebriDevices: 'Hebri 裝置',
       gatewayDevices: '已儲存的連線',
       gatewayManagedUpdates: '遠端更新',
       gatewayManagedUpdatesUnavailable: '遠端更新需要支援受管理 SSH 更新的桌面版本。',
@@ -3190,8 +3198,7 @@ export const zhHant = defineLocale({
     copy: '複製',
     copied: '已複製',
     done: '完成',
-    applyingBody:
-      'Hebri 更新程式會在自己的視窗中接管，並在完成後自動重新開啟 Hebri。更新期間請勿自行重新開啟 Hebri。',
+    applyingBody: 'Hebri 更新程式會在自己的視窗中接管，並在完成後自動重新開啟 Hebri。更新期間請勿自行重新開啟 Hebri。',
     applyingBodyBackend: '遠端後端正在套用更新並將重新啟動。恢復後 Hebri 會自動重新連線。',
     applyingClose: '此視窗會在更新期間關閉，隨後 Hebri 會自動重新開啟。',
     errorTitle: '更新未完成',

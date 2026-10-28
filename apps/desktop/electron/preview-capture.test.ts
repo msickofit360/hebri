@@ -2,7 +2,39 @@ import assert from 'node:assert/strict'
 
 import { test } from 'vitest'
 
-import { capturePreviewContents, mapViewportRectToImage, normalizeCaptureRect } from './preview-capture'
+import {
+  captureOwnedPreviewContents,
+  capturePreviewContents,
+  mapViewportRectToImage,
+  normalizeCaptureRect
+} from './preview-capture'
+
+test('capture is restricted to the owning window main frame, including after an async capture', async () => {
+  const sender = { mainFrame: {} }
+  const event = { sender, senderFrame: sender.mainFrame }
+  let captures = 0
+  let host: unknown = sender
+
+  const guest = {
+    get hostWebContents() {
+      return host
+    },
+    isDestroyed: () => false,
+    capturePage: async () => {
+      captures++
+
+      return { isEmpty: () => false, toPNG: () => Buffer.from('png') }
+    }
+  }
+
+  assert.match(await captureOwnedPreviewContents(event, guest), /^data:image\/png;base64,/)
+  await assert.rejects(captureOwnedPreviewContents({ ...event, senderFrame: {} }, guest))
+  await assert.rejects(captureOwnedPreviewContents({ ...event, sender: { mainFrame: {} } }, guest))
+  assert.equal(captures, 1)
+  const pending = captureOwnedPreviewContents(event, guest)
+  host = null
+  await assert.rejects(pending, /owner changed/)
+})
 
 test('normalizeCaptureRect floors origin and ceils size, never zero', () => {
   assert.deepEqual(normalizeCaptureRect({ height: 10.2, width: 0.4, x: -3.2, y: 1.8 }), {
