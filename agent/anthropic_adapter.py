@@ -27,7 +27,7 @@ from agent.anthropic_message_convert import (
     convert_messages_to_anthropic, convert_tools_to_anthropic, normalize_model_name,
 )
 
-from hermes_cli import __version__ as _HERMES_VERSION
+from hermes_cli.provider_identity import APP_NAME, APP_URL, user_agent
 
 
 # ``import anthropic`` is deliberately NOT at module top: the SDK costs ~220 ms of imports and
@@ -333,8 +333,8 @@ def _beta_header(betas: list) -> Dict[str, str]:
 def _attribution_headers() -> Dict[str, str]:
     """Same client-attribution set sent to OpenRouter / Vercel AI Gateway / Fireworks."""
     return {
-        "HTTP-Referer": "https://synapseklabs.org", "X-Title": "Hebri",
-        "User-Agent": f"HermesAgent/{_HERMES_VERSION}",
+        "HTTP-Referer": APP_URL, "X-Title": APP_NAME,
+        "User-Agent": user_agent(),
     }
 
 
