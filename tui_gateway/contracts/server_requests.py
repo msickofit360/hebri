@@ -159,7 +159,13 @@ class ReadRangeRequestParams(ServerRequestParams):
 
 server_request("terminal.read", params=ReadRangeRequestParams, result=ValueResult,
                doc="Read the visible in-app terminal buffer (JSON text answer).")
-server_request("preview.read", params=ReadRangeRequestParams, result=ValueResult,
+class PreviewReadRequestParams(ReadRangeRequestParams):
+    action: str = "read"
+    tab_id: str | None = None
+    delegated: bool = False
+
+
+server_request("preview.read", params=PreviewReadRequestParams, result=ValueResult,
                doc="Read the in-app browser preview's text (JSON text answer).")
 server_request("window.read", params=EmptyRequestParams, result=ValueResult,
                doc="Enumerate the native window below the app (JSON text answer).")
@@ -169,6 +175,8 @@ class PreviewActRequestParams(ServerRequestParams):
     """``tools/drive_preview_tool.py`` and ``tools/annotate_preview_tool.py`` field sets."""
 
     action: str
+    tab_id: str | None = None
+    delegated: bool = False
     ref: str | None = None
     selector: str | None = None
     text: str | None = None

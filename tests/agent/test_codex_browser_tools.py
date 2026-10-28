@@ -154,3 +154,52 @@ def test_browser_tools_require_session_surface_and_use_security_hooks(tmp_path, 
         else:
             assert wire[-1][0] == "thread/resume"
             assert "dynamicTools" not in wire[-1][1]
+
+
+def test_preview_screenshot_is_native_bounded_and_not_text_base64(tmp_path, monkeypatch):
+    import base64
+    from io import BytesIO
+    from PIL import Image
+    from agent.codex_browser_tools import browser_result_response
+    from tools.read_preview_tool import read_preview_tool
+
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+    (tmp_path / "config.yaml").write_text("vision:\n  embed_target_bytes: 65536\n", encoding="utf-8")
+    image = BytesIO()
+    Image.new("RGB", (1920, 1080), "navy").save(image, format="PNG")
+    data = "data:image/png;base64," + base64.b64encode(image.getvalue()).decode()
+    received = []
+
+    def capture(**args):
+        received.append(args)
+        return json.dumps({"tab_id": "tab-a", "data_url": data})
+
+    raw = read_preview_tool(action="screenshot", tab_id="tab-a", callback=capture)
+    result = browser_result_response(raw)
+    assert received == [{"action": "screenshot", "tab_id": "tab-a"}]
+    assert result["success"] is True
+    assert [item["type"] for item in result["contentItems"]] == ["inputText", "inputImage"]
+    assert len(result["contentItems"][1]["imageUrl"]) <= 65536
+    assert "base64" not in result["contentItems"][0]["text"]
+    denied = read_preview_tool(action="screenshot", tab_id="tab-a", callback=lambda **_: '{"error":"revoked"}')
+    assert not browser_result_response(denied)["success"]
+
+
+def test_delegates_only_forward_explicit_tab_access_and_cannot_escalate(tmp_path, monkeypatch):
+    from tools.delegate_preview import child_preview_callbacks
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+    calls = []
+    parent = make_agent("parent", calls)
+    callbacks = child_preview_callbacks(parent)
+    read = callbacks["read_preview_callback"]
+    assert "error" in json.loads(read(action="read"))
+    assert "error" in json.loads(read(action="allow_background", tab_id="a"))
+    assert "error" in json.loads(read(action="select", tab_id="a"))
+    read(action="screenshot", tab_id="a")
+    assert calls[-1][2] == {"action": "screenshot", "tab_id": "a", "delegated": True}
+    callbacks["drive_preview_callback"]({"action": "click", "tab_id": "a", "ref": "button", "delegated": False})
+    assert calls[-1][2]["delegated"] is True
+    parent.read_preview_callback = None
+    assert "error" in json.loads(read(action="read", tab_id="a"))
+    parent.valid_tool_names.clear()
+    assert child_preview_callbacks(parent) == {}

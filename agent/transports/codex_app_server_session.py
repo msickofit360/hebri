@@ -10,7 +10,6 @@ reader threads feed queues that this adapter polls, like the chat_completions lo
 from __future__ import annotations
 
 import contextlib
-import json
 import logging
 import os
 import threading
@@ -714,7 +713,7 @@ class CodexAppServerSession:
         return {"action": action, "content": None, "_meta": None}
 
     def _respond_browser_tool(self, params: dict) -> dict:
-        from agent.codex_browser_tools import browser_tool_response
+        from agent.codex_browser_tools import browser_tool_response, browser_result_response
 
         call_id = params.get("callId")
         if (self._closed or self._interrupt_event.is_set() or not self._browser_tools
@@ -728,15 +727,10 @@ class CodexAppServerSession:
         self._browser_call_ids.add(call_id)
         try:
             raw = self._browser_tools.call(params.get("tool"), params.get("arguments"), call_id)
-            text = raw if isinstance(raw, str) else json.dumps(raw, ensure_ascii=False)
-            try:
-                payload = json.loads(text)
-            except (ValueError, TypeError):
-                payload = None
-            success = not (isinstance(payload, dict) and (payload.get("error") or payload.get("success") is False))
-            if len(text) > 131072:
-                return browser_tool_response("Browser result exceeds the limit; request a smaller page range.", success=False)
-            return browser_tool_response(text, success=success)
+            if (self._closed or self._interrupt_event.is_set()
+                    or params.get("turnId") != self._active_turn_id):
+                return browser_tool_response("Browser access ended before the result was delivered.", success=False)
+            return browser_result_response(raw)
         except Exception:
             # Do not return exception strings containing page input or credentials.
             logger.warning("Embedded browser tool failed", exc_info=False)

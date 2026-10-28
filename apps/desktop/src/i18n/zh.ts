@@ -4,6 +4,12 @@ import { defineLocale } from './define-locale'
 import { introZh } from './intro-zh'
 
 export const zh = defineLocale({
+  browserAccess: {
+    title: '允许后台浏览器访问？',
+    body: '在10分钟内，此聊天及其委派的代理可读取、截图和操作上方网站的此标签页，即使你正在使用其他聊天。这不授权购买、交易或其他重大操作。可用浏览器上方的按钮停止访问。关闭标签页、切换配置或离开此网站将撤销访问权限。',
+    allow: '允许10分钟',
+    stop: '停止后台浏览器访问'
+  },
   intro: introZh,
   connectors: {
     title: '连接你的应用',
@@ -1638,8 +1644,7 @@ export const zh = defineLocale({
       authenticate: '认证',
       noOutput: '暂无输出。',
       deepLinkTitle: '添加 MCP 服务器？',
-      deepLinkDescription:
-        '一个链接请求将此 MCP 服务器添加到 Hebri。请检查下方的完整配置——它来自该链接，而非 Hebri。',
+      deepLinkDescription: '一个链接请求将此 MCP 服务器添加到 Hebri。请检查下方的完整配置——它来自该链接，而非 Hebri。',
       deepLinkStdioWarning: '此服务器会使用下方所示命令在你的电脑上运行本地进程。仅在信任其来源时继续。',
       deepLinkConfirm: '添加服务器',
       deepLinkNameInvalid: '名称须为 1-64 个字母、数字、点、连字符或下划线。',
@@ -3885,8 +3890,7 @@ export const zh = defineLocale({
     copy: '复制',
     copied: '已复制',
     done: '完成',
-    applyingBody:
-      'Hebri 更新器会在自己的窗口中接管，并在完成后自动重新打开 Hebri。更新期间请不要自行重新打开 Hebri。',
+    applyingBody: 'Hebri 更新器会在自己的窗口中接管，并在完成后自动重新打开 Hebri。更新期间请不要自行重新打开 Hebri。',
     applyingBodyBackend: '远程后端正在应用更新并将重启。恢复后 Hebri 会自动重新连接。',
     applyingClose: '此窗口会在更新期间关闭，随后 Hebri 会自动重新打开。',
     errorTitle: '更新未完成',

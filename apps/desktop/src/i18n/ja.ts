@@ -4,6 +4,12 @@ import { defineLocale } from './define-locale'
 import { introJa } from './intro-ja'
 
 export const ja = defineLocale({
+  browserAccess: {
+    title: 'バックグラウンドでのブラウザー操作を許可しますか？',
+    body: '10分間、このチャットと委任されたエージェントが、別のチャットの使用中も、上記サイトのこのタブを読み取り、撮影、操作できます。購入、取引などの重要な操作は許可されません。ブラウザー上部のボタンで停止できます。タブを閉じる、プロフィールを切り替える、またはこのサイトを離れると許可が解除されます。',
+    allow: '10分間許可',
+    stop: 'バックグラウンドのブラウザー操作を停止'
+  },
   intro: introJa,
   sessionImport: {
     title: '別のアプリから続ける',
@@ -3050,8 +3056,7 @@ export const ja = defineLocale({
       'セッショントークンまたはブラウザーサインインでリモートバックエンドを使用します。ローカルインストールは開始されません。',
     installLocalTitle: 'Hebri をローカルにインストール',
     installLocalDesc: 'Hebri をダウンロードし、Python 環境を作成して、このコンピューターでバックエンドを実行します。',
-    localStartUnavailable:
-      'ローカルインストールを開始できません。Hebri Desktop を再起動して、もう一度お試しください。',
+    localStartUnavailable: 'ローカルインストールを開始できません。Hebri Desktop を再起動して、もう一度お試しください。',
     remoteSetupTitle: '既存の Hebri に接続',
     remoteSetupDesc:
       'ゲートウェイ URL を入力してください。Hebri Desktop がトークンとブラウザーサインインのどちらが必要かを検出します。',
@@ -3472,8 +3477,7 @@ export const ja = defineLocale({
       address: 'アドレス',
       addressPlaceholder: 'アドレスを入力',
       blankPageBody: '上のアドレス欄に入力するか、Hebri にページを開くよう頼んでください。',
-      finishedRestarting: message =>
-        `Hebri がプレビューサーバーの再起動を完了しました${message ? `: ${message}` : ''}`,
+      finishedRestarting: message => `Hebri がプレビューサーバーの再起動を完了しました${message ? `: ${message}` : ''}`,
       failedRestarting: message => `サーバーの再起動に失敗しました: ${message}`,
       unknownError: '不明なエラー',
       restartedTitle: 'プレビューサーバーが再起動しました',

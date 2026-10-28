@@ -61,6 +61,7 @@ interface AuxTaskCopy {
 }
 
 export interface Translations {
+  browserAccess: { title: string; body: string; allow: string; stop: string }
   additional: typeof additionalEn
   intro: {
     stock: Record<string, string[]>

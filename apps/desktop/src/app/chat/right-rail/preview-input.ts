@@ -21,8 +21,7 @@
  * from the origin and silently misses its target (#116281).
  */
 
-import { $rightRailActiveTabId } from '@/store/layout'
-import { $previewTabs } from '@/store/preview'
+import { resolvePreviewTab } from './preview-surface'
 
 /** The subset of Electron's input events the agent needs to drive a page. */
 export type PreviewInputEvent =
@@ -62,9 +61,8 @@ export function registerPreviewInput(tabId: string, handle: PreviewInputHandle):
 
 /** The ACTIVE preview tab's input channel. Null = nothing real to drive, and
  *  the caller falls back to synthesizing events inside the page. */
-export function activePreviewInput(): PreviewInputHandle | null {
-  const tabs = $previewTabs.get()
-  const tab = tabs.find(t => t.id === $rightRailActiveTabId.get()) ?? tabs[0]
+export function activePreviewInput(tabId?: string): PreviewInputHandle | null {
+  const tab = resolvePreviewTab(tabId)
 
   return (tab && handles.get(tab.id)) || null
 }

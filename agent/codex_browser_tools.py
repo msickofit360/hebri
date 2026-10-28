@@ -67,3 +67,30 @@ class CodexBrowserTools:
 
 def browser_tool_response(text: str, *, success: bool) -> dict:
     return {"contentItems": [{"type": "inputText", "text": text}], "success": success}
+
+
+def browser_result_response(raw) -> dict:
+    text = raw if isinstance(raw, str) else json.dumps(raw, ensure_ascii=False)
+    try:
+        payload = json.loads(text)
+    except (ValueError, TypeError):
+        payload = None
+    if isinstance(payload, dict) and payload.get("_multimodal") is True:
+        from tools.vision_tools_history_budget import resolve_embed_target_bytes
+        items = []
+        for part in payload.get("content", []):
+            if part.get("type") == "text" and len(part.get("text", "")) <= 131072:
+                items.append({"type": "inputText", "text": part["text"]})
+            elif part.get("type") == "image_url":
+                url = part.get("image_url", {}).get("url", "")
+                if (not url.startswith(("data:image/png;base64,", "data:image/jpeg;base64,"))
+                        or len(url) > resolve_embed_target_bytes()):
+                    raise ValueError("Invalid browser image")
+                items.append({"type": "inputImage", "imageUrl": url})
+        if not items or len(items) > 2:
+            raise ValueError("Invalid browser image result")
+        return {"contentItems": items, "success": True}
+    success = not (isinstance(payload, dict) and (payload.get("error") or payload.get("success") is False))
+    if len(text) > 131072:
+        return browser_tool_response("Browser result exceeds the limit; request a smaller page range.", success=False)
+    return browser_tool_response(text, success=success)

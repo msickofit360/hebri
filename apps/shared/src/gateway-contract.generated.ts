@@ -4203,6 +4203,14 @@ export interface ReadRangeRequestParams {
   start?: number | null
   count?: number | null
 }
+export interface PreviewReadRequestParams {
+  session_id: string
+  start?: number | null
+  count?: number | null
+  action?: string
+  tab_id?: string | null
+  delegated?: boolean
+}
 export interface EmptyRequestParams {
   session_id: string
 }
@@ -4210,6 +4218,8 @@ export interface EmptyRequestParams {
 export interface PreviewActRequestParams {
   session_id: string
   action: string
+  tab_id?: string | null
+  delegated?: boolean
   ref?: string | null
   selector?: string | null
   text?: string | null
@@ -5395,7 +5405,7 @@ export interface ServerRequestMap {
   /** Click / type / scroll / annotate inside the in-app browser preview. */
   'preview.act': { params: PreviewActRequestParams; result: ValueResult }
   /** Read the in-app browser preview's text (JSON text answer). */
-  'preview.read': { params: ReadRangeRequestParams; result: ValueResult }
+  'preview.read': { params: PreviewReadRequestParams; result: ValueResult }
   /** Masked value for a named env var (skills / setup flows). */
   secret: { params: SecretRequestParams; result: ValueResult }
   /** Masked sudo password for the terminal tool. */

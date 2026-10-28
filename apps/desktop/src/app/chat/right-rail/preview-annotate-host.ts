@@ -11,7 +11,7 @@ import {
 } from '@/lib/preview-annotate'
 
 export interface PreviewAnnotateGuest {
-  capture?: (rect: { height: number; width: number; x: number; y: number }) => Promise<string>
+  capture?: (rect?: { height: number; width: number; x: number; y: number }) => Promise<string>
   executeJavaScript: (code: string) => Promise<unknown>
 }
 

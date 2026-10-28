@@ -205,6 +205,7 @@ function persistTabs() {
 // changing, so this has to follow the rename or the persist subscriber below
 // would resurrect the bucket the rename just deleted.
 let viewKey = 'default'
+export const previewScope = () => viewKey
 
 export const $previewTabs = atom<PreviewTab[]>([])
 

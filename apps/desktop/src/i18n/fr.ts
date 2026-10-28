@@ -5,6 +5,12 @@ import { introFr } from './intro-fr'
 
 export const fr = defineLocale({
   intro: introFr,
+  browserAccess: {
+    title: 'Autoriser l’accès au navigateur en arrière-plan ?',
+    body: 'Pendant 10 minutes, cette conversation et ses agents délégués peuvent lire, capturer et utiliser cet onglet sur le site indiqué, même dans une autre conversation. Cela n’autorise pas les achats, transactions ou autres actions importantes. Arrêtez l’accès avec le bouton au-dessus du navigateur. Fermer l’onglet, changer de profil ou quitter ce site révoque l’accès.',
+    allow: 'Autoriser pendant 10 minutes',
+    stop: 'Arrêter l’accès au navigateur en arrière-plan'
+  },
   connectors: {
     title: 'Connectez vos applications',
     connect: 'Connecter',
@@ -4713,8 +4719,7 @@ export const fr = defineLocale({
     headerTitle: 'Configurons Hebri Agent pour vous',
     headerDesc:
       'Connectez un fournisseur de modèles pour commencer à discuter. La plupart des options nécessitent un clic.',
-    preparingInstall:
-      "Hebri finalise l'installation. Cela prend généralement moins d'une minute au premier lancement.",
+    preparingInstall: "Hebri finalise l'installation. Cela prend généralement moins d'une minute au premier lancement.",
     starting: 'Démarrage de Hebri…',
     lookingUpProviders: 'Recherche des fournisseurs...',
     collapse: 'Réduire',
