@@ -26,6 +26,8 @@ import type {
   MoaModelSlot,
   StaleAuxAssignment
 } from '@/hermes'
+import { useI18n as useLocaleUpdates } from '@/i18n'
+import { translateNow } from '@/i18n'
 import { useI18n } from '@/i18n'
 import { isCodeSkewRestartRequired } from '@/lib/code-skew-error'
 import { AlertTriangle, Cpu, Loader2 } from '@/lib/icons'
@@ -219,6 +221,8 @@ interface ModelSettingsProps {
 }
 
 export function ModelSettings({ onMainModelChanged, scopeProfile, subpage }: ModelSettingsProps) {
+  const { t: localeText } = useLocaleUpdates()
+
   const { t } = useI18n()
   const m = t.settings.model
   const showMain = subpage === undefined || subpage === 'main'
@@ -905,7 +909,9 @@ export function ModelSettings({ onMainModelChanged, scopeProfile, subpage }: Mod
                         void activateApiKeyProvider()
                       }
                     }}
-                    placeholder={`Paste ${selectedProviderRow?.key_env ?? 'API key'}`}
+                    placeholder={localeText.additional.display.pasteKey(
+                      selectedProviderRow?.key_env ?? translateNow('additional.interface.apiKey')
+                    )}
                     type="password"
                     value={apiKeyDraft}
                   />
@@ -915,7 +921,7 @@ export function ModelSettings({ onMainModelChanged, scopeProfile, subpage }: Mod
                     size="sm"
                   >
                     {activating && <Loader2 className="size-3.5 animate-spin" />}
-                    {activating ? 'Activating...' : 'Activate'}
+                    {activating ? localeText.additional.display.activating : localeText.additional.display.activate}
                   </Button>
                 </>
               ) : (
@@ -947,8 +953,8 @@ export function ModelSettings({ onMainModelChanged, scopeProfile, subpage }: Mod
           {needsSetup && !setupIsApiKey && selectedProviderRow && (
             <p className="mt-2 text-xs text-muted-foreground">
               {selectedProviderRow?.auth_type === 'api_key'
-                ? `${selectedProviderRow?.name} needs an API key — set it up to choose a model.`
-                : `${selectedProviderRow?.name} signs in through your browser — Hebri runs the flow for you.`}
+                ? localeText.additional.display.providerNeedsKey(selectedProviderRow?.name ?? '')
+                : localeText.additional.display.providerBrowserLogin(selectedProviderRow?.name ?? '')}
             </p>
           )}
           {config && mainModel && (reasoningSupported || fastSupported) && (
@@ -1067,7 +1073,7 @@ export function ModelSettings({ onMainModelChanged, scopeProfile, subpage }: Mod
                               value={auxDraft.provider}
                             >
                               <SelectTrigger
-                                aria-label={`${copy.label} provider`}
+                                aria-label={localeText.additional.display.slotProvider(copy.label)}
                                 className={cn('min-w-32', CONTROL_TEXT)}
                               >
                                 <SelectValue placeholder={m.provider} />
@@ -1081,7 +1087,7 @@ export function ModelSettings({ onMainModelChanged, scopeProfile, subpage }: Mod
                               </SelectContent>
                             </Select>
                             <ModelSelect
-                              aria-label={`${copy.label} model`}
+                              aria-label={localeText.additional.display.slotModel(copy.label)}
                               className="min-w-48"
                               models={auxDraftProviderModels}
                               onValueChange={value => setAuxDraft(prev => ({ ...prev, model: value }))}
@@ -1097,7 +1103,7 @@ export function ModelSettings({ onMainModelChanged, scopeProfile, subpage }: Mod
                               value={auxDraft.reasoningEffort}
                             >
                               <SelectTrigger
-                                aria-label={`${copy.label} reasoning effort`}
+                                aria-label={localeText.additional.display.slotReasoning(copy.label)}
                                 className={cn('min-w-32', CONTROL_TEXT)}
                               >
                                 <SelectValue />

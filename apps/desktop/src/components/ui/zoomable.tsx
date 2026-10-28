@@ -1,5 +1,10 @@
 'use client'
 
+import { useI18n as useLocaleUpdates } from '@/i18n'
+import { useI18n as useDesktopLanguage } from '@/i18n'
+
+;('use client')
+
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 
 import { Dialog, DialogContent } from '@/components/ui/dialog'
@@ -116,6 +121,10 @@ function Toolbar({
   zoomIn: () => void
   zoomOut: () => void
 }) {
+  const { t: localeText } = useLocaleUpdates()
+
+  const { t: languageText } = useDesktopLanguage()
+
   const [copied, setCopied] = useState(false)
   const resetRef = useRef<null | number>(null)
 
@@ -154,25 +163,28 @@ function Toolbar({
 
   return (
     <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border/70 bg-background/85 p-1 shadow-sm backdrop-blur">
-      <ToolbarButton label="Zoom out" onClick={zoomOut}>
+      <ToolbarButton label={languageText.additional.ui.zoomOut} onClick={zoomOut}>
         <ZoomOut className="size-4" />
       </ToolbarButton>
-      <ToolbarButton label="Reset" onClick={reset}>
+      <ToolbarButton label={languageText.additional.ui.reset} onClick={reset}>
         <RefreshCw className="size-4" />
       </ToolbarButton>
-      <ToolbarButton label="Zoom in" onClick={zoomIn}>
+      <ToolbarButton label={languageText.additional.ui.zoomIn} onClick={zoomIn}>
         <ZoomIn className="size-4" />
       </ToolbarButton>
       {onCopy && (
         <>
           <Divider />
-          <ToolbarButton label={copied ? 'Copied' : 'Copy'} onClick={() => void copy()}>
+          <ToolbarButton
+            label={copied ? localeText.additional.display.copied : localeText.additional.display.copy}
+            onClick={() => void copy()}
+          >
             {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
           </ToolbarButton>
         </>
       )}
       <Divider />
-      <ToolbarButton label="Close" onClick={onClose}>
+      <ToolbarButton label={languageText.additional.ui.close} onClick={onClose}>
         <X className="size-4" />
       </ToolbarButton>
     </div>

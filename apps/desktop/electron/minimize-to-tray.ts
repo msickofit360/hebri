@@ -3,6 +3,8 @@ import path from 'node:path'
 
 import { app, BrowserWindow, ipcMain, Menu, nativeImage, Tray } from 'electron'
 
+import { nativeText } from './native-i18n'
+
 export interface MinimizeToTrayStatus {
   enabled: boolean
   available: boolean
@@ -98,6 +100,21 @@ export function createMinimizeToTray(options: Options) {
     options.restoreMainWindow()
   }
 
+  function refreshLabels() {
+    if (!tray || tray.isDestroyed()) {
+      return
+    }
+
+    tray.setContextMenu(
+      Menu.buildFromTemplate([
+        { label: nativeText('Show Hebri'), click: restore },
+        { type: 'separator' },
+        // Keep the ordinary active-work confirmation and teardown.
+        { label: nativeText('Quit Hebri'), click: () => app.quit() }
+      ])
+    )
+  }
+
   const destroyTray = () => {
     stopWatchingHost?.()
     stopWatchingHost = undefined
@@ -151,14 +168,7 @@ export function createMinimizeToTray(options: Options) {
           })
         )
         tray.setToolTip('Hebri')
-        tray.setContextMenu(
-          Menu.buildFromTemplate([
-            { label: 'Show Hebri', click: restore },
-            { type: 'separator' },
-            // Do not bypass the ordinary active-work confirmation or teardown.
-            { label: 'Quit Hebri', click: () => app.quit() }
-          ])
-        )
+        refreshLabels()
 
         // macOS single-click opens the native menu, not the window behind it.
         if (process.platform !== 'darwin') {
@@ -270,6 +280,7 @@ export function createMinimizeToTray(options: Options) {
   return {
     start,
     status,
+    refreshLabels,
     setEnabled,
     registerWindow,
     restore,

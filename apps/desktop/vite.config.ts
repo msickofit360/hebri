@@ -87,10 +87,12 @@ const emojibaseAssets = () => ({
       if (!emojibaseDir || !EMOJIBASE_PATH.test(rel)) {
         return next()
       }
+
       fs.readFile(path.join(emojibaseDir, rel), (err: unknown, buf: Buffer) => {
         if (err) {
           return next()
         }
+
         res.setHeader('Content-Type', 'application/json')
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
         res.end(buf)
@@ -102,7 +104,13 @@ const emojibaseAssets = () => ({
       return
     }
 
-    for (const rel of ['en/data.json', 'en/messages.json', 'en/shortcodes/emojibase.json']) {
+    for (const rel of [
+      'en/data.json',
+      'en/messages.json',
+      'en/shortcodes/emojibase.json',
+      'it/data.json',
+      'it/messages.json'
+    ]) {
       this.emitFile({
         type: 'asset',
         fileName: `emojibase/${rel}`,

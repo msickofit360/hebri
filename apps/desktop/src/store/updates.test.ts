@@ -182,6 +182,25 @@ describe('maybeNotifyUpdateAvailable', () => {
     maybeNotifyUpdateAvailable(status({ behind: null, updateAvailable: true }))
     expect(notifySpy).toHaveBeenCalledTimes(1)
   })
+
+  it('notifies for a newer packaged release without inventing a Git commit', () => {
+    maybeNotifyUpdateAvailable({
+      supported: true,
+      source: 'release',
+      currentVersion: '0.17.16',
+      releaseVersion: '0.17.17',
+      updateAvailable: true
+    })
+    expect(notifySpy).toHaveBeenCalledTimes(1)
+    notifySpy.mockClear()
+    maybeNotifyUpdateAvailable({
+      supported: true,
+      source: 'release',
+      releaseVersion: '0.17.16',
+      updateAvailable: false
+    })
+    expect(notifySpy).not.toHaveBeenCalled()
+  })
 })
 
 describe('reportBackendContract', () => {

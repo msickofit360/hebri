@@ -1,3 +1,4 @@
+import { lazy, type ReactNode, Suspense } from 'react'
 /**
  * ROUTE (PAGE) TILES — a full-page view rendered as a layout-tree pane BESIDE
  * the main thread, the page analog of session tiles. Built-in pages
@@ -7,10 +8,9 @@
  * main -> tree adoption lands it on the chosen edge; closing removes it.
  */
 
-import { lazy, type ReactNode, Suspense } from 'react'
-
 import { ContribBoundary, ContribRender } from '@/contrib/react/boundary'
 import { useContributions } from '@/contrib/react/use-contributions'
+import { useI18n } from '@/i18n'
 import { $routeTiles, closeRouteTile, type RouteTile } from '@/store/route-tiles'
 
 import {
@@ -55,6 +55,7 @@ function routeTitle(path: string): string {
 }
 
 export function RouteTilePane({ path }: { path: string }) {
+  const { t } = useI18n()
   const builtin = BUILTIN_PAGES[path]
 
   // Subscribe so a plugin page tile appears the moment its route registers.
@@ -83,7 +84,7 @@ export function RouteTilePane({ path }: { path: string }) {
 
   return (
     <div className="grid h-full place-items-center font-mono text-[11px] text-(--ui-text-quaternary)">
-      no page at {path}
+      {t.additional.screen.noPage(path)}
     </div>
   )
 }

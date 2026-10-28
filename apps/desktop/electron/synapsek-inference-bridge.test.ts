@@ -1,11 +1,37 @@
 import { afterEach, expect, it, vi } from 'vitest'
 
+import { AccountError } from './synapsek-account'
 import { startSynapsekInferenceBridge } from './synapsek-inference-bridge'
 
 let close: (() => Promise<void>) | undefined
 afterEach(async () => {
   await close?.()
   close = undefined
+})
+
+it.each([
+  ['inference_not_enabled', 403],
+  ['developer_access_revoked', 403],
+  ['manual_model_not_in_plan', 403],
+  ['shared_budget_exhausted', 402],
+  ['too_many_requests', 429],
+  ['developer_access_unavailable', 503]
+])('preserves the meaning of %s at the authenticated loopback boundary', async (code, status) => {
+  const bridge = await startSynapsekInferenceBridge({
+    status: async () => ({ state: 'signed_in', account: { userId: 'a' } }),
+    managedRequest: async () => {
+      throw new AccountError(String(code))
+    }
+  })
+
+  close = bridge.close
+
+  const response = await fetch(`${bridge.env.HEBRI_SYNAPSEK_BRIDGE_URL}/models`, {
+    headers: { Authorization: `Bearer ${bridge.env.HEBRI_SYNAPSEK_BRIDGE_TOKEN}` }
+  })
+
+  expect(response.status).toBe(status)
+  expect((await response.json()).error.code).toBe(code)
 })
 
 it('carries real HTTP tool/usage streams and rejects ambient browsers, retries and cross-account reuse', async () => {

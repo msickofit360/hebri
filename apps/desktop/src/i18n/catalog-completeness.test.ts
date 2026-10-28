@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import { TRANSLATIONS } from './catalog'
+import { italianOverrides } from './it'
 import type { Locale } from './types'
 
-// Locales that shipped fully translated. They are `defineLocale` overlays like
-// ja/ru, so an English key added later falls back to English instead of
-// failing typecheck; these checks keep the translated copy structurally sound.
-const COMPLETE_LOCALES = ['fr', 'de', 'es'] as const satisfies readonly Locale[]
+// Merged locale overlays must preserve the English structure and interpolation,
+// including keys using the normal English fallback.
+const COMPLETE_LOCALES = ['fr', 'de', 'es', 'it'] as const satisfies readonly Locale[]
 
 type Leaf = { path: string; value: unknown }
 
@@ -82,4 +82,20 @@ describe.each(COMPLETE_LOCALES)('%s desktop catalog', locale => {
       }
     }
   })
+})
+
+// Check the untranslated overlay too: a merged catalog can hide missing strings
+// behind English fallback, which is precisely what the Italian UI must avoid.
+it('provides every Italian core entry explicitly before English fallback', () => {
+  const overrides = new Map(
+    leaves(italianOverrides)
+      .filter(leaf => !leaf.path.startsWith('intro.'))
+      .map(leaf => [leaf.path, leaf.value])
+  )
+
+  expect([...overrides.keys()].sort()).toEqual([...english.keys()].sort())
+
+  for (const [path, value] of english) {
+    expect(kindOf(overrides.get(path)), path).toBe(kindOf(value))
+  }
 })

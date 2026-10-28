@@ -30,8 +30,8 @@ param(
     # existing tree pass -ForceCommit.
     [switch]$ForceCommit,
     [string]$Tag = "",
-    [string]$HermesHome = $(if ($env:HERMES_HOME) { $env:HERMES_HOME } else { "$env:LOCALAPPDATA\hebri" }),
-    [string]$InstallDir = $(if ($env:HERMES_HOME) { "$env:HERMES_HOME\hebri-agent" } else { "$env:LOCALAPPDATA\hebri\hebri-agent" }),
+    [string]$HermesHome = $(if ($env:HEBRI_HOME) { $env:HEBRI_HOME } else { "$env:LOCALAPPDATA\hebri" }),
+    [string]$InstallDir = $(if ($env:HEBRI_HOME) { "$env:HEBRI_HOME\hebri-agent" } else { "$env:LOCALAPPDATA\hebri\hebri-agent" }),
 
     # Local-source install: copy the agent source tree from this directory
     # (the bundle shipped inside the desktop app, or a local checkout) instead
@@ -352,14 +352,14 @@ if ($PSBoundParameters.ContainsKey('HermesHome')) {
     $HermesHome = ConvertTo-LongPath $HermesHome
 } else {
     $HermesHome = ConvertTo-LongPath $(
-        if ($env:HERMES_HOME) { $env:HERMES_HOME } else { "$env:LOCALAPPDATA\hermes" }
+        if ($env:HEBRI_HOME) { $env:HEBRI_HOME } else { "$env:LOCALAPPDATA\hebri" }
     )
 }
 if ($PSBoundParameters.ContainsKey('InstallDir')) {
     $InstallDir = ConvertTo-LongPath $InstallDir
 } else {
     $InstallDir = ConvertTo-LongPath $(
-        if ($env:HERMES_HOME) { "$env:HERMES_HOME\hebri-agent" } else { "$env:LOCALAPPDATA\hebri\hebri-agent" }
+        if ($env:HEBRI_HOME) { "$env:HEBRI_HOME\hebri-agent" } else { "$env:LOCALAPPDATA\hebri\hebri-agent" }
     )
 }
 if ($script:NormalizedProfilePaths) {
@@ -390,7 +390,7 @@ $script:ResolvedPathReport = @{
 # Configuration
 # ============================================================================
 
-$RepoUrlSsh = "git@github.com:NousResearch/hermes-agent.git"
+$RepoUrlSsh = "git@github.com:satoshilove/hebri.git"
 $RepoUrlHttps = "https://github.com/satoshilove/hebri.git"
 $PythonVersion = "3.11"
 # Minor versions the installer accepts when the requested $PythonVersion isn't
@@ -1327,6 +1327,79 @@ function Repair-MinorVersionLinks {
     return $created
 }
 
+function Test-ManagedPythonExecutable {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$ExpectedMinor
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
+
+    $process = $null
+    try {
+        # Probe the executable itself instead of trusting the directory name or
+        # uv's registry. On affected Windows 11 hosts uv extracts a completely
+        # usable python.exe and then fails only while creating its convenience
+        # minor-version junction (WinError 448).
+        $process = New-Object System.Diagnostics.Process
+        $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+        $startInfo.FileName = $Path
+        $startInfo.Arguments = "--version"
+        $startInfo.UseShellExecute = $false
+        $startInfo.CreateNoWindow = $true
+        $startInfo.RedirectStandardOutput = $true
+        $startInfo.RedirectStandardError = $true
+        $process.StartInfo = $startInfo
+        if (-not $process.Start()) { return $null }
+        $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+        $stderrTask = $process.StandardError.ReadToEndAsync()
+        if (-not $process.WaitForExit($PythonFindTimeoutMs)) {
+            try { $process.Kill() } catch { }
+            $process.WaitForExit()
+            return $null
+        }
+        $versionText = (($stdoutTask.Result + "`n" + $stderrTask.Result).Trim())
+        if ($process.ExitCode -ne 0 -or $versionText -notmatch 'Python\s+(\d+\.\d+\.\d+)') {
+            return $null
+        }
+        $fullVersion = $Matches[1]
+        if (-not $fullVersion.StartsWith($ExpectedMinor + ".", [System.StringComparison]::Ordinal)) {
+            return $null
+        }
+        return $fullVersion
+    } catch {
+        return $null
+    } finally {
+        if ($process) { $process.Dispose() }
+    }
+}
+
+function Find-ExtractedManagedPython {
+    param(
+        [Parameter(Mandatory = $true)][string]$ManagedRoot,
+        [Parameter(Mandatory = $true)][string]$MinorVersion
+    )
+
+    # uv's exact-version directory is authoritative and does not depend on the
+    # minor-version junction/registry that Windows may refuse to create. Probe
+    # every matching extraction and prefer the newest usable patch release.
+    $escapedMinor = [regex]::Escape($MinorVersion)
+    $usable = @()
+    foreach ($dir in @(Get-ChildItem -LiteralPath $ManagedRoot -Directory -ErrorAction SilentlyContinue)) {
+        if ($dir.Name -notmatch "^cpython-$escapedMinor\.(\d+)(?:[-+].*)?$") { continue }
+        $pythonPath = Join-Path $dir.FullName "python.exe"
+        $fullVersion = Test-ManagedPythonExecutable -Path $pythonPath -ExpectedMinor $MinorVersion
+        if ($fullVersion) {
+            $usable += [PSCustomObject]@{
+                Path = [System.IO.Path]::GetFullPath($pythonPath)
+                Version = $MinorVersion
+                FullVersion = [version]$fullVersion
+            }
+        }
+    }
+    return ($usable | Sort-Object FullVersion -Descending | Select-Object -First 1)
+}
+
 function Resolve-AvailablePythonVersion {
     # Return the path and minor version of the first Hermes-managed interpreter
     # uv can find, preferring the requested version and then fallback minors.
@@ -1342,6 +1415,18 @@ function Resolve-AvailablePythonVersion {
     foreach ($ver in $candidates) {
         if (-not $ver -or $seen.ContainsKey($ver)) { continue }
         $seen[$ver] = $true
+
+        # First use the fully versioned extraction directly. This is the
+        # critical WinError 448 recovery rung: it remains valid even when uv's
+        # minor-version junction and `uv python find 3.x` are both broken.
+        $extracted = Find-ExtractedManagedPython -ManagedRoot $managedRoot -MinorVersion $ver
+        if ($extracted) {
+            return [PSCustomObject]@{
+                Path = $extracted.Path
+                Version = $ver
+            }
+        }
+
         $process = $null
         try {
             # PowerShell 5.1 can lose a nested native command's stdout when
@@ -1371,7 +1456,8 @@ function Resolve-AvailablePythonVersion {
             [string]$foundPath = ($stdout.Trim() -split "`r?`n") | Select-Object -Last 1
             if ($foundPath) {
                 $absolute = [System.IO.Path]::GetFullPath($foundPath)
-                if ($absolute.StartsWith($managedPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+                $fullVersion = Test-ManagedPythonExecutable -Path $absolute -ExpectedMinor $ver
+                if ($fullVersion -and $absolute.StartsWith($managedPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
                     return [PSCustomObject]@{
                         Path = $absolute
                         Version = $ver
@@ -1379,7 +1465,9 @@ function Resolve-AvailablePythonVersion {
                 }
             }
         } catch {
-            throw "Failed to resolve Hebri-managed Python $ver`: $_"
+            # Resolution is an ordered ladder. A corrupt/missing uv registry or
+            # one failed candidate must not hide another extracted fallback.
+            continue
         } finally {
             if ($process) { $process.Dispose() }
         }
@@ -1859,7 +1947,7 @@ function Set-GitBashEnvVar {
 
     foreach ($candidate in $candidates) {
         if ($candidate -and (Test-Path $candidate)) {
-            [Environment]::SetEnvironmentVariable("HERMES_GIT_BASH_PATH", $candidate, "User")
+            [Environment]::SetEnvironmentVariable("HEBRI_GIT_BASH_PATH", $candidate, "User")
             $env:HERMES_GIT_BASH_PATH = $candidate
             $script:GitBashPath = $candidate
             Write-Info "Set HERMES_GIT_BASH_PATH=$candidate"
@@ -2953,8 +3041,12 @@ function Install-Venv {
             # on failure -- but only for tasks that were enabled to begin with.
             # Best-effort: a missing task just errors quietly.
             try {
-                schtasks /Query /FO CSV 2>$null | ConvertFrom-Csv | Where-Object { $_.TaskName -like '*Hermes_Gateway*' } | ForEach-Object {
+                schtasks /Query /FO CSV 2>$null | ConvertFrom-Csv | Where-Object { $_.TaskName -match '(Hebri|Hermes)_Gateway' } | ForEach-Object {
                     $tn = $_.TaskName
+                    [xml]$taskXml = (schtasks /Query /TN $tn /XML 2>$null) -join "`n"
+                    $action = (($taskXml.Task.Actions.Exec | ForEach-Object { $_.Command; $_.Arguments }) -join ' ').Replace('\', '/').ToLowerInvariant()
+                    $ownedPrefix = (Join-Path $HermesHome 'gateway-service').Replace('\', '/').TrimEnd('/') + '/'
+                    if (-not $action.Contains($ownedPrefix.ToLowerInvariant())) { return }
                     if ($_.Status -eq 'Disabled') {
                         Write-Info "  gateway autostart task $tn is already disabled; leaving it that way"
                         return
@@ -2967,9 +3059,9 @@ function Install-Venv {
             } catch {
                 Write-Warn "Could not enumerate gateway scheduled tasks: $($_.Exception.Message)"
             }
-            # The launcher CLI (hermes.exe) plus its child tree.
-            & taskkill /F /T /IM hermes.exe /FI "PID ne $myPid" 2>$null | Out-Null
-            # taskkill /IM hermes.exe is NOT enough: the gateway/agent that a
+            # Scope all process termination by this installation's paths, never
+            # by image name: another Hebri or Hermes may be running alongside it.
+            # The gateway/agent that a
             # scheduled task or watchdog autostarts runs as
             # `pythonw.exe -m hermes_cli.main gateway run` straight out of
             # venv\Scripts\, so its image name is python/pythonw, not hermes.exe.
@@ -2995,17 +3087,27 @@ function Install-Venv {
             # enumerates; three consecutive clean passes (or the attempt cap)
             # ends the loop.
             $venvPrefix = [System.IO.Path]::GetFullPath((Join-Path $InstallDir "venv")).TrimEnd('\') + '\'
+            $managedBinPrefix = [System.IO.Path]::GetFullPath((Join-Path $HermesHome "bin")).TrimEnd('\') + '\'
             $cleanPasses = 0
             for ($sweep = 0; $sweep -lt 10 -and $cleanPasses -lt 3; $sweep++) {
                 $found = 0
                 try {
                     Get-CimInstance Win32_Process -ErrorAction Stop |
-                        Where-Object { $_.ProcessId -ne $myPid -and $_.ExecutablePath -and $_.ExecutablePath.StartsWith($venvPrefix, [System.StringComparison]::OrdinalIgnoreCase) } |
+                        Where-Object {
+                            $_.ProcessId -ne $myPid -and $_.ExecutablePath -and (
+                                $_.ExecutablePath.StartsWith($venvPrefix, [System.StringComparison]::OrdinalIgnoreCase) -or (
+                                    $_.ExecutablePath.StartsWith($managedBinPrefix, [System.StringComparison]::OrdinalIgnoreCase) -and
+                                    $_.Name -in @('hebri.exe', 'hebri-agent.exe', 'hebri-acp.exe', 'hermes.exe', 'hermes-agent.exe', 'hermes-acp.exe')
+                                )
+                            )
+                        } |
                         ForEach-Object {
                             $found++
                             $treePid = [string]$_.ProcessId
                             Write-Info "  stopping process tree at PID $treePid ($($_.Name)) running from venv"
-                            & taskkill /F /T /PID $treePid 2>$null | Out-Null
+                            Invoke-NativeWithRelaxedErrorAction {
+                                & taskkill /F /T /PID $treePid 2>$null | Out-Null
+                            }
                         }
                 } catch {
                     Write-Warn "Could not enumerate venv processes: $($_.Exception.Message)"
@@ -3037,15 +3139,16 @@ function Install-Venv {
         }
     }
     
-    # Pass the already-validated private interpreter path and prohibit uv from
-    # resolving or downloading a different Python during venv creation. Use
-    # ProcessStartInfo because the desktop bootstrapper redirects this script;
-    # Windows PowerShell 5.1 can otherwise lose nested native output/exit state.
+    # Create the venv through the exact, already-probed python.exe. Do NOT ask
+    # `uv venv` to resolve it: uv's Windows launcher can bind back to the broken
+    # minor-version junction and fail with WinError 448 even though this exact
+    # interpreter runs correctly. The standard-library venv path is independent
+    # of that registry/junction and is what repairs affected installations.
     $venvProcess = New-Object System.Diagnostics.Process
     try {
         $venvStartInfo = New-Object System.Diagnostics.ProcessStartInfo
-        $venvStartInfo.FileName = $UvCmd
-        $venvStartInfo.Arguments = "venv venv --python `"$($resolvedPython.Path)`" --managed-python --no-python-downloads --no-config"
+        $venvStartInfo.FileName = $resolvedPython.Path
+        $venvStartInfo.Arguments = "-m venv --copies `"$(Join-Path $InstallDir 'venv')`""
         $venvStartInfo.WorkingDirectory = $InstallDir
         $venvStartInfo.UseShellExecute = $false
         $venvStartInfo.CreateNoWindow = $true
@@ -3053,7 +3156,7 @@ function Install-Venv {
         $venvStartInfo.RedirectStandardError = $true
         $venvProcess.StartInfo = $venvStartInfo
         if (-not $venvProcess.Start()) {
-            throw "Failed to start uv while creating the virtual environment"
+            throw "Failed to start the managed Python interpreter while creating the virtual environment"
         }
         $venvStdoutTask = $venvProcess.StandardOutput.ReadToEndAsync()
         $venvStderrTask = $venvProcess.StandardError.ReadToEndAsync()
@@ -3066,17 +3169,17 @@ function Install-Venv {
     } finally {
         $venvProcess.Dispose()
     }
-    # Fail fast so the stage cannot report ok=true when uv failed.
+    # Fail fast so the stage cannot report ok=true when stdlib venv failed.
     if ($venvExitCode -ne 0) {
-        throw "Failed to create virtual environment (uv venv exited with $venvExitCode)"
+        throw "Failed to create virtual environment (managed Python -m venv exited with $venvExitCode)"
     }
 
-    # uv can return success without leaving the interpreter expected by the
-    # installer (for example after an interrupted filesystem operation). Treat
+    # A terminated Python process can leave a partial directory without the
+    # interpreter expected by the installer. Treat
     # that as a failed transaction so the previous venv can be restored.
     $venvPythonExe = Join-Path $InstallDir "venv\Scripts\python.exe"
     if (-not (Test-Path -LiteralPath $venvPythonExe -PathType Leaf)) {
-        throw "uv reported success but venv interpreter is missing at $venvPythonExe"
+        throw "Python reported success but venv interpreter is missing at $venvPythonExe"
     }
 
     # The replacement has a working interpreter, but the transaction is only
@@ -3154,7 +3257,9 @@ function Install-Venv {
         # gateway resume path handles the immediate restart.
         if ($gatewayTasksDisabled -and $gatewayTasksDisabled.Count -gt 0) {
             foreach ($tn in $gatewayTasksDisabled) {
-                schtasks /Change /TN $tn /ENABLE 2>$null | Out-Null
+                Invoke-NativeWithRelaxedErrorAction {
+                    schtasks /Change /TN $tn /ENABLE 2>$null | Out-Null
+                }
             }
             Write-Info "Re-enabled gateway autostart task(s): $($gatewayTasksDisabled -join ', ')"
         }
@@ -3523,7 +3628,7 @@ function Install-HermesCommandLaunchers {
     if (Test-Path -LiteralPath $pyvenvCfg) {
         $venvRelocatable = [bool](Select-String -Path $pyvenvCfg -Pattern '^\s*relocatable\s*=\s*true\s*$' -Quiet)
     }
-    foreach ($launcher in @("hebri", "hermes", "hermes-acp")) {
+    foreach ($launcher in @("hebri", "hebri-agent", "hebri-acp")) {
         $src = Join-Path $scriptsDir "$launcher.exe"
         if (-not (Test-Path -LiteralPath $src -PathType Leaf)) { continue }
         if ($venvRelocatable) {
@@ -3532,6 +3637,24 @@ function Install-HermesCommandLaunchers {
         } else {
             Remove-Item (Join-Path $Destination "$launcher.cmd") -Force -ErrorAction SilentlyContinue
             Copy-Item -Force -LiteralPath $src -Destination (Join-Path $Destination "$launcher.exe")
+        }
+    }
+
+    # Old aliases are ours only when their bytes match this private venv's
+    # launcher, or their delegator names its exact path. Do not delete an
+    # independently installed Hermes command merely because of its filename.
+    foreach ($legacy in @("hermes", "hermes-agent", "hermes-acp")) {
+        $source = Join-Path $scriptsDir "$legacy.exe"
+        $copy = Join-Path $Destination "$legacy.exe"
+        if ((Test-Path -LiteralPath $source -PathType Leaf) -and
+            (Test-Path -LiteralPath $copy -PathType Leaf) -and
+            ((Get-FileHash -LiteralPath $source).Hash -eq (Get-FileHash -LiteralPath $copy).Hash)) {
+            Remove-Item -LiteralPath $copy -Force
+        }
+        $delegator = Join-Path $Destination "$legacy.cmd"
+        if ((Test-Path -LiteralPath $delegator -PathType Leaf) -and
+            (Get-Content -LiteralPath $delegator -Raw).Contains('"' + $source + '"')) {
+            Remove-Item -LiteralPath $delegator -Force
         }
     }
 
@@ -3597,11 +3720,12 @@ function Set-PathVariable {
     # Set HERMES_HOME so the Python code finds config/data in the right place.
     # Only needed on Windows where we install to %LOCALAPPDATA%\hermes instead
     # of the Unix default ~/.hermes
-    $currentHermesHome = [Environment]::GetEnvironmentVariable("HERMES_HOME", "User")
+    $currentHermesHome = [Environment]::GetEnvironmentVariable("HEBRI_HOME", "User")
     if (-not $currentHermesHome -or $currentHermesHome -ne $HermesHome) {
-        [Environment]::SetEnvironmentVariable("HERMES_HOME", $HermesHome, "User")
-        Write-Success "Set HERMES_HOME=$HermesHome"
+        [Environment]::SetEnvironmentVariable("HEBRI_HOME", $HermesHome, "User")
+        Write-Success "Set HEBRI_HOME=$HermesHome"
     }
+    $env:HEBRI_HOME = $HermesHome
     $env:HERMES_HOME = $HermesHome
     
     # Update current session
@@ -3788,6 +3912,66 @@ You are Hebri, built by Synapsek Labs -- a witness-gated agent that verifies cod
     }
 }
 
+# Helper: run a native command with a hard wall-clock timeout while
+# still streaming its output live.  Returns the exit code, or 124 on
+# timeout (the same convention as coreutils ``timeout`` and bash's
+# run_with_timeout).
+#
+# Launcher notes: ``Start-Process -FilePath npm.cmd`` fails with
+# ``%1 is not a valid Win32 application`` on some PowerShell versions
+# because Start-Process bypasses cmd.exe / PATHEXT and expects a real
+# PE file -- so route through cmd.exe, which IS a real PE, honours .cmd
+# batch shims, and performs the stdout+stderr merge into the log file
+# natively.  The parent then tails the log into the console each poll
+# tick, preserving the live progress that makes a 3-minute download
+# distinguishable from a hang (the whole reason _Run-NpmInstall streams
+# output in the first place).  ``Wait-Job -Timeout`` was rejected: jobs
+# swallow live output, and Stop-Job leaves the npm child running.
+# taskkill /T kills the real process tree.  Works on Windows PowerShell
+# 5.1 -- no pwsh-only primitives.
+function _Invoke-NativeWithTimeout(
+    [string]$exePath, [string]$argLine, [string]$workDir,
+    [string]$logPath, [int]$timeoutSec
+) {
+    $cmdLine = "/d /s /c "" ""$exePath"" $argLine > ""$logPath"" 2>&1 """
+    # Own the native process handle from launch. Start-Process -PassThru can
+    # lose ExitCode after a fast child exits on Windows PowerShell 5.1, making
+    # a successful npm install look like a failure with an empty exit code.
+    $proc = New-Object System.Diagnostics.Process
+    $proc.StartInfo.FileName = $env:ComSpec
+    $proc.StartInfo.Arguments = $cmdLine
+    $proc.StartInfo.WorkingDirectory = $workDir
+    $proc.StartInfo.UseShellExecute = $false
+    $proc.StartInfo.CreateNoWindow = $true
+    [void]$proc.Start()
+    $deadline = [DateTime]::UtcNow.AddSeconds($timeoutSec)
+    $shown = 0
+    function _Drain-NewLines([string]$path, [ref]$count) {
+        $lines = @(Get-Content $path -ErrorAction SilentlyContinue)
+        if ($lines.Count -gt $count.Value) {
+            $lines[$count.Value..($lines.Count - 1)] | ForEach-Object {
+                Write-Host "    $_" -ForegroundColor DarkGray
+            }
+            $count.Value = $lines.Count
+        }
+    }
+    while (-not $proc.HasExited) {
+        if ([DateTime]::UtcNow -gt $deadline) {
+            & taskkill /T /F /PID $proc.Id 2>&1 | Out-Null
+            $proc.WaitForExit()
+            $proc.Dispose()
+            return 124
+        }
+        Start-Sleep -Milliseconds 750
+        _Drain-NewLines $logPath ([ref]$shown)
+    }
+    _Drain-NewLines $logPath ([ref]$shown)
+    $proc.WaitForExit()
+    $exitCode = $proc.ExitCode
+    $proc.Dispose()
+    return $exitCode
+}
+
 function Install-NodeDeps {
     if (-not $HasNode) {
         # Cross-process driver mode (Hermes-Setup.exe runs each -Stage NAME
@@ -3845,53 +4029,6 @@ function Install-NodeDeps {
     $nodeDepsTimeoutSec = 600
     if ($env:NODE_DEPS_TIMEOUT -match '^\d+$') {
         $nodeDepsTimeoutSec = [int]$env:NODE_DEPS_TIMEOUT
-    }
-
-    # Helper: run a native command with a hard wall-clock timeout while
-    # still streaming its output live.  Returns the exit code, or 124 on
-    # timeout (the same convention as coreutils ``timeout`` and bash's
-    # run_with_timeout).
-    #
-    # Launcher notes: ``Start-Process -FilePath npm.cmd`` fails with
-    # ``%1 is not a valid Win32 application`` on some PowerShell versions
-    # because Start-Process bypasses cmd.exe / PATHEXT and expects a real
-    # PE file -- so route through cmd.exe, which IS a real PE, honours .cmd
-    # batch shims, and performs the stdout+stderr merge into the log file
-    # natively.  The parent then tails the log into the console each poll
-    # tick, preserving the live progress that makes a 3-minute download
-    # distinguishable from a hang (the whole reason _Run-NpmInstall streams
-    # output in the first place).  ``Wait-Job -Timeout`` was rejected: jobs
-    # swallow live output, and Stop-Job leaves the npm child running.
-    # taskkill /T kills the real process tree.  Works on Windows PowerShell
-    # 5.1 -- no pwsh-only primitives.
-    function _Invoke-NativeWithTimeout(
-        [string]$exePath, [string]$argLine, [string]$workDir,
-        [string]$logPath, [int]$timeoutSec
-    ) {
-        $cmdLine = "/d /s /c "" ""$exePath"" $argLine > ""$logPath"" 2>&1 """
-        $proc = Start-Process -FilePath $env:ComSpec -ArgumentList $cmdLine `
-            -WorkingDirectory $workDir -NoNewWindow -PassThru
-        $deadline = [DateTime]::UtcNow.AddSeconds($timeoutSec)
-        $shown = 0
-        function _Drain-NewLines([string]$path, [ref]$count) {
-            $lines = @(Get-Content $path -ErrorAction SilentlyContinue)
-            if ($lines.Count -gt $count.Value) {
-                $lines[$count.Value..($lines.Count - 1)] | ForEach-Object {
-                    Write-Host "    $_" -ForegroundColor DarkGray
-                }
-                $count.Value = $lines.Count
-            }
-        }
-        while (-not $proc.HasExited) {
-            if ([DateTime]::UtcNow -gt $deadline) {
-                & taskkill /T /F /PID $proc.Id 2>&1 | Out-Null
-                return 124
-            }
-            Start-Sleep -Milliseconds 750
-            _Drain-NewLines $logPath ([ref]$shown)
-        }
-        _Drain-NewLines $logPath ([ref]$shown)
-        return $proc.ExitCode
     }
 
     # Helper: run "npm install" in a given directory and surface the real
@@ -4892,9 +5029,9 @@ function Start-GatewayIfConfigured {
 
     if (-not $hasMessaging) { return }
 
-    $hermesCmd = "$InstallDir\venv\Scripts\hermes.exe"
+    $hermesCmd = "$InstallDir\venv\Scripts\hebri.exe"
     if (-not (Test-Path $hermesCmd)) {
-        $hermesCmd = "hermes"
+        $hermesCmd = "hebri"
     }
 
     # If WhatsApp is enabled but not yet paired, run foreground for QR scan

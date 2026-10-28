@@ -17,8 +17,15 @@ const hudNativeDrag = hudWindowing?.nativeDrag === true
 const launchFlags = ipcRenderer.sendSync('hermes:launch-flags')
 
 contextBridge.exposeInMainWorld('hermesDesktop', {
-  synapsekAccount: (operation: 'status' | 'signIn' | 'signOut' | 'openBilling' | 'forgetLocal') =>
+  synapsekAccount: (operation: 'status' | 'signIn' | 'signOut' | 'openBilling' | 'openCredits' | 'forgetLocal') =>
     ipcRenderer.invoke('hebri:synapsek-account', operation),
+  synapsekTeams: (command: unknown) => ipcRenderer.invoke('hebri:synapsek-account', 'teams', command),
+  onSynapsekAccountChanged: (callback: () => void) => {
+    const listener = () => callback()
+    ipcRenderer.on('hebri:synapsek-account-changed', listener)
+
+    return () => ipcRenderer.removeListener('hebri:synapsek-account-changed', listener)
+  },
   glassSupported: translucencySupport?.glass === true,
   translucencySupported: translucencySupport?.translucency === true,
   // Launch-flag fact: the app was started with --local, so the renderer may
@@ -368,6 +375,7 @@ contextBridge.exposeInMainWorld('hermesDesktop', {
   stopPreviewFileWatch: id => ipcRenderer.invoke('hermes:stopPreviewFileWatch', id),
   setActiveWork: payload => ipcRenderer.send('hermes:active-work', payload),
   setTitleBarTheme: payload => ipcRenderer.send('hermes:titlebar-theme', payload),
+  setNativeLocale: locale => ipcRenderer.send('hermes:native-language', locale),
   setNativeTheme: mode => ipcRenderer.send('hermes:native-theme', mode),
   setTranslucency: payload => ipcRenderer.send('hermes:translucency', payload),
   setKeepAwake: on => ipcRenderer.send('hermes:keep-awake', on),

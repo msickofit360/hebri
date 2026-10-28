@@ -10,6 +10,7 @@ import { Slider } from '@/components/ui/slider'
 import type { DesktopMarketplaceSearchItem } from '@/global'
 import { saveHermesConfig } from '@/hermes'
 import { useI18n } from '@/i18n'
+import { localizeBuiltinText } from '@/i18n/builtin-metadata'
 import { triggerHaptic } from '@/lib/haptics'
 import { Check, Download, Loader2, Palette, Trash2 } from '@/lib/icons'
 import { selectableCardClass } from '@/lib/selectable-card'
@@ -250,7 +251,7 @@ function MarketplaceThemeResults({
 
   const header = (
     <p className="mb-2 mt-4 text-[length:var(--conversation-caption-font-size)] font-medium text-(--ui-text-tertiary)">
-      From the VS Code Marketplace
+      {t.additional.appearance.marketplace}
     </p>
   )
 
@@ -482,7 +483,7 @@ export function AppearanceSettings({ subpage }: AppearanceSettingsProps = {}) {
         !needle ||
         theme.label.toLowerCase().includes(needle) ||
         theme.name.toLowerCase().includes(needle) ||
-        theme.description.toLowerCase().includes(needle)
+        localizeBuiltinText(theme.description, t).toLowerCase().includes(needle)
     )
     // Active theme first; stable sort keeps the rest in their original order.
     .sort((a, b) => Number(b.name === themeName) - Number(a.name === themeName))
@@ -598,7 +599,7 @@ export function AppearanceSettings({ subpage }: AppearanceSettingsProps = {}) {
                     {filteredThemes.length === 0 ? (
                       needle ? (
                         <p className="text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
-                          No installed themes match "{query.trim()}".
+                          {t.additional.appearance.noThemes(query.trim())}
                         </p>
                       ) : null
                     ) : (
@@ -623,7 +624,7 @@ export function AppearanceSettings({ subpage }: AppearanceSettingsProps = {}) {
                                     {theme.label}
                                   </div>
                                   <div className="mt-0.5 line-clamp-2 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
-                                    {theme.description}
+                                    {localizeBuiltinText(theme.description, t)}
                                   </div>
                                 </div>
                               </button>

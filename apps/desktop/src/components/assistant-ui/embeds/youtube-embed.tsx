@@ -1,4 +1,6 @@
-'use client'
+import { useI18n as useDesktopLanguage } from '@/i18n'
+
+;('use client')
 
 import { useMemo } from 'react'
 
@@ -27,6 +29,8 @@ function youtubeSrc(embedUrl: string): string {
 
 // Keep this as a plain iframe and let YouTube render its native player/error UI.
 export default function YouTubeEmbedRenderer({ descriptor }: { descriptor: FrameEmbed }) {
+  const { t: languageText } = useDesktopLanguage()
+
   const isDark = useIsDark()
   const src = useMemo(() => youtubeSrc(descriptor.embedUrl), [descriptor.embedUrl])
 
@@ -41,7 +45,7 @@ export default function YouTubeEmbedRenderer({ descriptor }: { descriptor: Frame
       scrolling="no"
       src={src}
       style={{ colorScheme: isDark ? 'dark' : 'light' }}
-      title="YouTube embed"
+      title={languageText.additional.ui.youtubeEmbed}
     />
   )
 }

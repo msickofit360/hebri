@@ -1,4 +1,6 @@
-'use client'
+import { useI18n as useDesktopLanguage } from '@/i18n'
+
+;('use client')
 
 import { type ToolCallMessagePartProps, useAuiState } from '@assistant-ui/react'
 import { useStore } from '@nanostores/react'
@@ -127,6 +129,8 @@ const TOOL_PAYLOAD_PRE_CLASS = cn(TOOL_SECTION_SURFACE_CLASS, 'font-mono text-[0
  * nothing else here.
  */
 function ToolPayloadDisclosure({ args, result }: { args: unknown; result: unknown }) {
+  const { t: languageText } = useDesktopLanguage()
+
   const [open, setOpen] = useState(false)
 
   return (
@@ -142,7 +146,7 @@ function ToolPayloadDisclosure({ args, result }: { args: unknown; result: unknow
         type="button"
       >
         <DisclosureCaret className="text-(--ui-text-tertiary)" open={open} size="0.625rem" />
-        Tool payload
+        {languageText.additional.ui.toolPayload}
       </button>
       {open && (
         <pre className={cn(TOOL_PAYLOAD_PRE_CLASS, 'mt-1 whitespace-pre-wrap wrap-anywhere')}>
@@ -346,6 +350,8 @@ function useDisclosureOpen(disclosureId: string, fallbackOpen = false): boolean 
 }
 
 function ToolEntry({ part }: ToolEntryProps) {
+  const { t: languageText } = useDesktopLanguage()
+
   const { t } = useI18n()
   const copy = t.assistant.tool
   const statusCopy = t.statusStack
@@ -658,7 +664,9 @@ function ToolEntry({ part }: ToolEntryProps) {
             <div className="max-w-full text-xs leading-relaxed text-(--ui-text-secondary)">
               {view.searchQuery && (
                 <p className="mb-1 flex min-w-0 gap-1.5 wrap-anywhere">
-                  <span className="shrink-0 font-medium text-(--ui-text-tertiary)">Search</span>
+                  <span className="shrink-0 font-medium text-(--ui-text-tertiary)">
+                    {languageText.additional.ui.searchPlain}
+                  </span>
                   <span>{view.searchQuery}</span>
                 </p>
               )}

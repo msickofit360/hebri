@@ -23,7 +23,7 @@
  *    English where it is WRITTEN (`group-chat-parts.tsx`, `group-rounds.ts`);
  *    the places that RENDER the reader's own lines use `group.you` instead.
  *
- * Locales follow kanban: `en` / `ja` / `zh` / `zh-hant`. Arabic falls through
+ * Locales follow kanban: `en` / `it` / `ja` / `zh` / `zh-hant`. Arabic falls through
  * the resolution chain (active locale → this plugin's `en` → the key) the
  * same way a missing string in any locale does. Nouns match core: ボット /
  * 机器人 / 機器人, プロファイル / 配置档案 / 設定檔, ゲートウェイ / 网关 / 閘道.
@@ -32,9 +32,12 @@
 import { type PluginLocaleBundles, type PluginTranslate, usePluginI18n } from '@hermes/plugin-sdk'
 import { useMemo } from 'react'
 
+import { botsAdditionalEn } from './i18n-additional'
+import { botsIt } from './i18n-it'
 import { getPluginCtx } from './shared'
 
-type BotsMessages = {
+export type BotsMessages = {
+  additional: typeof botsAdditionalEn
   /** Left rail: the bot + group-chat roster. */
   editor: {
     fullConfigHint: string
@@ -472,6 +475,7 @@ type BotsMessages = {
 }
 
 const en: BotsMessages = {
+  additional: botsAdditionalEn,
   editor: {
     fullConfigHint: 'Full configuration needs a newer gateway (restart it after updating Hebri).',
     liveCapabilities: 'Capabilities (applies immediately — skills, tools, MCP)',
@@ -627,7 +631,7 @@ const en: BotsMessages = {
     attentionFallback: 'Needs attention',
     attentionProviderAuth: 'Sign in again for this profile',
     attentionQuota: 'Quota or balance exhausted',
-    attentionMissingConfig: 'Provider not configured — run hermes model',
+    attentionMissingConfig: 'Provider not configured — run hebri model',
     attentionBlocked: 'Bot is blocked — see its last message',
     duplicate: 'Duplicate',
     duplicateFailed: 'Duplicate failed',
@@ -896,6 +900,7 @@ const en: BotsMessages = {
 }
 
 const ja: BotsMessages = {
+  additional: botsAdditionalEn,
   editor: {
     fullConfigHint: 'すべての設定を使うには新しいゲートウェイが必要です（Hebri 更新後に再起動してください）。',
     liveCapabilities: '機能（即時適用 — スキル、ツール、MCP）',
@@ -1052,7 +1057,7 @@ const ja: BotsMessages = {
     attentionFallback: '要対応',
     attentionProviderAuth: 'このプロファイルで再度サインインしてください',
     attentionQuota: 'クォータまたは残高が不足しています',
-    attentionMissingConfig: 'プロバイダーが未設定です — hermes model を実行してください',
+    attentionMissingConfig: 'プロバイダーが未設定です — hebri model を実行してください',
     attentionBlocked: 'ボットがブロックされています — 最後のメッセージを確認してください',
     duplicate: '複製',
     duplicateFailed: '複製に失敗しました',
@@ -1324,6 +1329,7 @@ const ja: BotsMessages = {
 }
 
 const zh: BotsMessages = {
+  additional: botsAdditionalEn,
   editor: {
     fullConfigHint: '完整配置需要更新网关（更新 Hebri 后请重启网关）。',
     liveCapabilities: '功能（立即生效 — 技能、工具、MCP）',
@@ -1471,7 +1477,7 @@ const zh: BotsMessages = {
     attentionFallback: '需要处理',
     attentionProviderAuth: '请为此配置档案重新登录',
     attentionQuota: '配额或余额已用尽',
-    attentionMissingConfig: '未配置提供商 — 请运行 hermes model',
+    attentionMissingConfig: '未配置提供商 — 请运行 hebri model',
     attentionBlocked: '机器人已被阻止 — 请查看其最后一条消息',
     duplicate: '复制',
     duplicateFailed: '复制失败',
@@ -1737,6 +1743,7 @@ const zh: BotsMessages = {
 }
 
 const zhHant: BotsMessages = {
+  additional: botsAdditionalEn,
   editor: {
     fullConfigHint: '完整設定需要更新閘道（更新 Hebri 後請重新啟動閘道）。',
     liveCapabilities: '功能（立即生效 — 技能、工具、MCP）',
@@ -1884,7 +1891,7 @@ const zhHant: BotsMessages = {
     attentionFallback: '需要處理',
     attentionProviderAuth: '請為此設定檔重新登入',
     attentionQuota: '配額或餘額已用盡',
-    attentionMissingConfig: '未設定供應商 — 請執行 hermes model',
+    attentionMissingConfig: '未設定供應商 — 請執行 hebri model',
     attentionBlocked: '機器人已被封鎖 — 請查看其最後一則訊息',
     duplicate: '複製',
     duplicateFailed: '複製失敗',
@@ -2150,7 +2157,7 @@ const zhHant: BotsMessages = {
 }
 
 /** Registered via `ctx.i18n.register` at plugin load (disposer tracked). */
-export const BOTS_LOCALES: PluginLocaleBundles = { en, ja, zh, 'zh-hant': zhHant }
+export const BOTS_LOCALES: PluginLocaleBundles = { en, it: botsIt, ja, zh, 'zh-hant': zhHant }
 
 // Bind the message SHAPE to a plugin translator: string leaves resolve now,
 // function leaves forward their args through t(path, …).

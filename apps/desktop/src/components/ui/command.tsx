@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Codicon } from '@/components/ui/codicon'
 import { usePointerQuiet } from '@/components/ui/keyboard-first'
 import { menuItemClass } from '@/components/ui/menu'
+import { useI18n } from '@/i18n'
 import { SearchIcon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 
@@ -80,6 +81,7 @@ function CommandInput({ className, right, ...props }: CommandInputProps) {
 }
 
 function CommandList({ className, ...props }: React.ComponentProps<typeof CommandPrimitive.List>) {
+  const { t } = useI18n()
   const variant = React.useContext(CommandVariantContext)
   // cmdk selects on pointer-enter, so a list that opens under a parked cursor —
   // or re-flows under one as the query narrows — hands the selection to
@@ -96,6 +98,7 @@ function CommandList({ className, ...props }: React.ComponentProps<typeof Comman
         className
       )}
       data-slot="command-list"
+      label={t.titlebar.search}
       {...props}
     />
   )

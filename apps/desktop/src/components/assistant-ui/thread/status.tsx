@@ -12,6 +12,7 @@ import { Codicon } from '@/components/ui/codicon'
 import { Loader } from '@/components/ui/loader'
 import { StatusPulse } from '@/components/ui/status-pulse'
 import { getLocalModelsStatus } from '@/hermes'
+import { useI18n as useLocaleUpdates } from '@/i18n'
 import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
 import { sessionBackgroundResume } from '@/store/background-delegation'
@@ -306,6 +307,8 @@ export const BackgroundResumeNotice: FC = () => {
 // so that per-token updates re-render only this leaf, not the whole
 // AssistantMessage subtree.
 export const TurnActivityIndicator: FC = () => {
+  const { t: localeText } = useLocaleUpdates()
+
   const { t } = useI18n()
   const activity = useAuiState(s => activitySignature(s.message.content))
 
@@ -363,7 +366,7 @@ export const TurnActivityIndicator: FC = () => {
   }
 
   return (
-    <StatusRow data-slot="aui_turn-activity" label={hint || 'Hebri is working'}>
+    <StatusRow data-slot="aui_turn-activity" label={hint || localeText.additional.interface.working}>
       <StatusPulse
         aria-hidden="true"
         className="dither inline-block size-3 rounded-[2px] text-midground/80"

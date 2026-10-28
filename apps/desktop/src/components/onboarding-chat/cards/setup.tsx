@@ -1,11 +1,10 @@
+import { useStore } from '@nanostores/react'
+import { Puzzle } from 'lucide-react'
 /**
  * The three setup cards: accent, connectors, and layout. The accent and layout picks apply as soon as they are
  * clicked; the connector picks are only recorded. The option lists come from onboarding-chat/options.tsx, so the cards
  * and the previews stay in agreement without the model listing the options.
  */
-
-import { useStore } from '@nanostores/react'
-import { Puzzle } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { useSessionView } from '@/app/chat/session-view'
@@ -24,6 +23,8 @@ import type { LayoutNode } from '@/components/pane-shell/tree/model'
 import { ConnectorLogo } from '@/components/ui/connector-logo'
 import { SearchField } from '@/components/ui/search-field'
 import { registry } from '@/contrib/registry'
+import { useI18n as useLocaleUpdates } from '@/i18n'
+import { useI18n as useDesktopLanguage } from '@/i18n'
 import { connectorIconUrl, connectorTitle } from '@/lib/connector-tools'
 import { cn } from '@/lib/utils'
 import { type ConnectorCatalog, useConnectorCatalog } from '@/store/connector-catalog'
@@ -54,6 +55,10 @@ interface ConnectorPicksProps {
 
 /** The picks themselves, fed by ConnectorsCard. Plugins lead the one group (NS-960 D1). */
 export function ConnectorPicks({ catalog, commit, done, locked, plugins }: ConnectorPicksProps) {
+  const { t: localeText } = useLocaleUpdates()
+
+  const { t: languageText } = useDesktopLanguage()
+
   const answers = useStore($onboardingAnswers)
   const [query, setQuery] = useState('')
 
@@ -98,21 +103,19 @@ export function ConnectorPicks({ catalog, commit, done, locked, plugins }: Conne
   if (plugins.length === 0 && (catalog.status === 'unavailable' || (catalog.status === 'ready' && rows.length === 0))) {
     return (
       <CardFrame
-        continueLabel="Skip this"
+        continueLabel={localeText.additional.interface.skipThis}
         done={done}
         locked={locked}
         onContinue={() => commit('apps I use: none for now')}
       >
-        <p className="text-sm text-muted-foreground">
-          Connections aren’t available right now — this can be set up later.
-        </p>
+        <p className="text-sm text-muted-foreground">{languageText.additional.ui.connectionsUnavailable}</p>
       </CardFrame>
     )
   }
 
   return (
     <CardFrame
-      continueLabel={pickedCount > 0 ? `Continue with ${pickedCount}` : 'None of these'}
+      continueLabel={pickedCount > 0 ? `Continue with ${pickedCount}` : localeText.additional.interface.noneOfThese}
       disabled={catalog.status === 'loading'}
       done={done}
       locked={locked}
@@ -127,7 +130,7 @@ export function ConnectorPicks({ catalog, commit, done, locked, plugins }: Conne
       ) : (
         <>
           {rows.length + plugins.length > 12 ? (
-            <SearchField onChange={setQuery} placeholder="Find an app" value={query} />
+            <SearchField onChange={setQuery} placeholder={languageText.additional.ui.findApp} value={query} />
           ) : null}
           <div className="grid max-h-72 grid-cols-3 gap-2 overflow-y-auto">
             {shownPlugins.map(plugin => (
@@ -170,8 +173,8 @@ export function ConnectorPicks({ catalog, commit, done, locked, plugins }: Conne
           here. Saying so is what keeps the Connect cards later from reading as
           a second ask for the same thing. */}
       <p className="text-xs text-muted-foreground">
-        <strong className="font-medium text-foreground">Nothing connects or installs yet.</strong> Hebri will offer to
-        link these, or install a plugin, when a task needs them, and asks first.
+        <strong className="font-medium text-foreground">{languageText.additional.ui.nothingConnected}</strong>
+        {languageText.additional.ui.connectLater}
       </p>
     </CardFrame>
   )
@@ -194,6 +197,8 @@ function pickAccent(value: string, receipt?: string): void {
 }
 
 export function LookCard({ attrs, locked, messageId }: CardProps) {
+  const { t: localeText } = useLocaleUpdates()
+
   const answers = useStore($onboardingAnswers)
   const { renderedMode } = useTheme()
   const { commit, done } = useCardCommit('look')
@@ -234,7 +239,12 @@ export function LookCard({ attrs, locked, messageId }: CardProps) {
             onPick={() => pickAccent(swatch.hex)}
           />
         ))}
-        <AccentSwatch active={!picked} hex={accent} name="Custom color" onColorChange={pickAccent} />
+        <AccentSwatch
+          active={!picked}
+          hex={accent}
+          name={localeText.additional.interface.customColor}
+          onColorChange={pickAccent}
+        />
       </div>
     </CardFrame>
   )

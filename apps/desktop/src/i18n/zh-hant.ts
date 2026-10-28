@@ -262,7 +262,7 @@ export const zhHant = defineLocale({
     doneDescription: '偵錯套件已私密上傳。在您的支援討論串中分享以下連結，團隊即可檢視您的日誌。',
     failedTitle: '上傳失敗',
     failedHint:
-      '您也可以在終端機執行 `hermes debug share --nous`，或執行 `hermes debug share --local` 在不上傳的情況下檢視報告。',
+      '執行 `hebri debug share --local` 可在不上傳的情況下檢視已遮蔽敏感資料的報告。請先檢查內容，再手動分享給 Synapsek 支援團隊。',
     handoffLead: '在以下位置繼續討論:',
     links: {
       github: 'GitHub Issues',
@@ -3925,7 +3925,7 @@ export const zhHant = defineLocale({
       reject: '拒絕',
       alwaysTitle: '一律允許此指令？',
       alwaysDescription: pattern =>
-        `這會將「${pattern}」模式加入永久允許清單（~/.hermes/config.yaml）。Hebri 對類似指令將不再詢問，包括目前工作階段和未來工作階段。`,
+        `這會將「${pattern}」模式加入永久允許清單。Hebri 對類似指令將不再詢問，包括目前工作階段和未來工作階段。`,
       alwaysAllow: '一律允許'
     },
     clarify: {

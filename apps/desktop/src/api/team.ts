@@ -181,7 +181,7 @@ export function relayRegister(
   return fetch(url, {
     method: 'POST',
     headers: relayHeaders(),
-    body: JSON.stringify({ code: code.toUpperCase(), peer })
+    body: JSON.stringify({ code: code.trim(), peer })
   }).then(async (res) => {
     if (!res.ok) {
       let detail = `relay join failed (${res.status})`

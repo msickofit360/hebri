@@ -1,5 +1,6 @@
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { deleteLearningNode, type ProfileScope } from '@/hermes'
+import { useI18n as useLocaleUpdates } from '@/i18n'
 import { type Translations, useI18n } from '@/i18n'
 import { notify } from '@/store/notifications'
 
@@ -50,6 +51,8 @@ export function ArchiveSkillConfirmDialog({
   skillId,
   skillName
 }: ArchiveSkillConfirmDialogProps) {
+  const { t: localeText } = useLocaleUpdates()
+
   const { t } = useI18n()
 
   return (
@@ -72,7 +75,7 @@ export function ArchiveSkillConfirmDialog({
         )
       }}
       open={open}
-      title={`Archive ${skillName}?`}
+      title={localeText.additional.display.archiveSkill(skillName)}
     />
   )
 }

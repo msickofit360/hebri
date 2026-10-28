@@ -44,7 +44,7 @@ function provider(id: string, loggedIn: boolean, patch: Partial<OAuthProvider> =
     docs_url: '',
     flow: 'device_code',
     id,
-    name: id === 'nous' ? 'Nous Portal' : 'MiniMax',
+    name: id === 'minimax-oauth' ? 'MiniMax' : id,
     status: {
       logged_in: loggedIn
     },
@@ -74,9 +74,9 @@ function keyVar(patch: Partial<EnvVarInfo> = {}): EnvVarInfo {
 beforeEach(() => {
   onboarding.set({ manual: false })
   getEnvVars.mockResolvedValue({})
-  disconnectOAuthProvider.mockResolvedValue({ ok: true, provider: 'nous' })
+  disconnectOAuthProvider.mockResolvedValue({ ok: true, provider: 'minimax-oauth' })
   listOAuthProviders.mockResolvedValue({
-    providers: [provider('nous', true), provider('minimax-oauth', false)]
+    providers: [provider('minimax-oauth', true), provider('qwen-oauth', false)]
   })
 })
 
@@ -105,6 +105,21 @@ async function renderProvidersSettings() {
 }
 
 describe('ProvidersSettings', () => {
+  it('routes Synapsek to account controls without starting upstream OAuth, including an empty catalog', async () => {
+    for (const providers of [[provider('nous', false, { name: 'Nous Portal' })], []]) {
+      window.location.hash = '#/settings?tab=providers'
+      listOAuthProviders.mockResolvedValue({ providers })
+      const mounted = await renderProvidersSettings()
+      const row = await screen.findByRole('button', { name: /Synapsek Labs/ })
+      fireEvent.click(screen.getByRole('button', { name: 'Other providers' }))
+      expect(screen.queryByText('Nous Portal')).toBeNull()
+      fireEvent.click(row)
+      expect(window.location.hash).toBe('#/settings?tab=billing')
+      expect(startManualProviderOAuth).not.toHaveBeenCalled()
+      mounted.unmount()
+    }
+  })
+
   it('reads and saves API keys for the shared Settings target and reloads when it changes', async () => {
     const { $settingsScopeOverride } = await import('@/store/settings-scope')
     const { $activeGatewayProfile, $profiles } = await import('@/store/profile')
@@ -154,11 +169,11 @@ describe('ProvidersSettings', () => {
       await renderProvidersSettings()
       expect(getEnvVars).toHaveBeenCalledWith('beta')
       expect(listOAuthProviders).toHaveBeenCalledWith('beta')
-      fireEvent.click(await screen.findByText('Nous Portal'))
-      expect(startManualProviderOAuth).toHaveBeenCalledWith('nous', 'beta')
-      fireEvent.click(await screen.findByRole('button', { name: 'Remove Nous Portal' }))
+      fireEvent.click(await screen.findByText('MiniMax'))
+      expect(startManualProviderOAuth).toHaveBeenCalledWith('minimax-oauth', 'beta')
+      fireEvent.click(await screen.findByRole('button', { name: 'Remove MiniMax' }))
       fireEvent.click(await screen.findByRole('button', { name: 'Disconnect' }))
-      await waitFor(() => expect(disconnectOAuthProvider).toHaveBeenCalledWith('nous', 'beta'))
+      await waitFor(() => expect(disconnectOAuthProvider).toHaveBeenCalledWith('minimax-oauth', 'beta'))
     } finally {
       $settingsScopeOverride.set(null)
     }
@@ -167,7 +182,7 @@ describe('ProvidersSettings', () => {
   it('disconnects a connected provider account and refreshes the accounts list', async () => {
     await renderProvidersSettings()
 
-    const remove = await screen.findByRole('button', { name: 'Remove Nous Portal' })
+    const remove = await screen.findByRole('button', { name: 'Remove MiniMax' })
     await act(async () => {
       fireEvent.click(remove)
     })
@@ -180,7 +195,7 @@ describe('ProvidersSettings', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }))
     })
 
-    await waitFor(() => expect(disconnectOAuthProvider).toHaveBeenCalledWith('nous', 'default'))
+    await waitFor(() => expect(disconnectOAuthProvider).toHaveBeenCalledWith('minimax-oauth', 'default'))
     expect(listOAuthProviders).toHaveBeenCalledTimes(2)
   })
 
@@ -188,7 +203,7 @@ describe('ProvidersSettings', () => {
     await renderProvidersSettings()
 
     await act(async () => {
-      fireEvent.click(await screen.findByRole('button', { name: 'Remove Nous Portal' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Remove MiniMax' }))
     })
 
     await act(async () => {

@@ -1,3 +1,12 @@
+import {
+  CHAT_EMPTY_AREA,
+  COMPOSER_AREAS,
+  host,
+  LocalizedTabTitle,
+  PALETTE_AREA,
+  SIDEBAR_PROFILE_GROUP_HEADER_AREA,
+  translateNow
+} from '@hermes/plugin-sdk'
 /**
  * Hebri Bot Mode — a "one chat per agent" roster for the Hebri desktop.
  *
@@ -14,16 +23,6 @@
  * Chat" — @-mentions deliver over gateway RPCs (no CLI relay), and
  * bot-initiated sends use `hermes -p <bot> chat --in ~ -c "Bot Chat"`.
  */
-
-import {
-  CHAT_EMPTY_AREA,
-  COMPOSER_AREAS,
-  host,
-  LocalizedTabTitle,
-  PALETTE_AREA,
-  SIDEBAR_PROFILE_GROUP_HEADER_AREA,
-  translateNow
-} from '@hermes/plugin-sdk'
 import type { ChatEmptyProps, PluginContext, ProfileGroupRoute } from '@hermes/plugin-sdk'
 
 import { startFaceClock, stopFaceClock } from './avatar'
@@ -67,6 +66,7 @@ import {
 } from './group-chat'
 import { groupWorkspaceOwnerKey } from './group-membership'
 import { annotateOrphanedGroupChatMembers } from './hygiene'
+import { botsText } from './i18n'
 import { BOTS_LOCALES } from './i18n'
 import { displayName } from './labels'
 import { startBotRelay, stopBotRelay } from './relay'
@@ -473,32 +473,6 @@ export default {
       render: () => <BotsPane />
     })
 
-    // Team Chat — human-to-human encrypted messaging pane.
-    // Registered alongside Bots: the zone's tab strip becomes
-    // SESSIONS | TEAM CHAT | BOTS.
-    ctx.register({
-      id: 'team-chat',
-      area: 'panes',
-      title: 'Team Chat',
-      data: {
-        placement: 'left',
-        width: '600px',
-        collapsible: true,
-        hideOnly: true,
-        tabTitle: () => <span>Team Chat</span>,
-        tabTitleText: () => 'Team Chat',
-        dock: {
-          pane: 'sessions',
-          pos: 'center',
-          enforce: true
-        }
-      },
-      render: () => {
-        const { TeamChatPane } = require('./team-chat-pane')
-        return <TeamChatPane />
-      }
-    })
-
     // Routines — its OWN tiling pane splitting the workspace's right edge
     // (NOT the collapsible right sidebar; placement 'right' is that sidebar's
     // role and hides the pane until "Show Right Sidebar").
@@ -748,7 +722,9 @@ export default {
       area: PALETTE_AREA,
       data: {
         id: `${ID}.new-agent`,
-        label: 'New Bot…',
+        get label() {
+          return botsText().additional.newBot
+        },
         keywords: ['bot', 'agent', 'profile', 'teammate', 'create'],
         run: () => {
           host.notify({
@@ -765,16 +741,16 @@ export default {
       area: PALETTE_AREA,
       data: {
         id: `${ID}.computer-mode`,
-        label: 'New Computer Mode Bot…',
+        get label() {
+          return botsText().additional.newComputerBot
+        },
         keywords: ['computer', 'browser', 'automation', 'manus', 'omarchy', 'research', 'autonomous'],
         run: () => {
           const { COMPUTER_MODE_PROFILE } = require('./computer-mode')
           host.notify({
             kind: 'info',
-            title: 'Computer Mode',
-            message:
-              'Create a new Bot, then in Advanced → paste the Computer Mode system prompt and enable tools: browser_exec, computer_use, terminal, web_search, web_extract.\n\n' +
-              'The bot will plan, execute, observe, and report — like Manus.ai.'
+            title: botsText().additional.computerTitle,
+            message: botsText().additional.computerSetup
           })
         }
       }
@@ -819,10 +795,8 @@ export default {
             if (activeBot && isCanonicalChatOnScreen(row, host.state.focusedStoredSessionId.get())) {
               host.notify({
                 kind: 'info',
-                title: 'This chat never resets',
-                message:
-                  'Bot chats are one continuous conversation — compacting instead. ' +
-                  'For a throwaway session with this bot, use Sessions mode.'
+                title: botsText().additional.neverResets,
+                message: botsText().additional.compactInstead
               })
 
               return {

@@ -1,4 +1,6 @@
-'use client'
+import { useI18n as useDesktopLanguage } from '@/i18n'
+
+;('use client')
 
 import { type FC, useState } from 'react'
 
@@ -29,6 +31,8 @@ function hintedRatio(aspectRatio?: string): number {
 }
 
 export const GeneratedImage: FC<{ aspectRatio?: string; result?: unknown }> = ({ aspectRatio, result }) => {
+  const { t: languageText } = useDesktopLanguage()
+
   const { t } = useI18n()
   const copy = t.desktop
   const image = result === undefined ? null : generatedImageFromResult(result)
@@ -91,7 +95,7 @@ export const GeneratedImage: FC<{ aspectRatio?: string; result?: unknown }> = ({
             type="button"
           >
             <img
-              alt="Generated image"
+              alt={languageText.additional.ui.generatedImage}
               className={cn(
                 'absolute inset-0 size-full object-contain opacity-0 transition-opacity duration-500 ease-out',
                 loaded && 'opacity-100'
@@ -109,7 +113,7 @@ export const GeneratedImage: FC<{ aspectRatio?: string; result?: unknown }> = ({
       </span>
       {src && (
         <ImageLightbox
-          alt="Generated image"
+          alt={languageText.additional.ui.generatedImage}
           copy={copy}
           onClick={download}
           onOpenChange={open => setLightboxOpen(open ? media.key : null)}

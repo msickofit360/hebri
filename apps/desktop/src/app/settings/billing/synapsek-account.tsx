@@ -5,7 +5,9 @@ import { useI18n } from '@/i18n'
 
 import type { SynapsekAccountView } from '../../../../electron/synapsek-account-types'
 
+import { billingCopy } from './billing-copy'
 import { accountCopy } from './synapsek-account-copy'
+import { developerCopy } from './synapsek-developer-copy'
 import { usageCopy } from './synapsek-usage-copy'
 
 const messages: Record<string, string> = {
@@ -23,6 +25,8 @@ export function SynapsekAccountSettings() {
   const { locale } = useI18n()
   const copy = accountCopy[locale]
   const usageText = usageCopy[locale]
+  const billingText = billingCopy[locale]
+  const developerText = developerCopy[locale]
   const [view, setView] = useState<SynapsekAccountView>({ state: 'signed_out' })
   const [available, setAvailable] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -41,7 +45,7 @@ export function SynapsekAccountSettings() {
           if (result.ok && result.value) {
             setAvailable(true)
             setView(result.value)
-          } else if (!result.ok && result.code !== 'not_available') {
+          } else if (!result.ok) {
             setAvailable(true)
             setError(result.code)
           }
@@ -63,7 +67,7 @@ export function SynapsekAccountSettings() {
     return null
   }
 
-  async function run(operation: 'status' | 'signIn' | 'signOut' | 'openBilling' | 'forgetLocal') {
+  async function run(operation: 'status' | 'signIn' | 'signOut' | 'openBilling' | 'openCredits' | 'forgetLocal') {
     setBusy(true)
     setError('')
 
@@ -71,7 +75,7 @@ export function SynapsekAccountSettings() {
       const result = await bridge!(operation)
 
       if (!result.ok && result.code === 'not_available') {
-        setAvailable(false)
+        setError(result.code)
       } else if (!result.ok) {
         setError(result.code)
       } else if (result.value) {
@@ -85,18 +89,40 @@ export function SynapsekAccountSettings() {
   }
 
   return (
-    <section aria-label={copy.title} className="m-4 space-y-3 rounded-lg border p-4">
+    <section aria-label={copy.title} className="space-y-6">
       <h2 className="font-semibold">{copy.title}</h2>
       <p className="text-sm text-muted-foreground">{copy.introduction}</p>
       {view.account && (
-        <p className="text-sm">
-          {view.account.email} · {view.account.billing.sku || view.account.billing.plan} · {view.account.billing.status}
-          <br />
-          {copy.credits}: {view.account.billing.includedMonthlyCredits.toLocaleString(locale)}
-        </p>
+        <div className="space-y-3">
+          <p className="break-all text-sm text-muted-foreground">{view.account.email}</p>
+          <dl className="grid gap-6 sm:grid-cols-2">
+            <div>
+              <dt className="text-sm text-muted-foreground">{billingText.plan}</dt>
+              <dd className="mt-1 text-2xl font-semibold capitalize">
+                {view.account.developerAccess
+                  ? developerText.plan
+                  : view.account.billing.sku || view.account.billing.plan}
+              </dd>
+              <dd className="text-sm text-muted-foreground">{view.account.billing.status}</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-muted-foreground">{copy.credits}</dt>
+              <dd className="mt-1 text-2xl font-semibold">
+                {view.account.developerAccess
+                  ? developerText.quota
+                  : view.account.billing.includedMonthlyCredits.toLocaleString(locale)}
+              </dd>
+            </div>
+          </dl>
+          {!view.account.developerAccess &&
+            view.account.billing.accessSource === 'admin' &&
+            view.account.billing.includedMonthlyCredits === 0 && (
+              <p className="text-sm text-muted-foreground">{billingText.managed}</p>
+            )}
+        </div>
       )}
       {view.account?.usage && (
-        <dl className="text-sm">
+        <dl className="grid gap-5 text-sm sm:grid-cols-2">
           {(
             [
               ['remaining', 'remainingIncludedCredits'],
@@ -106,38 +132,56 @@ export function SynapsekAccountSettings() {
               ['debt', 'debtCredits']
             ] as const
           ).map(([label, key]) => (
-            <div className="flex justify-between gap-4" key={key}>
-              <dt>{usageText[label]}</dt>
-              <dd>{view.account!.usage![key].toLocaleString(locale)}</dd>
+            <div key={key}>
+              <dt className="text-muted-foreground">{usageText[label]}</dt>
+              <dd className="mt-1 text-xl font-semibold">{view.account!.usage![key].toLocaleString(locale)}</dd>
             </div>
           ))}
         </dl>
       )}
+      {view.account && !view.account.usage && (
+        <p className="text-sm text-muted-foreground" role="status">
+          {billingText.unavailable}
+        </p>
+      )}
       <p className="text-sm text-muted-foreground">
-        {view.account?.managedInferenceEnabled ? usageText.enabled : copy.preview}
+        {view.account?.managedInferenceEnabled
+          ? view.account.developerAccess
+            ? developerText.usage
+            : usageText.enabled
+          : billingText.disabled}
       </p>
+      <div className="flex flex-wrap gap-2">
+        <Button disabled={busy} onClick={() => void run('openBilling')}>
+          {billingText.manage}
+        </Button>
+        <Button disabled={busy} onClick={() => void run('openCredits')} variant="outline">
+          {billingText.buy}
+        </Button>
+      </div>
+      <p className="text-sm text-muted-foreground">{billingText.website}</p>
       {error && (
         <p className="text-sm text-destructive" role="alert">
-          {locale === 'en' ? messages[error] || copy.error : copy.error}
+          {error === 'not_available' ? copy.unavailable : locale === 'en' ? messages[error] || copy.error : copy.error}
         </p>
       )}
       <div className="flex flex-wrap gap-2">
-        <Button disabled={busy} onClick={() => void run(view.state === 'signed_in' ? 'signOut' : 'signIn')}>
+        <Button
+          disabled={busy || error === 'not_available'}
+          onClick={() => void run(view.state === 'signed_in' ? 'signOut' : 'signIn')}
+        >
           {busy ? copy.working : view.state === 'signed_in' ? copy.signOut : copy.signIn}
         </Button>
         <Button disabled={busy} onClick={() => void run('status')} variant="outline">
           {copy.refresh}
         </Button>
-        <Button disabled={busy} onClick={() => void run('openBilling')} variant="outline">
-          {copy.manage}
-        </Button>
-        {error && (
+        {error && error !== 'not_available' && (
           <Button disabled={busy} onClick={() => void run('forgetLocal')} variant="outline">
             {copy.remove}
           </Button>
         )}
       </div>
-      {error && <p className="text-sm text-muted-foreground">{copy.removeNotice}</p>}
+      {error && error !== 'not_available' && <p className="text-sm text-muted-foreground">{copy.removeNotice}</p>}
     </section>
   )
 }

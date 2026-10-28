@@ -25,7 +25,20 @@ def _gw():
 def get_launchd_label() -> str:
     """Return the launchd service label, scoped per profile."""
     suffix = _gw()._profile_suffix()
-    return f"ai.hermes.gateway-{suffix}" if suffix else "ai.hermes.gateway"
+    current = f"com.synapsek.hebri.gateway-{suffix}" if suffix else "com.synapsek.hebri.gateway"
+    legacy = f"ai.hermes.gateway-{suffix}" if suffix else "ai.hermes.gateway"
+    import plistlib
+    import pwd
+    directory = Path(pwd.getpwuid(os.getuid()).pw_dir) / "Library" / "LaunchAgents"
+    if not (directory / f"{current}.plist").exists():
+        try:
+            data = plistlib.loads((directory / f"{legacy}.plist").read_bytes())
+            pinned = Path(data["EnvironmentVariables"]["HERMES_HOME"]).expanduser().resolve()
+            if data.get("Label") == legacy and pinned == _gw().get_hermes_home().resolve():
+                return legacy
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+    return current
 
 
 def _probe_launchd_domain_for_label(label: str) -> str:

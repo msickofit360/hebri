@@ -1,6 +1,7 @@
+import { localizedDateFormatter } from '@/lib/time'
 import { fmtClock, fmtDayTime } from '@/lib/time'
 
-const fmtTimelineClock = new Intl.DateTimeFormat(undefined, {
+const fmtTimelineClock = localizedDateFormatter({
   fractionalSecondDigits: 3,
   hour: 'numeric',
   minute: '2-digit',

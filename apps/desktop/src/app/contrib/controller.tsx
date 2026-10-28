@@ -6,6 +6,7 @@ import { SessionDraftTitle } from '@/app/chat/session-draft-title'
 import { SessionStatusDot } from '@/app/chat/session-status-dot'
 import { PALETTE_AREA, type PaletteContribution, paletteToggle } from '@/app/command-palette/contrib'
 import { TeamPane } from '@/app/right-sidebar/team'
+import { shareCopy } from '@/app/right-sidebar/team/share-copy'
 import { type StatusbarItem } from '@/app/shell/statusbar-controls'
 import { AskDirective } from '@/components/assistant-ui/ask-directive'
 import { InlinePreviewDirective } from '@/components/assistant-ui/inline-preview-directive'
@@ -42,6 +43,7 @@ import { Slot } from '@/contrib/react/slot'
 import { registry } from '@/contrib/registry'
 import { discoverRuntimePlugins } from '@/contrib/runtime-loader'
 import { LocalizedTabTitle, translateNow } from '@/i18n'
+import { getRuntimeI18nLocale } from '@/i18n/runtime'
 import { NEW_SESSION_TITLE, sessionTitle as storedSessionTitle } from '@/lib/chat-runtime'
 import {
   Download,
@@ -274,19 +276,16 @@ registry.registerMany([
   {
     id: 'team',
     area: 'panes',
-    // Hebri Team is human collaboration, not a Bot/agent identity. Keep it as
-    // its own top-level tab beside Sessions and Bots. Anchoring to Sessions
-    // keeps it discoverable even when a saved layout has no Files/right-side
-    // zone, while the separate pane id and content preserve the human/agent
-    // boundary.
-    title: 'Team',
+    // One human collaboration pane, available independently of the Bots plugin.
+    // Keep the durable id and old Team Chat alias for existing layouts/actions.
+    title: 'Team Chat',
     data: {
       placement: 'left',
       collapsible: true,
       hideOnly: true,
       dock: { pane: 'sessions', pos: 'center', enforce: true },
       revealAliases: ['team-chat'],
-      tabTitleText: () => 'Team'
+      tabTitleText: () => shareCopy[getRuntimeI18nLocale()].title
     },
     render: () => idle(<TeamPane />)
   }

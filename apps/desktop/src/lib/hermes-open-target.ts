@@ -14,7 +14,8 @@
 
 export type HermesOpenTarget = string | { href: string } | { path: string; params?: Record<string, string> }
 
-const HERMES_PROTOCOL = 'hermes:'
+// Legacy plugin activation strings remain valid inside Hebri; OS registration is Hebri-only.
+const OPEN_PROTOCOLS = ['hebri://', 'hermes://']
 
 /** Hostnames owned by core deep-link handlers — never treated as plugin routes. */
 const RESERVED_DEEP_LINK_KINDS = new Set([
@@ -73,7 +74,7 @@ export function normalizeHermesOpenString(raw: string): string | null {
     return null
   }
 
-  if (trimmed.startsWith('hermes://') || trimmed.startsWith(`${HERMES_PROTOCOL}//`)) {
+  if (OPEN_PROTOCOLS.some(protocol => trimmed.startsWith(protocol))) {
     try {
       const url = new URL(trimmed)
       const host = url.hostname || ''

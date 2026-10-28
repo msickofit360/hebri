@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def _serve_unit_recovery_available() -> bool:
-    """Can a fresh process restart ``hermes-serve*`` units on this host?"""
+    """Can a fresh process restart ``hebri-serve*`` units on this host?"""
     return sys.platform == "linux" and bool(shutil.which("systemctl"))
 
 
@@ -78,7 +78,7 @@ def _numeric(value):
 
 def _qualified_serve_skips(skip_units) -> list[dict]:
     """Scope-qualify the units the aborted phase already settled: ``<scope>/<unit>`` because
-    ``hermes-serve.service`` can exist in BOTH the user and system manager (two processes)."""
+    ``hebri-serve.service`` can exist in BOTH the user and system manager (two processes)."""
     rows: list[dict] = []
     for entry in sorted(skip_units or ()):
         scope, sep, unit = str(entry).partition("/")
@@ -152,7 +152,7 @@ def _recover_gateway_restart_after_abort(
     supervisor-owned profiles.
 
     ``skip_units`` names the units the aborted phase already settled, as ``<scope>/<unit>``. The scope is
-    part of the identity, not decoration: ``hermes-serve.service`` can exist in both the user and the system
+    part of the identity, not decoration: ``hebri-serve.service`` can exist in both the user and the system
     manager as two different processes, and an unqualified token would let a settled one suppress recovery
     of a stale one (review on #96235).
     """
@@ -236,7 +236,7 @@ def _warn_stale_serve_runtimes(rows) -> None:
             f" (profile {row.get('profile') or 'default'}, {row.get('supervisor') or 'unknown'})")
     print("    Ask their owner to relaunch `hermes serve` / `hermes dashboard`, or reconnect Desktop for an SSH backend.")
     if sys.platform == "linux" and any(row.get("supervisor") == "systemd" for row in rows):
-        print("    For unit-managed backends: `systemctl --user restart hermes-serve.service`.")
+        print("    For unit-managed backends: `systemctl --user restart hebri-serve.service`.")
     if sys.platform == "darwin" and any(row.get("supervisor") == "launchd" for row in rows):
         print("    For launchd-managed backends: `launchctl kickstart -k gui/$UID/<label>`.")
 

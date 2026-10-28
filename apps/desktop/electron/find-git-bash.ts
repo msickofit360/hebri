@@ -24,7 +24,7 @@ export function findGitBash(opts: GitBashOptions): string | null {
   }
 
   // Respect HERMES_GIT_BASH_PATH if set (mirrors tools/environments/local.py:_find_bash).
-  const gitBashPath = env.HERMES_GIT_BASH_PATH
+  const gitBashPath = env.HEBRI_GIT_BASH_PATH || env.HERMES_GIT_BASH_PATH
 
   if (gitBashPath && fileExists(gitBashPath)) {
     return gitBashPath

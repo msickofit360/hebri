@@ -213,6 +213,7 @@ export function parseAccountSnapshot(value: any): AccountSnapshot {
     userId: value.userId,
     email: value.email,
     managedInferenceEnabled: value.managedInferenceEnabled === true,
+    developerAccess: value.developerAccess === true,
     ...(safeUsage ? { usage: safeUsage } : {}),
     billing: {
       plan: b.plan,
@@ -224,7 +225,7 @@ export function parseAccountSnapshot(value: any): AccountSnapshot {
   }
 }
 
-export async function accountJson(url: string, init: RequestInit = {}) {
+export async function accountJson(url: string, init: RequestInit = {}, maxBytes = 65_536) {
   const response = await fetch(url, { ...init, redirect: 'error', signal: AbortSignal.timeout(15_000) })
 
   if (response.status === 404) {
@@ -251,7 +252,7 @@ export async function accountJson(url: string, init: RequestInit = {}) {
 
       size += value.length
 
-      if (size > 65_536) {
+      if (size > maxBytes) {
         throw new AccountError('invalid_response')
       }
 
@@ -268,6 +269,22 @@ export async function accountJson(url: string, init: RequestInit = {}) {
 
     if (response.status === 403 && body?.code === 'session_binding_required') {
       throw new AccountError('session_binding_required')
+    }
+
+    if (
+      !response.ok &&
+      [
+        'team_consent_required',
+        'team_forbidden',
+        'team_capacity',
+        'team_conflict',
+        'team_rate_limited',
+        'team_owner_required',
+        'team_invalid_request',
+        'account_mismatch'
+      ].includes(body?.code)
+    ) {
+      throw new AccountError(body.code)
     }
 
     if (response.status === 401 || response.status === 403) {
@@ -599,8 +616,78 @@ export class SynapsekAccount {
       return { state: 'signed_out' }
     })
   }
-  openBilling() {
-    return this.open(`${this.origin}/billing`)
+  openBilling(section: 'overview' | 'credits' = 'overview') {
+    return this.open(`${this.origin}/billing${section === 'credits' ? '?section=credits' : ''}`)
+  }
+  async teamRequest(command: { action: string; data: Record<string, string>; expectedUserId: string }) {
+    const actions = [
+      'list',
+      'create',
+      'rooms',
+      'snapshot',
+      'history',
+      'invite',
+      'revokeInvite',
+      'createRoom',
+      'leave',
+      'deleteTeam',
+      'send',
+      'deleteMessage',
+      'work',
+      'workStatus',
+      'deleteWork',
+      'removeMember',
+      'memberRole'
+    ]
+
+    if (
+      !command ||
+      !actions.includes(command.action) ||
+      !/^[a-f0-9-]{36}$/i.test(command.expectedUserId) ||
+      !command.data ||
+      typeof command.data !== 'object' ||
+      JSON.stringify(command).length > 24_000
+    ) {
+      throw new AccountError('team_invalid_request')
+    }
+
+    const view = await this.status()
+
+    return this.exclusive(async () => {
+      const saved = loadAccount(this.storage)
+
+      if (
+        !saved ||
+        !this.tokens ||
+        view.state !== 'signed_in' ||
+        view.account?.userId !== saved.userId ||
+        command.expectedUserId !== saved.userId
+      )
+        {throw new AccountError('account_mismatch')}
+
+      const result = await this.json(
+        `${this.origin}/api/teams`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${this.tokens.accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(command)
+        },
+        2_000_000
+      )
+
+      if (result?.userId !== saved.userId) {throw new AccountError('account_mismatch')}
+
+      if (
+        result.inviteUrl &&
+        !new RegExp(`^${this.origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/teams#invite=[a-f0-9]{64}$`).test(
+          result.inviteUrl
+        )
+      ) {
+        throw new AccountError('invalid_response')
+      }
+
+      return result
+    })
   }
   async managedRequest(action: 'models' | 'completion', body?: unknown, requestId?: string, expectedUserId?: string) {
     const view = await this.status()

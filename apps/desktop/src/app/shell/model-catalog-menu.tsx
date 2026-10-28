@@ -22,6 +22,7 @@ import { usePointerQuiet } from '@/components/ui/keyboard-first'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { HermesGateway } from '@/hermes'
 import { getLocalModelsStatus } from '@/hermes'
+import { useI18n as useDesktopLanguage } from '@/i18n'
 import { useI18n } from '@/i18n'
 import { isSubmitEnter } from '@/lib/ime'
 import { catalogProviderMatches, modelOptionsQueryKey, requestModelOptions } from '@/lib/model-options'
@@ -137,6 +138,8 @@ export function ModelCatalogMenu({
   request,
   sessionId = null
 }: ModelCatalogMenuProps) {
+  const { t: languageText } = useDesktopLanguage()
+
   const { t } = useI18n()
   const copy = t.shell.modelMenu
   const copyPicker = t.modelPicker
@@ -695,7 +698,9 @@ export function ModelCatalogMenu({
       {!hideCatalog && shownMoaPresets.length > 0 ? (
         <div className={cn(quietRows)}>
           {hasList ? <DropdownMenuSeparator className="mx-0" /> : null}
-          <DropdownMenuLabel className={dropdownMenuSectionLabel}>MoA presets</DropdownMenuLabel>
+          <DropdownMenuLabel className={dropdownMenuSectionLabel}>
+            {languageText.additional.ui.moaPresets}
+          </DropdownMenuLabel>
           {shownMoaPresets.map(preset => {
             const isCurrentMoa = current.provider === 'moa' && current.model === preset
 

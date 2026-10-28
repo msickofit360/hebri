@@ -13,10 +13,31 @@ type Copy = {
   remove: string
   removeNotice: string
   error: string
+  unavailable: string
 }
 
 export const accountCopy: Record<Locale, Copy> = {
+  it: {
+    unavailable:
+      'L’accesso desktop Synapsek non è ancora attivo su questo server. Puoi continuare con il tuo fornitore di modelli.',
+    title: 'Account Synapsek',
+    introduction: 'Usa il tuo account e abbonamento Synapsek. L’accesso non carica chat o file locali.',
+    preview:
+      'L’utilizzo dei modelli a carico di Synapsek e l’accesso agli spazi di lavoro del team non sono attivi in questa anteprima. Il fornitore di modelli attuale resta separato.',
+    credits: 'Crediti mensili inclusi',
+    working: 'Operazione in corso…',
+    signIn: 'Accedi con Synapsek',
+    signOut: 'Esci',
+    refresh: 'Aggiorna account',
+    manage: 'Gestisci su Synapsek',
+    remove: 'Rimuovi solo la sessione locale',
+    removeNotice: 'La rimozione della sessione locale non la revoca sul server.',
+    error:
+      'Impossibile completare l’operazione. Sblocca l’archivio credenziali del sistema operativo e riprova. Se non riesci a uscire, riprova quando il servizio è disponibile.'
+  },
   en: {
+    unavailable:
+      'Synapsek desktop sign-in is not enabled on this server yet. You can continue with your own model provider.',
     title: 'Synapsek account',
     introduction:
       'Use your existing Synapsek account and subscription. Signing in does not upload local chats or files.',
@@ -34,6 +55,8 @@ export const accountCopy: Record<Locale, Copy> = {
       'The account operation could not finish. Unlock your operating system credential store and retry. If sign-out fails, retry it when the service is available.'
   },
   de: {
+    unavailable:
+      'Die Synapsek-Desktop-Anmeldung ist auf diesem Server noch nicht aktiviert. Du kannst deinen eigenen Modellanbieter weiterverwenden.',
     title: 'Synapsek-Konto',
     introduction:
       'Verwende dein bestehendes Synapsek-Konto und Abonnement. Die Anmeldung lädt keine lokalen Chats oder Dateien hoch.',
@@ -51,6 +74,8 @@ export const accountCopy: Record<Locale, Copy> = {
       'Der Vorgang konnte nicht abgeschlossen werden. Entsperre den Anmeldedatenspeicher deines Betriebssystems und versuche es erneut. Falls die Abmeldung fehlschlägt, wiederhole sie, sobald der Dienst verfügbar ist.'
   },
   es: {
+    unavailable:
+      'El inicio de sesión de escritorio de Synapsek aún no está habilitado en este servidor. Puedes seguir usando tu propio proveedor de modelos.',
     title: 'Cuenta de Synapsek',
     introduction: 'Usa tu cuenta y suscripción actuales de Synapsek. Iniciar sesión no sube chats ni archivos locales.',
     preview:
@@ -67,6 +92,8 @@ export const accountCopy: Record<Locale, Copy> = {
       'No se pudo completar la operación. Desbloquea el almacén de credenciales del sistema y vuelve a intentarlo. Si falla el cierre de sesión, repítelo cuando el servicio esté disponible.'
   },
   fr: {
+    unavailable:
+      'La connexion Synapsek Desktop n’est pas encore activée sur ce serveur. Vous pouvez continuer avec votre propre fournisseur de modèles.',
     title: 'Compte Synapsek',
     introduction:
       'Utilisez votre compte et votre abonnement Synapsek existants. La connexion ne téléverse pas vos conversations ou fichiers locaux.',
@@ -84,6 +111,8 @@ export const accountCopy: Record<Locale, Copy> = {
       'L’opération n’a pas pu aboutir. Déverrouillez le stockage des identifiants du système et réessayez. Si la déconnexion échoue, réessayez lorsque le service est disponible.'
   },
   ja: {
+    unavailable:
+      'このサーバーでは Synapsek デスクトップへのサインインがまだ有効になっていません。独自のモデルプロバイダーは引き続き使用できます。',
     title: 'Synapsek アカウント',
     introduction:
       '既存の Synapsek アカウントとサブスクリプションを使用します。サインインしてもローカルのチャットやファイルはアップロードされません。',
@@ -101,6 +130,8 @@ export const accountCopy: Record<Locale, Copy> = {
       '操作を完了できませんでした。OS の認証情報ストアを解除して再試行してください。サインアウトに失敗した場合はサービスの復旧後に再試行してください。'
   },
   ru: {
+    unavailable:
+      'Вход в Synapsek Desktop на этом сервере ещё не включён. Вы можете продолжить со своим поставщиком моделей.',
     title: 'Аккаунт Synapsek',
     introduction: 'Используйте существующий аккаунт и подписку Synapsek. Вход не загружает локальные чаты и файлы.',
     preview:
@@ -117,6 +148,8 @@ export const accountCopy: Record<Locale, Copy> = {
       'Не удалось завершить операцию. Разблокируйте хранилище учётных данных системы и повторите попытку. Если выход не удался, повторите его после восстановления сервиса.'
   },
   ar: {
+    unavailable:
+      'تسجيل الدخول إلى Synapsek لسطح المكتب غير مفعّل على هذا الخادم بعد. يمكنك متابعة استخدام مزود النماذج الخاص بك.',
     title: 'حساب Synapsek',
     introduction: 'استخدم حسابك واشتراكك الحاليين في Synapsek. تسجيل الدخول لا يرفع المحادثات أو الملفات المحلية.',
     preview:
@@ -133,6 +166,7 @@ export const accountCopy: Record<Locale, Copy> = {
       'تعذّر إكمال العملية. افتح مخزن بيانات الاعتماد في نظام التشغيل وحاول مجددًا. إذا فشل تسجيل الخروج، أعد المحاولة عند توفر الخدمة.'
   },
   zh: {
+    unavailable: '此服务器尚未启用 Synapsek 桌面登录。你可以继续使用自己的模型提供商。',
     title: 'Synapsek 账户',
     introduction: '使用现有的 Synapsek 账户和订阅。登录不会上传本地聊天或文件。',
     preview: '此账户预览尚未启用 Synapsek 付费模型使用或团队工作区访问。当前模型提供商仍然独立。',
@@ -147,6 +181,7 @@ export const accountCopy: Record<Locale, Copy> = {
     error: '无法完成操作。请解锁操作系统凭据存储后重试。如果退出登录失败，请在服务恢复后重试。'
   },
   'zh-hant': {
+    unavailable: '此伺服器尚未啟用 Synapsek 桌面登入。你可以繼續使用自己的模型供應商。',
     title: 'Synapsek 帳戶',
     introduction: '使用現有的 Synapsek 帳戶和訂閱。登入不會上傳本機聊天或檔案。',
     preview: '此帳戶預覽尚未啟用 Synapsek 付費模型使用或團隊工作區存取。目前的模型供應商仍然獨立。',

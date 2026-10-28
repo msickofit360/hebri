@@ -19,6 +19,72 @@ afterEach(() => {
 })
 
 describe('Synapsek account controls', () => {
+  it('labels sponsored developer usage without inventing purchased credits or quota', async () => {
+    window.hermesDesktop = {
+      ...previous,
+      synapsekAccount: vi.fn(async () => ({
+        ok: true,
+        value: {
+          state: 'signed_in',
+          account: {
+            userId: 'a',
+            email: 'developer@example.com',
+            developerAccess: true,
+            managedInferenceEnabled: true,
+            billing: {
+              plan: 'business',
+              sku: null,
+              status: 'managed',
+              accessSource: 'admin',
+              includedMonthlyCredits: 0
+            }
+          }
+        }
+      }))
+    } as NonNullable<typeof window.hermesDesktop>
+    render(<SynapsekAccountSettings />)
+    expect(await screen.findByText('Developer access')).toBeTruthy()
+    expect(screen.getByText('No monthly credit quota')).toBeTruthy()
+    expect(screen.getByText(/Purchased credits are not charged/)).toBeTruthy()
+    expect(screen.queryByText(/Admin-managed access/)).toBeNull()
+    expect(screen.queryByText(/Each model call/)).toBeNull()
+  })
+  it('displays read-only balances when inference is off without claiming teams are disabled', async () => {
+    window.hermesDesktop = {
+      ...previous,
+      synapsekAccount: vi.fn(async () => ({
+        ok: true,
+        value: {
+          state: 'signed_in',
+          account: {
+            userId: '11111111-1111-4111-8111-111111111111',
+            email: 'pilot@example.com',
+            managedInferenceEnabled: false,
+            billing: {
+              plan: 'business',
+              sku: null,
+              status: 'managed',
+              accessSource: 'admin',
+              includedMonthlyCredits: 0
+            },
+            usage: {
+              period: '2026-10',
+              remainingIncludedCredits: 0,
+              reservedIncludedCredits: 0,
+              purchasedAvailableCredits: 250,
+              monthTokens: 1234,
+              debtCredits: 0
+            }
+          }
+        }
+      }))
+    } as NonNullable<typeof window.hermesDesktop>
+    render(<SynapsekAccountSettings />)
+    expect(await screen.findByText('250')).toBeTruthy()
+    expect(screen.getByText(/Admin-managed access/)).toBeTruthy()
+    expect(screen.getByText(/not enabled for this device/)).toBeTruthy()
+    expect(screen.queryByText(/team workspace access are not enabled/)).toBeNull()
+  })
   it('shows the server shared balance and funded-provider guidance only after consent', async () => {
     const bridge = vi.fn(async () => ({
       ok: true,
@@ -67,9 +133,14 @@ describe('Synapsek account controls', () => {
     window.hermesDesktop = { ...previous, synapsekAccount: bridge } as NonNullable<typeof window.hermesDesktop>
     render(<SynapsekAccountSettings />)
     expect(await screen.findByText(/preview@example.com/)).toBeTruthy()
-    expect(screen.getByText(/not enabled in this account preview/)).toBeTruthy()
-    fireEvent.click(screen.getByText('Manage on Synapsek'))
+    expect(screen.getByText(/not enabled for this device/)).toBeTruthy()
+    expect(screen.getByText(/Balance unavailable/)).toBeTruthy()
+    fireEvent.click(screen.getByText('Manage plan'))
     await waitFor(() => expect(bridge).toHaveBeenCalledWith('openBilling'))
+    await waitFor(() => expect(screen.getByText('Buy credits')).toHaveProperty('disabled', false))
+    fireEvent.click(screen.getByText('Buy credits'))
+    await waitFor(() => expect(bridge).toHaveBeenCalledWith('openCredits'))
+    await waitFor(() => expect(screen.getByText('Sign out')).toHaveProperty('disabled', false))
     expect(screen.queryAllByRole('textbox')).toHaveLength(0)
   })
   it('keeps failed sign-out visible and distinguishes local removal', async () => {
@@ -84,11 +155,13 @@ describe('Synapsek account controls', () => {
     fireEvent.click(screen.getByText(accountCopy.en.remove))
     await waitFor(() => expect(bridge).toHaveBeenCalledWith('forgetLocal'))
   })
-  it('stays hidden when the production account capability is disabled', async () => {
+  it('explains disabled account access without offering unrelated billing or clearing credentials', async () => {
     const bridge = vi.fn(async () => ({ ok: false as const, code: 'not_available' }))
     window.hermesDesktop = { ...previous, synapsekAccount: bridge } as NonNullable<typeof window.hermesDesktop>
-    const { container } = render(<SynapsekAccountSettings />)
+    render(<SynapsekAccountSettings />)
     await waitFor(() => expect(bridge).toHaveBeenCalledWith('status'))
-    expect(container.childElementCount).toBe(0)
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', accountCopy.en.unavailable)
+    expect(screen.getByText('Sign in with Synapsek')).toHaveProperty('disabled', true)
+    expect(screen.queryByText('Remove local session only')).toBeNull()
   })
 })

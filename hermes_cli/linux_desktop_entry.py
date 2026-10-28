@@ -49,7 +49,7 @@ def desktop_entry_path() -> Path:
 
 
 def legacy_desktop_entry_path() -> Path:
-    """Pre-Hebri launcher path, removed during a successful branded install."""
+    """Upstream launcher path, retained for compatibility; never removed by Hebri."""
     return _xdg_data_home() / "applications" / LEGACY_DESKTOP_ENTRY_NAME
 
 
@@ -93,7 +93,7 @@ def _can_import_hermes_cli(interpreter: Path) -> bool:
     if key in _probe_cache:
         return _probe_cache[key]
     ok = _run_quiet(
-        [key, "-I", "-c", "import hermes_cli.main"],
+        [key, "-I", "-c", "from hermes_cli.hebri import configure_home; configure_home(); import hermes_cli.main"],
         cwd=os.path.abspath(os.sep), timeout=15, on_error=None,
     )
     if ok is None:
@@ -126,7 +126,7 @@ def resolve_exec_command(project_root: Optional[Path] = None) -> str:
         # lineage, commit 4150501f641) — cached here per-process so a desktop launch pays the subprocess
         # cost at most once.
         interpreter = _running_interpreter_fallback()
-    argv = [interpreter, "-m", "hermes_cli.main", "desktop"]
+    argv = [interpreter, "-m", "hermes_cli.hebri", "desktop"]
     if bin_path:
         resolved = Path(bin_path).resolve()
         # A Python launcher whose shebang points OUTSIDE the venv (e.g. the repo's `hermes` script
@@ -351,10 +351,10 @@ def _known_wrapper_candidates():
     candidates = []
     prefix = os.environ.get("PREFIX")
     if prefix:
-        candidates.append(Path(prefix) / "bin" / "hermes")
+        candidates.append(Path(prefix) / "bin" / "hebri")
     if hasattr(os, "geteuid") and os.geteuid() == 0:
-        candidates.append(Path("/usr/local/bin/hermes"))
-    candidates.append(Path.home() / ".local" / "bin" / "hermes")
+        candidates.append(Path("/usr/local/bin/hebri"))
+    candidates.append(Path.home() / ".local" / "bin" / "hebri")
     return candidates
 
 
@@ -515,19 +515,8 @@ def _remove_stale_scalable_icon() -> bool:
 
 def _remove_legacy_branding() -> bool:
     """Remove pre-Hebri launcher/icon artifacts after the new entry is ready."""
-    stale_paths = [legacy_desktop_entry_path(), _hicolor_icon_dest("scalable", icon_name="hermes")]
-    for size in _HICOLOR_INSTALL_SIZES:
-        stale_paths.append(_hicolor_icon_dest(f"{size}x{size}", icon_name="hermes"))
-
-    removed = False
-    for stale in stale_paths:
-        try:
-            if stale.is_file():
-                stale.unlink()
-                removed = True
-        except OSError:
-            continue
-    return removed
+    # Hermes assets may belong to the original app. Never remove them by name.
+    return False
 
 
 def _refresh_hicolor_cache() -> None:

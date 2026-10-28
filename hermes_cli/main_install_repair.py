@@ -566,7 +566,7 @@ def _hermes_exe_shims(scripts_dir: Path) -> list[Path]:
     names = set(_load_console_script_names()) or {"hermes", "hermes-agent", "hermes-acp"}
     # Not a [project.scripts] entry point, but older update/install paths still
     # rewrite and quarantine it.
-    names.add("hermes-gateway")
+    names.update({"hebri-gateway", "hermes-gateway"})
     return [scripts_dir / f"{name}.exe" for name in sorted(names)]
 
 

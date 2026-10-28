@@ -140,26 +140,26 @@ def _get_service_pids(all_profiles: bool = False) -> set:
     """PIDs managed by systemd/launchd gateway services (excluded from stale-process sweeps).
 
     Relies on the service manager committing the new PID before the restart command returns.
-    ``all_profiles`` widens the current profile's unit/label to the whole ``hermes-gateway*`` /
-    ``ai.hermes.gateway*`` fleet so update/reaper never kill a sibling's service gateway as "manual".
+    ``all_profiles`` widens the current profile's unit/label to the whole ``hebri-gateway*`` /
+    ``com.synapsek.hebri.gateway*`` fleet so update/reaper never kill a sibling's service gateway as "manual".
 
-    ``all_profiles`` widens the launchd branch to every installed ``ai.hermes.gateway*`` LaunchAgent — the
+    ``all_profiles`` widens the launchd branch to every installed ``com.synapsek.hebri.gateway*`` LaunchAgent — the
     update path needs the whole fleet excluded from its sweep (#41403, #73626): sibling-profile launchd
     gateways found by the (BSD-fixed) ps scan must not be misclassified as manual processes and killed.
     Default-scope callers (``gateway status``, cron checks) keep seeing only the current profile's service;
     the orphan reaper passes all_profiles=True for the same friendly-fire reason. The systemd branch mirrors
     this: default scope filters to the current profile's exact unit name; ``all_profiles=True`` widens to
-    the ``hermes-gateway*`` fleet glob.
+    the ``hebri-gateway*`` fleet glob.
     """
     pids: set = set()
 
     # --- systemd (Linux): user and system scopes ---
     if supports_systemd_services():
-        pattern = "hermes-gateway*" if all_profiles else get_service_name()
+        pattern = "he*-gateway*" if all_profiles else get_service_name()
         for scope_args in [["systemctl", "--user"], ["systemctl"]]:
             try:
                 # Belt-and-suspenders for the EXCLUDE use case (#74075): a bare ``launchctl list`` prefix
-                # scan also catches ai.hermes.gateway* agents the label derivation can't map (renamed
+                # scan also catches com.synapsek.hebri.gateway* agents the label derivation can't map (renamed
                 # profiles, other installs sharing this user). Over-inclusion is safe here — these PIDs are
                 # only ever protected from the kill sweep, never targeted. Restart paths use the
                 # label-derived set only.
@@ -192,9 +192,9 @@ def _get_service_pids(all_profiles: bool = False) -> set:
     if is_macos():
         labels = {get_launchd_label()}
         if all_profiles:
-            # Whole fleet, mirroring the systemd ``hermes-gateway*`` glob above.
+            # Whole fleet, mirroring the systemd ``hebri-gateway*`` glob above.
             # Every gateway LaunchAgent, not just the invoking profile's — mirrors the systemd branch's
-            # ``hermes-gateway*`` pattern above. The update path restarts the whole fleet, and its
+            # ``hebri-gateway*`` pattern above. The update path restarts the whole fleet, and its
             # stale-process sweep must not mistake a sibling service's fresh PID for a manual gateway it
             # should kill (#41403).
             labels.update(launchd_gateway_labels_for_install())
@@ -206,14 +206,14 @@ def _get_service_pids(all_profiles: bool = False) -> set:
             if pid is not None and pid > 0:
                 pids.add(pid)
         if all_profiles:
-            # Prefix scan also catches ai.hermes.gateway* agents the label derivation can't map
+            # Prefix scan also catches com.synapsek.hebri.gateway* agents the label derivation can't map
             # (renamed profiles, other installs). Over-inclusion is safe: PIDs are only protected.
             try:
                 result = subprocess.run(["launchctl", "list"], timeout=5, **_CAPTURE_TEXT)
                 if result.returncode == 0:
                     for line in result.stdout.strip().splitlines():
                         parts = line.split()
-                        if len(parts) >= 3 and parts[-1].startswith("ai.hermes.gateway"):
+                        if len(parts) >= 3 and parts[-1].startswith(("com.synapsek.hebri.gateway", "ai.hermes.gateway")):
                             try:
                                 pid = int(parts[0])
                                 if pid > 0:
@@ -1727,7 +1727,7 @@ def _reap_unsupervised_gateway_orphans(extra_exclude: set | None = None) -> bool
             from hermes_cli.gateway_windows import get_task_name  # profile-aware task name
             _task_name = get_task_name()
         except Exception:
-            _task_name = "Hermes_Gateway"
+            _task_name = "Hebri_Gateway"
         if _windows_scheduled_task_supervises(_task_name):
             return False
 
@@ -1795,7 +1795,7 @@ def _reaper_exclusion_pids(extra_exclude: set | None) -> set[int]:
         # that got past the gate above (#83683, #85344).
         # all_profiles=True: the reaper's process scan sees every profile's gateway (and on macOS the
         # now-working ps fallback surfaces sibling launchd gateways, #73626), so the service exclusion must
-        # cover the whole ai.hermes.gateway* fleet — not just the current profile's label — or a sibling
+        # cover the whole com.synapsek.hebri.gateway* fleet — not just the current profile's label — or a sibling
         # profile's launchd gateway is misclassified as an unsupervised orphan and reaped. Same class as the
         # update-sweep fix in #74075.
         own |= _get_service_pids(all_profiles=True)
@@ -2091,7 +2091,7 @@ def _windows_gateway_breakaway_state() -> bool | None:
 # Service Configuration
 # =============================================================================
 
-_SERVICE_BASE = "hermes-gateway"
+_SERVICE_BASE = "hebri-gateway"
 SERVICE_DESCRIPTION = "Hebri Gateway - Messaging Platform Integration"
 
 _SYSTEM_UNIT_DIR = Path("/etc/systemd/system")
@@ -2122,7 +2122,7 @@ def _native_service_homes() -> set[Path]:
 
 
 def _bare_unit_pinned_home() -> Path | None:
-    """Resolved ``HERMES_HOME`` pinned by an installed ``hermes-gateway.service``, or None. The unit is the
+    """Resolved ``HERMES_HOME`` pinned by an installed ``hebri-gateway.service``, or None. The unit is the
     one naming basis that holds still across the sudo mid-command switch (see ``_profile_suffix``) and it
     covers every elevated identity — ``sudo -i`` and cron included, where SUDO_USER is absent.
 
@@ -2150,7 +2150,7 @@ def _profile_suffix() -> str:
     ``<root>/profiles/<name>``, else a short hash of the path.
 
     Bare-name owners: this process's platform-native default (``~/.hermes``), under sudo the invoking
-    user's native default, and the home pinned by an installed ``hermes-gateway.service``. Under sudo the
+    user's native default, and the home pinned by an installed ``hebri-gateway.service``. Under sudo the
     naming basis moves MID-COMMAND — sudo strips HERMES_HOME and sets HOME=/root, then
     ``_sync_hermes_home_from_systemd_unit()`` adopts the unit's own HERMES_HOME into ``os.environ`` — so a
     basis derived from the process alone names one unit before the adoption and another after it. The
@@ -2160,7 +2160,7 @@ def _profile_suffix() -> str:
 
     The bare name is deliberately NOT tied to ``get_default_hermes_root()``: that helper treats any
     HERMES_HOME outside ``~/.hermes`` (Docker ``/opt/data``, a temp dir) as "the root itself", which let a
-    temp-home harness resolve to the default profile's ``hermes-gateway`` unit and uninstall the
+    temp-home harness resolve to the default profile's ``hebri-gateway`` unit and uninstall the
     production gateway. Service names are host-wide identities; a home with no installed bare unit and
     no native default keeps its own suffix.
     """
@@ -2194,10 +2194,20 @@ def _profile_arg(hermes_home: str | None = None, default_root: str | Path | None
 
 
 def get_service_name() -> str:
-    """Systemd service name: ``hermes-gateway`` for default HERMES_HOME, ``hermes-gateway-<profile>``
+    """Systemd service name: ``hebri-gateway`` for default HERMES_HOME, ``hebri-gateway-<profile>``
     or ``-<hash>`` otherwise."""
     suffix = _profile_suffix()
-    return f"{_SERVICE_BASE}-{suffix}" if suffix else _SERVICE_BASE
+    current = f"{_SERVICE_BASE}-{suffix}" if suffix else _SERVICE_BASE
+    legacy = f"hermes-gateway-{suffix}" if suffix else "hermes-gateway"
+    # Existing Hebri services keep working across the rename. Never adopt an
+    # upstream unit by name: its pinned data home must match this exact profile.
+    dirs = (user_systemd_unit_dir(), _SYSTEM_UNIT_DIR)
+    if not any((directory / f"{current}.service").exists() for directory in dirs):
+        for directory in dirs:
+            pinned = _hermes_home_pinned_by_unit(directory / f"{legacy}.service")
+            if pinned and Path(pinned).expanduser().resolve() == get_hermes_home().resolve():
+                return legacy
+    return current
 
 
 def user_systemd_unit_dir() -> Path:
@@ -2441,7 +2451,7 @@ def has_conflicting_systemd_units() -> bool:
 
 
 # Legacy pre-rename names: explicit allowlist (NOT a glob) so profile and third-party units never match.
-_LEGACY_SERVICE_NAMES: tuple[str, ...] = ("hermes.service",)
+_LEGACY_SERVICE_NAMES: tuple[str, ...] = ("hermes.service", "hermes-gateway.service")
 
 # ExecStart markers identifying a unit as running our gateway; a legacy unit is flagged only if one matches.
 _LEGACY_UNIT_EXECSTART_MARKERS: tuple[str, ...] = (
@@ -2464,7 +2474,7 @@ def _find_legacy_hermes_units() -> list[tuple[str, Path, bool]]:
     marker check so profile/third-party units never match; no mutation.
 
     Detects unit files installed by older Hermes versions that used a different service name (e.g. When both
-    a legacy unit and the current ``hermes-gateway.service`` are active, they fight over the same bot token
+    a legacy unit and the current ``hebri-gateway.service`` are active, they fight over the same bot token
     — the PR #5646 signal-recovery change turns this into a 30-second SIGTERM flap loop.
     """
     results: list[tuple[str, Path, bool]] = []
@@ -2477,7 +2487,9 @@ def _find_legacy_hermes_units() -> list[tuple[str, Path, bool]]:
                 text = unit_path.read_text(encoding="utf-8", errors="ignore")
             except (OSError, PermissionError):
                 continue
-            if any(marker in text for marker in _LEGACY_UNIT_EXECSTART_MARKERS):
+            pinned = _hermes_home_pinned_by_unit(unit_path)
+            if (pinned and Path(pinned).expanduser().resolve() == get_hermes_home().resolve()
+                    and any(marker in text for marker in _LEGACY_UNIT_EXECSTART_MARKERS)):
                 results.append((name, unit_path, is_system))
     return results
 
@@ -2495,7 +2507,7 @@ def print_legacy_unit_warning() -> None:
     print_warning("Legacy Hermes gateway unit(s) detected from an older install:")
     for name, path, is_system in legacy:
         print_info(f"    {path}  ({_service_scope_label(is_system)} scope)")
-    print_info("  These run alongside the current hermes-gateway service and")
+    print_info("  These run alongside the current hebri-gateway service and")
     print_info("  cause SIGTERM flap loops — both try to use the same bot token.")
     print_info("  Remove them with:")
     print_info("    hermes gateway migrate-legacy")
@@ -2801,10 +2813,9 @@ def get_systemd_linger_status(username: str | None = None) -> tuple[bool | None,
 
 
 def get_launchd_plist_path() -> Path:
-    """``~/Library/LaunchAgents/ai.hermes.gateway[-<profile>].plist`` under the real account home."""
+    """``~/Library/LaunchAgents/com.synapsek.hebri.gateway[-<profile>].plist`` under the real account home."""
     import pwd
-    suffix = _profile_suffix()
-    name = f"ai.hermes.gateway-{suffix}" if suffix else "ai.hermes.gateway"
+    name = get_launchd_label()
     # Real account home: profile mode may point HOME at a profile dir.
     home = Path(pwd.getpwuid(os.getuid()).pw_dir)  # windows-footgun: ok — POSIX launchd (macOS) helper, never invoked on Windows
     return home / "Library" / "LaunchAgents" / f"{name}.plist"
@@ -2820,16 +2831,16 @@ def launchd_gateway_labels_for_install() -> list[str]:
     profile_labels: list[str] = []
     for profile in list_profiles():
         if profile.is_default:
-            root_label.append("ai.hermes.gateway")
+            root_label.append("com.synapsek.hebri.gateway")
         elif _re.match(r"^[a-z0-9][a-z0-9_-]{0,63}$", profile.name):
-            profile_labels.append(f"ai.hermes.gateway-{profile.name}")
+            profile_labels.append(f"com.synapsek.hebri.gateway-{profile.name}")
     return root_label + sorted(profile_labels)
 
 
 def legacy_launchd_labels_for_install(exclude=()) -> list[str]:
     """Launchd labels of THIS install that the profile-layout derivation can't map (#115254).
 
-    A unit whose label predates the profile-name suffix scheme (``ai.hermes.gateway-<8hex>`` from the
+    A unit whose label predates the profile-name suffix scheme (``com.synapsek.hebri.gateway-<8hex>`` from the
     historical hash suffix) is invisible to ``launchd_gateway_labels_for_install()`` and therefore to
     the update restart pass. This reads the account's LaunchAgents and credits a plist only when its
     pinned ``HERMES_HOME`` is this install's root or one of its ``profiles/<name>`` homes — ownership
@@ -2852,7 +2863,7 @@ def legacy_launchd_labels_for_install(exclude=()) -> list[str]:
         return []
     excluded = set(exclude)
     labels: set[str] = set()
-    for plist_path in sorted(agents_dir.glob("ai.hermes.gateway*.plist")):
+    for plist_path in sorted([*agents_dir.glob("com.synapsek.hebri.gateway*.plist"), *agents_dir.glob("ai.hermes.gateway*.plist")]):
         try:
             data = plistlib.loads(plist_path.read_bytes())
             label = data["Label"]
@@ -2860,7 +2871,7 @@ def legacy_launchd_labels_for_install(exclude=()) -> list[str]:
             rel = pinned.relative_to(root).parts
         except Exception:
             continue  # unreadable plist, no pinned home, or a home outside this root: not ours — fail closed
-        if not isinstance(label, str) or label in excluded or not label.startswith("ai.hermes.gateway"):
+        if not isinstance(label, str) or label in excluded or not label.startswith(("com.synapsek.hebri.gateway", "ai.hermes.gateway")):
             continue
         if not rel or (len(rel) == 2 and rel[0] == "profiles"):
             labels.add(label)

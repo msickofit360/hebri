@@ -102,20 +102,11 @@ export function renderRosterDialogs({
       />
       {grouping ? <GroupDialog bot={grouping} onClose={() => setGrouping(null)} /> : null}
       <ConfirmDialog
-        busyLabel="Deleting…"
+        busyLabel={b.additional.deleting}
         confirmLabel={t.common.delete}
-        description={
-          deleting ? (
-            <span>
-              {'This will permanently delete the bot '}
-              <span className="font-medium text-foreground">{deleting.name}</span>
-              {' and its associated Hebri profile at '}
-              <span className="font-mono text-xs">{deleting.path}</span>. This cannot be undone.
-            </span>
-          ) : null
-        }
+        description={deleting ? b.additional.deleteBotDescription(deleting.name, deleting.path ?? deleting.name) : null}
         destructive
-        doneLabel="Deleted"
+        doneLabel={b.additional.deleted}
         onClose={() => setDeleting(null)}
         onConfirm={async () => {
           if (!deleting) {
@@ -127,22 +118,18 @@ export function renderRosterDialogs({
           await refetch()
           host.notify({
             kind: 'success',
-            message: `Deleted profile ${name}`
+            message: b.additional.deletedProfile(name)
           })
         }}
         open={Boolean(deleting)}
         title={b.bot.deleteTitle}
       />
       <ConfirmDialog
-        busyLabel="Deleting…"
+        busyLabel={b.additional.deleting}
         confirmLabel={b.group.deleteAction}
-        description={
-          deletingGroup
-            ? `This removes “${deletingGroup.name}” from its bots and clears the shared room log. The bots and their individual chats are kept.`
-            : null
-        }
+        description={deletingGroup ? b.additional.deleteGroupDescription(deletingGroup.name) : null}
         destructive
-        doneLabel="Deleted"
+        doneLabel={b.additional.deleted}
         onClose={() => setDeletingGroup(null)}
         onConfirm={async () => {
           if (!deletingGroup) {
@@ -152,7 +139,7 @@ export function renderRosterDialogs({
           await disbandGroupChat(deletingGroup.name, deletingGroup.members)
           host.notify({
             kind: 'success',
-            message: `Deleted group “${deletingGroup.name}”`
+            message: b.additional.deletedGroup(deletingGroup.name)
           })
         }}
         open={Boolean(deletingGroup)}

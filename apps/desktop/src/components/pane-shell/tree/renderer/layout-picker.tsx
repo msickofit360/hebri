@@ -1,3 +1,4 @@
+import { useStore } from '@nanostores/react'
 /**
  * Layout picker — the preset card grid inside the edit palette. Thumbnails
  * are a miniature render of each preset's layout tree; clicking a card
@@ -7,8 +8,6 @@
  * arrangement are the two axes of "what does this window look like", and
  * this palette is where the user comes to answer that.
  */
-
-import { useStore } from '@nanostores/react'
 import { type ReactNode, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -17,6 +16,7 @@ import { Input } from '@/components/ui/input'
 import { useContributions } from '@/contrib/react/use-contributions'
 import type { Contribution } from '@/contrib/types'
 import { useI18n } from '@/i18n'
+import { localizeBuiltinText } from '@/i18n/builtin-metadata'
 import { cn } from '@/lib/utils'
 import {
   $interfaceMode,
@@ -115,7 +115,7 @@ function PresetCard({ preset }: { preset: Contribution }) {
         <span
           className={cn('truncate text-[0.68rem] font-medium', active ? 'text-foreground' : 'text-muted-foreground/80')}
         >
-          {preset.title ?? preset.id}
+          {isUserPreset(preset.id) ? (preset.title ?? preset.id) : localizeBuiltinText(preset.title ?? preset.id, t)}
         </span>
       </button>
       {isUserPreset(preset.id) && (

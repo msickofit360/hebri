@@ -21,8 +21,15 @@ export {}
 declare global {
   interface Window {
     hermesDesktop: {
-      synapsekAccount?: (operation: 'status' | 'signIn' | 'signOut' | 'openBilling' | 'forgetLocal') =>
-        Promise<{ ok: true; value: SynapsekAccountView | null } | { ok: false; code: string }>
+      synapsekTeams?: (command: {
+        action: string
+        data: Record<string, string>
+        expectedUserId: string
+      }) => Promise<{ ok: true; value: any } | { ok: false; code: string }>
+      onSynapsekAccountChanged?: (callback: () => void) => () => void
+      synapsekAccount?: (
+        operation: 'status' | 'signIn' | 'signOut' | 'openBilling' | 'openCredits' | 'forgetLocal'
+      ) => Promise<{ ok: true; value: SynapsekAccountView | null } | { ok: false; code: string }>
       // Resolve a backend connection. Omit `profile` (or pass the primary) for
       // the window's backend; pass a named profile to lazily spawn/reuse that
       // profile's backend from the pool.
@@ -366,6 +373,7 @@ declare global {
       stopPreviewFileWatch: (id: string) => Promise<boolean>
       setActiveWork?: (payload: HermesActiveWork) => void
       setTitleBarTheme?: (payload: HermesTitleBarTheme) => void
+      setNativeLocale?: (locale: string) => void
       setNativeTheme?: (mode: 'dark' | 'light' | 'system') => void
       /** Main-process fact: this OS can back glass with a native material. */
       glassSupported?: boolean
@@ -739,6 +747,8 @@ export interface DesktopUpdateCommit {
 }
 
 export interface DesktopUpdateStatus {
+  source?: 'release'
+  releaseVersion?: string
   supported: boolean
   updateAvailable?: boolean
   branch?: string

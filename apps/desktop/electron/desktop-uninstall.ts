@@ -84,7 +84,7 @@ function resolveRemovableAppPath(execPath, platform, env: any = {}) {
     const contents = p.dirname(macOsDir) // …/Contents
     const appBundle = p.dirname(contents) // …/Hebri.app
 
-    if (appBundle.endsWith('.app')) {
+    if (p.basename(appBundle).toLowerCase() === 'hebri.app') {
       return appBundle
     }
 
@@ -95,7 +95,7 @@ function resolveRemovableAppPath(execPath, platform, env: any = {}) {
     // NSIS per-user installs Hebri.exe directly in the install dir.
     const dir = p.dirname(exe)
 
-    if (/[\\/](?:Hebri|Hermes)$/i.test(dir) || /[\\/](?:hebri|hermes)-desktop$/i.test(dir)) {
+    if (/[\\/]Hebri$/i.test(dir) || /[\\/]hebri-desktop$/i.test(dir)) {
       return dir
     }
 
