@@ -16,6 +16,8 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass, replace
 
+from hermes_cli.provider_identity import user_agent
+
 logger = logging.getLogger(__name__)
 
 _HF = "https://huggingface.co"
@@ -36,7 +38,7 @@ def _get_json(url: str) -> object:
     hit = _CACHE.get(url)
     if hit and now - hit[0] < _CACHE_TTL_S:
         return hit[1]
-    req = urllib.request.Request(url, headers={"User-Agent": "hermes-local-models"})
+    req = urllib.request.Request(url, headers={"User-Agent": user_agent()})
     with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as r:
         data = json.load(r)
     if len(_CACHE) >= _CACHE_MAX:

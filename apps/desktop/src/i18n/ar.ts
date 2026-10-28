@@ -410,6 +410,7 @@ export const ar = defineLocale({
       advancedDelegation: 'الوكلاء الفرعيون',
       advancedDesktop: 'سطح المكتب وبدء التشغيل',
       gatewayConnection: 'هذه النافذة',
+      gatewayHebriDevices: 'أجهزة Hebri',
       gatewayDevices: 'الاتصالات المحفوظة',
       gatewayManagedUpdates: 'التحديثات البعيدة',
       gatewayManagedUpdatesUnavailable: 'تتطلب التحديثات البعيدة إصدار سطح مكتب يدعم تحديثات SSH المُدارة.',

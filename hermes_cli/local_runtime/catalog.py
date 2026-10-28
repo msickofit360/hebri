@@ -16,6 +16,8 @@ import urllib.request
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 
+from hermes_cli.provider_identity import user_agent
+
 from hermes_cli.local_runtime.context_policy import (
     FLOOR, RUNTIME_OVERHEAD_BYTES, TARGET_WINDOW, LaunchPlan, plan_launch)
 from hermes_cli.local_runtime.estimator import HardwareBudget, LayerKind, ModelProfile, PhysicsRefusal
@@ -294,7 +296,7 @@ def refresh_catalog(force: bool = False) -> bool:
             return False
         _last_refresh_attempt = now
     try:
-        req = urllib.request.Request(_CATALOG_URL, headers={"User-Agent": "hermes-local-runtime"})
+        req = urllib.request.Request(_CATALOG_URL, headers={"User-Agent": user_agent()})
         with urllib.request.urlopen(req, timeout=10) as r:
             fetched = _load_catalog(json.load(r))
     except Exception as exc:  # noqa: BLE001

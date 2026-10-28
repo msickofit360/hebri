@@ -6,6 +6,7 @@ import type { HudModifierApi } from '../electron/hud-modifier-types'
 import type { HermesNotification } from '../electron/notification-types'
 import type { PoolLimits } from '../electron/pool-limits'
 import type { SynapsekAccountView } from '../electron/synapsek-account-types'
+import type { TailscaleStatus } from '../electron/tailscale-types'
 
 import type { WakeIndicatorState } from './lib/wake-indicator'
 import type {
@@ -606,6 +607,7 @@ declare global {
       /** Host facts for the guided first run. Optional: an older preload (a
        *  mid-upgrade managed install) simply doesn't answer. */
       getMachineProfile?: () => Promise<DesktopMachineProfile>
+      getTailscaleStatus?: () => Promise<TailscaleStatus>
       /** Restart the app in place — loads the swapped bundle when bundleSwapPending. */
       relaunchApp?: () => Promise<void>
       getRemoteDisplayReason?: () => Promise<string | null>

@@ -450,6 +450,7 @@ export const ru = defineLocale({
       advancedDelegation: 'Субагенты',
       advancedDesktop: 'Приложение и запуск',
       gatewayConnection: 'Это окно',
+      gatewayHebriDevices: 'Устройства Hebri',
       gatewayDevices: 'Сохранённые подключения',
       gatewayManagedUpdates: 'Удалённые обновления',
       gatewayManagedUpdatesUnavailable: 'Нужна версия приложения с поддержкой управляемых обновлений SSH.',

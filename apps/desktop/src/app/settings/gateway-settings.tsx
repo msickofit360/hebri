@@ -45,6 +45,7 @@ import { notify, notifyError, readableError } from '@/store/notifications'
 import { cloudTeamChanged, reconnectMovedCloudAgent } from './cloud-team-change'
 import { ConnectionsRegistrySection } from './connections-registry'
 import { CONTROL_TEXT } from './constants'
+import { HebriDevicesSettings } from './hebri-devices-settings'
 import { ManagedUpdatesSection } from './managed-updates-section'
 import { EmptyState, ListRow, Pill, SettingsContent, SettingsSkeleton, ToggleRow } from './primitives'
 import { SETTING_IDS, settingElementId } from './settings-manifest'
@@ -176,6 +177,10 @@ export function GatewaySettings({ embedded = false, subpage }: GatewaySettingsPr
 
   // Recovery always keeps the complete connection form, regardless of a
   // settings destination. Other tasks never mount that form or its probes.
+  if (!embedded && subpage === 'hebri-devices') {
+    return <HebriDevicesSettings />
+  }
+
   if (!embedded && subpage === 'devices') {
     return (
       <SettingsContent>
@@ -1345,9 +1350,7 @@ function GatewayConnectionSettings({ embedded, standalone }: { embedded: boolean
             action={
               cloudStatus?.configured === false ? (
                 <Button asChild variant="outline">
-                  <ExternalLink href={HEBRI_SITE_URL}>
-                    {g.cloudUnavailableAction}
-                  </ExternalLink>
+                  <ExternalLink href={HEBRI_SITE_URL}>{g.cloudUnavailableAction}</ExternalLink>
                 </Button>
               ) : cloudSignedIn ? (
                 <div className="flex items-center gap-2">

@@ -492,6 +492,7 @@ export const zh = defineLocale({
       advancedDelegation: '子智能体',
       advancedDesktop: '桌面与启动',
       gatewayConnection: '当前窗口',
+      gatewayHebriDevices: 'Hebri 设备',
       gatewayDevices: '已保存的连接',
       gatewayManagedUpdates: '远程更新',
       gatewayManagedUpdatesUnavailable: '远程更新需要支持托管 SSH 更新的桌面版本。',

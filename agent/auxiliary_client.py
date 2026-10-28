@@ -24,6 +24,8 @@ from types import SimpleNamespace
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, TYPE_CHECKING, Union
 from urllib.parse import urlparse, parse_qs, urlunparse
 
+from hermes_cli.provider_identity import APP_NAME, APP_URL, user_agent
+
 from agent.error_classifier import (
     _BILLING_PATTERNS,
     _OVERLOADED_PATTERNS,
@@ -867,8 +869,8 @@ _PROVIDERS_WITHOUT_VISION: frozenset = frozenset({"kimi-coding", "kimi-coding-cn
 
 # OpenRouter app attribution (always sent). `X-Title` is what the dashboard reads.
 _OR_HEADERS_BASE = {
-    "HTTP-Referer": "https://synapseklabs.org",
-    "X-Title": "Hebri",
+    "HTTP-Referer": APP_URL,
+    "X-Title": APP_NAME,
     "X-OpenRouter-Categories": "productivity,cli-agent",
 }
 
@@ -923,7 +925,7 @@ def build_or_headers(or_config: dict | None = None) -> dict:
 
 
 # NVIDIA NIM cloud billing attribution; host-gated because NVIDIA_BASE_URL may be a local NIM.
-_NVIDIA_NIM_CLOUD_HEADERS = {"X-BILLING-INVOKE-ORIGIN": "HermesAgent"}
+_NVIDIA_NIM_CLOUD_HEADERS = {"X-BILLING-INVOKE-ORIGIN": APP_NAME}
 
 
 def build_nvidia_nim_headers(base_url: str | None) -> dict:
@@ -932,12 +934,10 @@ def build_nvidia_nim_headers(base_url: str | None) -> dict:
 
 
 # Vercel AI Gateway attribution (HTTP-Referer → referrerUrl, X-Title → appName).
-from hermes_cli import __version__ as _HERMES_VERSION
-
 _AI_GATEWAY_HEADERS = {
-    "HTTP-Referer": "https://synapseklabs.org",
-    "X-Title": "Hebri",
-    "User-Agent": f"HermesAgent/{_HERMES_VERSION}",
+    "HTTP-Referer": APP_URL,
+    "X-Title": APP_NAME,
+    "User-Agent": user_agent(),
 }
 
 # Nous Portal attribution extra_body. Tags come from agent.portal_tags so the client= marker

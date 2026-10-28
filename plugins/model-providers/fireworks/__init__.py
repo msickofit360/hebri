@@ -3,7 +3,7 @@
 
 from typing import Any
 
-from hermes_cli import __version__ as _HERMES_VERSION
+from hermes_cli.provider_identity import APP_NAME, APP_URL, user_agent
 from providers import register_provider
 from providers.base import ProviderProfile
 
@@ -31,12 +31,12 @@ fireworks = FireworksProfile(
     description="Fireworks AI — OpenAI-compatible direct model API",
     signup_url="https://app.fireworks.ai/settings/users/api-keys", env_vars=("FIREWORKS_API_KEY",),
     base_url="https://api.fireworks.ai/inference/v1", auth_type="api_key",
-    # Attribution headers (canonical Hermes set); via default_headers so they
+    # Attribution headers (canonical Hebri set); via default_headers so they
     # survive switch_model and credential rotation.
     default_headers={
-        "HTTP-Referer": "https://synapseklabs.org",
-        "X-Title": "Hebri",
-        "User-Agent": f"HermesAgent/{_HERMES_VERSION}",
+        "HTTP-Referer": APP_URL,
+        "X-Title": APP_NAME,
+        "User-Agent": user_agent(),
     },
     default_aux_model="accounts/fireworks/models/glm-5p2",
     # Picker safety net when the live catalog fetch fails.

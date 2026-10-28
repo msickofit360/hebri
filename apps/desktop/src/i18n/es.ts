@@ -797,6 +797,7 @@ export const es = defineLocale({
       advancedDelegation: 'Subagentes',
       advancedDesktop: 'Escritorio e inicio',
       gatewayConnection: 'Esta ventana',
+      gatewayHebriDevices: 'Dispositivos Hebri',
       gatewayDevices: 'Conexiones guardadas',
       gatewayManagedUpdates: 'Actualizaciones remotas',
       gatewayManagedUpdatesUnavailable:

@@ -148,6 +148,9 @@ def test_browser_tools_require_session_surface_and_use_security_hooks(tmp_path, 
             browser_tools=bridge, client_factory=Client, resume_thread_id=resume_id,
         )
         assert transport.ensure_started() == "thread-browser"
+        from hermes_cli.provider_identity import APP_ID, APP_NAME
+        assert wire[-2][1]["client_name"] == APP_ID
+        assert wire[-2][1]["client_title"] == APP_NAME
         assert wire[-2][1]["capabilities"]["experimentalApi"] is True
         if resume_id is None:
             assert wire[-1][1]["dynamicTools"] == bridge.definitions()
