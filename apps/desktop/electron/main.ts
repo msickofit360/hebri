@@ -362,7 +362,7 @@ import { resolvePortalBaseUrl } from './portal-origin'
 import { createPortalSession } from './portal-session'
 import { createKeepAwake } from './power-save'
 import { readPreUpdateBackupEnabled } from './pre-update-backup-config'
-import { capturePreviewContents } from './preview-capture'
+import { captureOwnedPreviewContents } from './preview-capture'
 import { PreviewReachRegistry } from './preview-reach'
 import {
   createPrimaryRemoteConnection,
@@ -17778,10 +17778,10 @@ ipcMain.handle('hermes:context-menu:guest-add-word', (_event, payload) => {
   }
 })
 
-ipcMain.handle('hermes:capturePreview', async (_event, payload) => {
+ipcMain.handle('hermes:capturePreview', async (event, payload) => {
   const guest = electronWebContents.fromId(Number(payload?.webContentsId))
 
-  return capturePreviewContents(guest, payload?.rect, payload?.viewport)
+  return captureOwnedPreviewContents(event, guest, payload?.rect, payload?.viewport)
 })
 
 ipcMain.handle('hermes:saveImageBuffer', async (_event, payload) => {

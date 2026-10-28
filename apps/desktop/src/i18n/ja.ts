@@ -4,6 +4,13 @@ import { defineLocale } from './define-locale'
 import { introJa } from './intro-ja'
 
 export const ja = defineLocale({
+  browserAccess: {
+    useInChat: 'このエージェントにこのタブの使用を許可',
+    title: 'バックグラウンドでのブラウザー操作を許可しますか？',
+    body: '10分間、このチャットと委任されたエージェントが、別のチャットの使用中も、上記サイトのこのタブを読み取り、撮影、操作できます。購入、取引などの重要な操作は許可されません。ブラウザー上部のボタンで停止できます。タブを閉じる、プロフィールを切り替える、またはこのサイトを離れると許可が解除されます。',
+    allow: '10分間許可',
+    stop: 'バックグラウンドのブラウザー操作を停止'
+  },
   intro: introJa,
   sessionImport: {
     title: '別のアプリから続ける',

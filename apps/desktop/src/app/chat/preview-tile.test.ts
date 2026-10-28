@@ -9,7 +9,7 @@ vi.mock('./right-rail/preview-console-store', () => ({
 }))
 
 import { registry } from '@/contrib/registry'
-import { $previewTabs, closeRightRail, noteBrowserPage, openPreview } from '@/store/preview'
+import { $previewTabs, closeRightRail, noteBrowserPage, openPreview, setPreviewScope } from '@/store/preview'
 
 import { browserTabExternalUrl, browserTabLabel, watchPreviewTiles } from './preview-tile'
 
@@ -145,4 +145,17 @@ describe('preview tiles stack, not split (#93610)', () => {
 
     expect(dockOf('preview-tile:file:/tmp/c.ts')?.pos).toBe('right')
   })
+})
+
+it('keeps the browser pane registered across a bot switch instead of disposing and recreating it', () => {
+  setPreviewScope('default')
+  openPreview({ kind: 'url', label: 'Browser', source: 'https://example.com', url: 'https://example.com' })
+  const tab = $previewTabs.get()[0]
+  const paneId = `preview-tile:${tab.id}`
+  const entry = registry.getArea('panes').find(item => item.id === paneId)
+  expect(entry).toBeDefined()
+  setPreviewScope('different-bot')
+  expect(registry.getArea('panes').find(item => item.id === paneId)).toBe(entry)
+  setPreviewScope('default')
+  expect(registry.getArea('panes').find(item => item.id === paneId)).toBe(entry)
 })

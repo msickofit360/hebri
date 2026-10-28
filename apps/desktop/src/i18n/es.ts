@@ -5,6 +5,13 @@ import { introEs } from './intro-es'
 
 export const es = defineLocale({
   intro: introEs,
+  browserAccess: {
+    useInChat: 'Permitir que este agente use esta pestaña',
+    title: '¿Permitir acceso al navegador en segundo plano?',
+    body: 'Durante 10 minutos, este chat y sus agentes delegados pueden leer, capturar y utilizar esta pestaña en el sitio indicado, aunque uses otro chat. Esto no autoriza compras, operaciones financieras ni otras acciones importantes. Detén el acceso con el botón sobre el navegador. Cerrar la pestaña, cambiar de perfil o salir de este sitio revoca el acceso.',
+    allow: 'Permitir durante 10 minutos',
+    stop: 'Detener acceso al navegador en segundo plano'
+  },
   connectors: {
     title: 'Conecta tus apps',
     connect: 'Conectar',

@@ -10,8 +10,7 @@
  * of the pane component's static import graph and only load when used.
  */
 
-import { $rightRailActiveTabId } from '@/store/layout'
-import { $previewTabs } from '@/store/preview'
+import { resolvePreviewTab } from './preview-surface'
 
 /** Runs JS source in the pane's guest page, resolving its completion value. */
 export type PreviewScriptRunner = (code: string) => Promise<unknown>
@@ -30,9 +29,8 @@ export function registerPreviewScriptRunner(tabId: string, runner: PreviewScript
 }
 
 /** The ACTIVE preview tab's script runner. Null = no live page behind it. */
-export function activePreviewScriptRunner(): PreviewScriptRunner | null {
-  const tabs = $previewTabs.get()
-  const tab = tabs.find(t => t.id === $rightRailActiveTabId.get()) ?? tabs[0]
+export function activePreviewScriptRunner(tabId?: string): PreviewScriptRunner | null {
+  const tab = resolvePreviewTab(tabId)
 
   return (tab && runners.get(tab.id)) || null
 }

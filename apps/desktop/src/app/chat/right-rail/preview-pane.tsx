@@ -10,6 +10,7 @@ import { requestComposerAttachImages, requestComposerFocus, requestComposerInser
 import { openGuestContextMenu } from '@/app/context-menu/store'
 import { PanelEmpty } from '@/app/overlays/panel'
 import { isElementInHiddenPane } from '@/components/pane-shell/pane-visibility'
+import { Button } from '@/components/ui/button'
 import { Tip } from '@/components/ui/tooltip'
 import { type Translations, useI18n } from '@/i18n'
 import { isDesktopFsRemoteMode } from '@/lib/desktop-fs'
@@ -34,17 +35,21 @@ import { notify, notifyError } from '@/store/notifications'
 import {
   $browserPages,
   $previewServerRestart,
+  $previewTabs,
   commitBrowserTabLocation,
   failPreviewServerRestart,
   noteBrowserPage,
   popOutBrowserTab,
+  previewBelongsToScope,
   type PreviewRenderMode,
   type PreviewTarget,
-  setPreviewRenderMode
+  setPreviewRenderMode,
+  shareBrowserTabWithCurrentProfile
 } from '@/store/preview'
 import { $selectedStoredSessionId } from '@/store/session'
 import { canOpenBrowserWindow, isBrowserWindow } from '@/store/windows'
 
+import { $previewAccess, revokePreviewAccess } from './preview-access'
 import { placeAnnotateCard, PreviewAnnotateCard } from './preview-annotate-card'
 import {
   bindPreviewExecuteJavaScript,
@@ -73,6 +78,7 @@ import { type PreviewInputEvent, registerPreviewInput, toWebviewInputSpace } fro
 import { PREVIEW_BROWSER_ATTR, registerPreviewNav } from './preview-nav'
 import { registerPreviewPageReader } from './preview-reader'
 import { registerPreviewScriptRunner } from './preview-script-runner'
+import { registerPreviewCapture } from './preview-surface'
 import { RealProfileConsentDialog } from './real-profile-consent-dialog'
 
 type PreviewWebview = HTMLElement & {
@@ -239,6 +245,8 @@ function PreviewLoadError({
 
 export function PreviewPane({ embedded = false, onRestartServer, reloadRequest = 0, tabId, target }: PreviewPaneProps) {
   const { t } = useI18n()
+  const browserAccess = useStore($previewAccess)
+  const currentTab = useStore($previewTabs).find(tab => tab.id === tabId)
   const copy = t.preview.web
   // The console store belongs to the TAB, not this render: the toggles live on
   // the tab and must read the same logs this pane appends to.
@@ -440,6 +448,22 @@ export function PreviewPane({ embedded = false, onRestartServer, reloadRequest =
       executeJavaScript: bindPreviewExecuteJavaScript(webview)
     }
   }, [])
+
+  useEffect(() => {
+    if (!isWebPreview || isRemoteHtml || !tabId) {
+      return
+    }
+
+    return registerPreviewCapture(tabId, async () => {
+      const guest = annotateGuest()
+
+      if (!guest?.capture) {
+        throw new Error('Browser capture unavailable.')
+      }
+
+      return guest.capture()
+    })
+  }, [annotateGuest, isRemoteHtml, isWebPreview, tabId])
 
   const stopAnnotate = useCallback(async () => {
     annotateLoopRef.current += 1
@@ -1301,6 +1325,16 @@ export function PreviewPane({ embedded = false, onRestartServer, reloadRequest =
       }}
       {...(isWebPreview && !isRemoteHtml && tabId ? { [PREVIEW_BROWSER_ATTR]: tabId } : {})}
     >
+      {currentTab && !previewBelongsToScope(currentTab) && (
+        <Button onClick={() => shareBrowserTabWithCurrentProfile(currentTab.id)} size="sm" variant="secondary">
+          {t.browserAccess.useInChat}
+        </Button>
+      )}
+      {tabId && browserAccess[tabId] && (
+        <Button onClick={() => revokePreviewAccess(tabId)} size="sm" variant="secondary">
+          {t.browserAccess.stop}
+        </Button>
+      )}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {!embedded && (
           <div className="pointer-events-none flex min-h-(--titlebar-height) items-center gap-1.5 border-b border-border/60 bg-background px-2 py-1">

@@ -13,14 +13,26 @@ from tools.read_terminal_tool import read_pane
 
 
 def read_preview_tool(
-    start: Optional[int] = None, count: Optional[int] = None, callback: Optional[Callable] = None
+    start: Optional[int] = None, count: Optional[int] = None, callback: Optional[Callable] = None,
+    action: str = "read", tab_id: Optional[str] = None,
 ) -> str:
     """Return the active preview tab's contents (+ metadata) as a JSON string."""
-    return read_pane(callback, (("start", start, 0), ("count", count, 1)), (
+    def dispatch(**kwargs):
+        if action != "read":
+            kwargs["action"] = action
+        if tab_id is not None:
+            kwargs["tab_id"] = tab_id
+        return callback(**kwargs)
+
+    result = read_pane(dispatch if callback else None, (("start", start, 0), ("count", count, 1)), (
         "read_preview is only available in the Hermes desktop app.",
         "start and count must be integers.",
         "Failed to read the preview pane: ",
         "No preview tab is open, or the read timed out."))
+    if action == "screenshot":
+        from tools.preview_vision import preview_vision_result
+        return preview_vision_result(result)
+    return result
 
 
 # ---- BEGIN PLUGIN-COMPAT (revert-scheduled; see COMPAT_MANIFEST.md) ----

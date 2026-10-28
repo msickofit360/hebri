@@ -162,17 +162,19 @@ def _memory(agent, args: dict, ctx: InlineToolContext) -> Any:
 
 _read_preview = _callback_tool(
     "tools.read_preview_tool", "read_preview_tool", "read_preview_callback",
-    ("start", "start"), ("count", "count"),
+    ("start", "start"), ("count", "count"), ("action", "action"), ("tab_id", "tab_id"),
 )
 
 
 def _desktop_preview(agent, args: dict, ctx: InlineToolContext) -> Any:
     # action=read needs the GUI callback (agent-level); open/close go through the
     # registry handler like any other tool.
-    if (args.get("action") or "").strip() == "read":
+    if (args.get("action") or "").strip() in {"read", "tabs", "select", "screenshot", "allow_background", "revoke"}:
         return _read_preview(agent, args, ctx)
     from tools.preview_tool import _handle_preview
-
+    if getattr(agent, "_preview_delegated", False):
+        from tools.registry import tool_error
+        return tool_error("Delegated agents cannot open or close the user's browser tabs.")
     return _handle_preview(args)
 
 
@@ -264,6 +266,7 @@ INLINE_TOOL_EXECUTORS: Dict[str, InlineToolExecutor] = {
         "tools.drive_preview_tool", "drive_preview_tool", "drive_preview_callback",
         ("action", "action", ""), ("ref", "ref"), ("selector", "selector"), ("text", "text"),
         ("key", "key"), ("submit", "submit"), ("amount", "amount"), ("to", "to"), ("limit", "max"),
+        ("full", "full"), ("tab_id", "tab_id"),
     ),
     "annotate_preview": _callback_tool(
         "tools.annotate_preview_tool", "annotate_preview_tool", "drive_preview_callback",

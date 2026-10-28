@@ -1,4 +1,5 @@
-import { readActivePreview } from '@/app/chat/right-rail/preview-reader'
+import { hasPreviewAccess, withPreviewLock } from '@/app/chat/right-rail/preview-access'
+import { resolvePreviewTab } from '@/app/chat/right-rail/preview-surface'
 import { readActiveTerminal } from '@/app/right-sidebar/terminal/buffer'
 import { pendingClarifyToolPayload } from '@/app/session/hooks/use-session-actions/restore-pending-clarify'
 import { translateNow } from '@/i18n'
@@ -21,6 +22,7 @@ import { $sessionTiles } from '@/store/session-states'
 import { requestScrollToBottom } from '@/store/thread-scroll'
 import { $toursEnabled } from '@/store/tours'
 
+import { previewPermission, previewReadRequest } from './preview-requests'
 import type { GatewayEventDeps } from './types'
 
 /** The preview engine, loaded on demand so ~25KB of page-injectable source stays
@@ -329,48 +331,72 @@ const terminalRead: Handler = ({ request }) => {
   answerValue(request, readActiveTerminal({ count: num(request.params.count), start: num(request.params.start) }))
 }
 
-const previewRead: Handler = ({ request }) => {
-  // read_preview tool: the active preview tab's page text is async. Empty = nothing open.
-  void readActivePreview({ count: num(request.params.count), start: num(request.params.start) }).then(result =>
-    answerValue(request, result)
+const previewRead: Handler = ctx => {
+  void previewReadRequest(ctx).then(
+    result => answerValue(ctx.request, result),
+    error =>
+      answerValue(ctx.request, {
+        error: error instanceof Error ? error.message : 'Browser request failed.',
+        success: false
+      })
   )
 }
 
-const previewAct: Handler = ({ isActiveSession, request }) => {
-  // drive_preview tool: click/type/scroll/press inside the guest page. Active
-  // session only: a background turn (including one in a tile this window hosts)
-  // must never reach into the page the user is working in (desktop AGENTS.md:
-  // offer, don't hijack). Window ownership is settled by WINDOW_OWNED_REQUESTS
-  // before this runs, so a refusal here reaches the tool instead of stalling it.
+const previewAct: Handler = ctx => {
+  const { request } = ctx
   const p = request.params
+  const tab = resolvePreviewTab(typeof p.tab_id === 'string' ? p.tab_id : undefined)
 
-  if (!isActiveSession) {
+  if (!tab || (!ctx.isActiveSession && !p.tab_id) || !previewPermission(ctx, tab.id)()) {
     answerValue(request, {
-      error: 'The in-app browser only takes actions in the session the user is looking at.',
+      error: 'This chat has no access to that browser tab. Open the chat or approve background access first.',
       success: false
     })
 
     return
   }
 
-  void loadPreviewEngine()
-    .then(run =>
-      run({
+  const allowed = previewPermission(ctx, tab.id)
+  void withPreviewLock(tab.id, async () => {
+    const run = await loadPreviewEngine()
+
+    if (!allowed()) {
+      throw new Error('Browser access changed before the action started.')
+    }
+
+    const result = await run(
+      {
         amount: p.amount as never,
         key: p.key as never,
-        kind: (str(p.action) || '') as never,
+        kind: str(p.action),
         max: p.max as never,
+        full: p.full as never,
         ref: p.ref as never,
         selector: p.selector as never,
         submit: p.submit as never,
         text: p.text as never,
         to: p.to as PreviewActAction['to']
+      },
+      {
+        tabId: tab.id,
+        allowed,
+        background: ctx.deps.activeSessionIdRef.current !== ctx.sessionId || p.delegated === true
+      }
+    )
+
+    if (!allowed()) {
+      throw new Error('Browser access changed during the action; inspect the page before retrying.')
+    }
+
+    return { ...result, tab_id: tab.id }
+  }).then(
+    result => answerValue(request, result),
+    error =>
+      answerValue(request, {
+        error: error instanceof Error ? error.message : 'Browser request failed.',
+        success: false
       })
-    )
-    .then(
-      result => answerValue(request, result),
-      error => answerValue(request, { error: error instanceof Error ? error.message : String(error), success: false })
-    )
+  )
 }
 
 const windowRead: Handler = ({ request }) => {
@@ -458,7 +484,15 @@ export function handleServerRequest(
   const sessionId = str(request.params.session_id)
 
   if (WINDOW_OWNED_REQUESTS.has(request.method)) {
-    const route = previewSessionRoute({ activeSessionId, replayed: request.replayed, sessionId })
+    const granted =
+      request.method.startsWith('preview.') &&
+      typeof request.params.tab_id === 'string' &&
+      hasPreviewAccess(
+        { sessionId, profile: request.profile, connectionId: request.connectionId },
+        request.params.tab_id
+      )
+
+    const route = granted ? 'run' : previewSessionRoute({ activeSessionId, replayed: request.replayed, sessionId })
 
     if (route === 'ignore') {
       return true
@@ -473,7 +507,7 @@ export function handleServerRequest(
           previewSessionRoute({ activeSessionId: deps.activeSessionIdRef.current, replayed: false, sessionId }) ===
           'run'
         ) {
-          handler({ deps, request, sessionId, isActiveSession: true })
+          handler({ deps, request, sessionId, isActiveSession: sessionId === deps.activeSessionIdRef.current })
         }
       }, 0)
 

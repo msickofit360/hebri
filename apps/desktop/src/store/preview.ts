@@ -57,10 +57,13 @@ export interface PreviewServerRestart {
 
 export interface PreviewTab {
   id: RightRailTabId
+  /** Browser visibility is window-wide; agent access stays with this profile. */
+  browserProfile?: string
   target: PreviewTarget
 }
 
 const TABS_STORAGE_KEY = 'hermes.desktop.previewTabs.v2'
+const BROWSER_STORAGE_KEY = 'hebri.desktop.windowBrowserTabs.v1'
 /** Superseded by the tab list above; cleared so it can't leak forever. */
 const LEGACY_SESSION_REGISTRY_KEY = 'hermes.desktop.sessionPreviews.v1'
 
@@ -158,6 +161,18 @@ function loadTabsByProfile(): TabsByProfile {
 }
 
 const tabsByProfile = loadTabsByProfile()
+let browserTabs = parseTabList(readJson<unknown>(BROWSER_STORAGE_KEY)).filter(tab => tab.target.kind === 'url')
+
+// Migrate the old per-profile browser tabs without changing their IDs.
+for (const [profile, tabs] of Object.entries(tabsByProfile)) {
+  for (const tab of tabs.filter(tab => tab.target.kind === 'url')) {
+    if (!browserTabs.some(existing => existing.id === tab.id)) {
+      browserTabs.push({ ...tab, browserProfile: profile })
+    }
+  }
+
+  tabsByProfile[profile] = tabs.filter(tab => tab.target.kind !== 'url')
+}
 
 /** Inline bytes are not restorable. Strip them from images, and skip remote
  *  HTML and artifact tabs that cannot render without their in-memory payload. */
@@ -171,6 +186,11 @@ function persistableTabs(tabs: PreviewTab[]): PreviewTab[] {
 }
 
 function persistTabs() {
+  const browsers = persistableTabs(browserTabs)
+  writeKey(
+    BROWSER_STORAGE_KEY,
+    browsers.length ? JSON.stringify(browsers, (key, value) => (key === 'dataUrl' ? undefined : value)) : null
+  )
   const buckets: TabsByProfile = {}
 
   for (const [key, tabs] of Object.entries(tabsByProfile)) {
@@ -192,46 +212,47 @@ function persistTabs() {
   )
 }
 
-// Tabs are scoped to THE CHAT ON SCREEN, not to the window's gateway socket.
-// `session-states.ts` resolves the focused session's owner and pushes it here
-// via `setPreviewScope`; the two must not be conflated, because a focused tab
-// does not swap the socket — every bot chat is served by one pooled backend, so
-// a socket-keyed rail showed one agent's preview in every agent's chat. That is
-// the same trap `bot-row.tsx` documents for the roster highlight. (It also owns
-// the resolver, so it pushes rather than having this module reach for it — this
-// file is already imported by session-states.ts.)
-//
-// Which bucket the atom mirrors. A RENAME moves the view without the scope
-// changing, so this has to follow the rename or the persist subscriber below
-// would resurrect the bucket the rename just deleted.
+// File/artifact previews follow the chat's profile. Browser vessels belong to
+// the window and stay mounted across bot switches; their access owner does not.
 let viewKey = 'default'
+export const previewScope = () => viewKey
+let scopeEpoch = 0
+export const previewScopeEpoch = () => scopeEpoch
 
-export const $previewTabs = atom<PreviewTab[]>([])
+export const $previewTabs = atom<PreviewTab[]>([...browserTabs, ...(tabsByProfile[viewKey] ?? [])])
 
 $previewTabs.subscribe(tabs => {
   // `subscribe` hands a readonly view; the bucket is a mutable store of its own.
-  tabsByProfile[viewKey] = [...tabs]
+  browserTabs = tabs.filter(tab => tab.target.kind === 'url')
+  tabsByProfile[viewKey] = tabs.filter(tab => tab.target.kind !== 'url')
   persistTabs()
 })
 
 /** Re-home the rail onto the profile that owns the chat on screen. Called by
  *  `session-states.ts` whenever the focused session (or its resolved owner)
- *  changes; the previous agent's tabs must not leak into the next one. */
+ *  changes. Browser tabs remain visible; file previews stay profile-local. */
 export function setPreviewScope(scope: string) {
   const next = normalizeProfileKey(scope) || 'default'
 
-  if (next === viewKey) {
+  if (next === viewKey && !pendingLegacyTabs) {
     return
   }
 
   if (pendingLegacyTabs) {
-    tabsByProfile[next] = [...(tabsByProfile[next] ?? []), ...pendingLegacyTabs]
+    browserTabs.push(
+      ...pendingLegacyTabs.filter(tab => tab.target.kind === 'url').map(tab => ({ ...tab, browserProfile: next }))
+    )
+    tabsByProfile[next] = [
+      ...(tabsByProfile[next] ?? []),
+      ...pendingLegacyTabs.filter(tab => tab.target.kind !== 'url')
+    ]
     pendingLegacyTabs = null
     persistTabs()
   }
 
+  scopeEpoch += 1
   viewKey = next
-  $previewTabs.set(tabsByProfile[next] ?? [])
+  $previewTabs.set([...browserTabs, ...(tabsByProfile[next] ?? [])])
 }
 
 /** Drop one profile's rail. Delete counterpart of the tiles store's
@@ -240,11 +261,10 @@ export function dropPreviewTabsForProfile(profile: string) {
   const key = normalizeProfileKey(profile)
 
   delete tabsByProfile[key]
+  browserTabs = browserTabs.map(tab => (tab.browserProfile === key ? { ...tab, browserProfile: '' } : tab))
   persistTabs()
 
-  if (key === viewKey) {
-    $previewTabs.set([])
-  }
+  $previewTabs.set([...browserTabs, ...(key === viewKey ? [] : (tabsByProfile[viewKey] ?? []))])
 }
 
 /** Move one profile's rail to another. Rename counterpart of the tiles store's
@@ -258,6 +278,7 @@ export function migratePreviewTabsForProfile(oldProfile: string, newProfile: str
     return
   }
 
+  browserTabs = browserTabs.map(tab => (tab.browserProfile === from ? { ...tab, browserProfile: to } : tab))
   const moved = tabsByProfile[from]
 
   if (moved) {
@@ -276,9 +297,7 @@ export function migratePreviewTabsForProfile(oldProfile: string, newProfile: str
 
   persistTabs()
 
-  if (wasInView) {
-    $previewTabs.set(tabsByProfile[to] ?? [])
-  }
+  $previewTabs.set([...browserTabs, ...(tabsByProfile[viewKey] ?? [])])
 }
 
 if (typeof window !== 'undefined') {
@@ -394,7 +413,7 @@ export function adoptPersistedBrowserTab(tabId: string) {
   }
 
   try {
-    const raw = readKey(TABS_STORAGE_KEY)
+    const raw = readKey(BROWSER_STORAGE_KEY)
 
     if (!raw) {
       return
@@ -478,6 +497,17 @@ export function previewTabId(target: PreviewTarget): RightRailTabId {
 
 const isBrowserTab = (tab: PreviewTab): boolean => tab.target.kind === 'url'
 
+export function previewBelongsToScope(tab: PreviewTab, scope = viewKey): boolean {
+  return tab.target.kind !== 'url' || tab.browserProfile === scope
+}
+
+/** Human-only handoff; does not navigate/recreate the webview or grant background use. */
+export function shareBrowserTabWithCurrentProfile(tabId: string) {
+  $previewTabs.set(
+    $previewTabs.get().map(tab => (tab.id === tabId && isBrowserTab(tab) ? { ...tab, browserProfile: viewKey } : tab))
+  )
+}
+
 /** A Browser tab's id, minted the way a terminal's is — there is no identity to
  *  derive one from. Random rather than the lowest free slot: an id is never
  *  handed out twice, so per-tab state keyed by it (`$browserPages`, the console
@@ -539,9 +569,17 @@ export function setPreviewRenderMode(tabId: string, renderMode: PreviewRenderMod
  *  only way anything reaches a preview. */
 export function openPreview(target: PreviewTarget) {
   const current = $previewTabs.get()
-  const id = target.kind === 'url' ? browserTabId(current) : previewTabId(target)
+
+  const id =
+    target.kind === 'url' ? browserTabId(current.filter(tab => previewBelongsToScope(tab))) : previewTabId(target)
+
   const index = current.findIndex(tab => tab.id === id)
-  const tab: PreviewTab = { id, target: withRenderMode(target, current[index]?.target) }
+
+  const tab: PreviewTab = {
+    id,
+    ...(target.kind === 'url' ? { browserProfile: viewKey } : {}),
+    target: withRenderMode(target, current[index]?.target)
+  }
 
   $previewTabs.set(index === -1 ? [...current, tab] : current.map((item, i) => (i === index ? tab : item)))
   selectRightRailTab(id)
@@ -557,14 +595,18 @@ export function openBrowserTab() {
   const tabs = $previewTabs.get()
   const current = tabs.find(tab => tab.id === browserTabId(tabs))
 
-  openPreview(current?.target ?? blankPage())
+  if (current) {
+    selectRightRailTab(current.id)
+  } else {
+    openPreview(blankPage())
+  }
 }
 
 /** Another Browser, always — the strip's "+". */
 export function newBrowserTab() {
   const id = mintBrowserTabId()
 
-  $previewTabs.set([...$previewTabs.get(), { id, target: blankPage() }])
+  $previewTabs.set([...$previewTabs.get(), { id, browserProfile: viewKey, target: blankPage() }])
   selectRightRailTab(id)
 }
 
@@ -605,6 +647,10 @@ export function closePreviewMatching(...candidates: string[]): boolean {
   }
 
   const tab = $previewTabs.get().find(item => {
+    if (!previewBelongsToScope(item)) {
+      return false
+    }
+
     const fields = [item.target.source, item.target.url, item.target.label]
 
     return queries.some(query => fields.includes(query))

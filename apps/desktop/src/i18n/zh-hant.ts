@@ -4,6 +4,13 @@ import { defineLocale } from './define-locale'
 import { introZhHant } from './intro-zh-hant'
 
 export const zhHant = defineLocale({
+  browserAccess: {
+    useInChat: '允許此代理程式使用此分頁',
+    title: '允許背景瀏覽器存取？',
+    body: '在10分鐘內，此對話及其委派的代理可讀取、擷取畫面和操作上方網站的此分頁，即使你正在使用其他對話。這不授權購買、交易或其他重大操作。可用瀏覽器上方的按鈕停止存取。關閉分頁、切換設定檔或離開此網站將撤銷存取權限。',
+    allow: '允許10分鐘',
+    stop: '停止背景瀏覽器存取'
+  },
   intro: introZhHant,
   sessionImport: {
     title: '從其他應用程式繼續',

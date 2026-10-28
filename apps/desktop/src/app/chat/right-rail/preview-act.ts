@@ -34,6 +34,7 @@ import { clickAt, glideTo, pointerPlaced, pressKey, selectAll, typeText, wheelBy
 import { activePreviewInput, type PreviewInputHandle } from './preview-input'
 import { activePreviewNav, type PreviewNavHandle } from './preview-nav'
 import { activePreviewScriptRunner, type PreviewScriptRunner } from './preview-script-runner'
+import { resolvePreviewTab } from './preview-surface'
 
 /** Verbs the pane owns; a guest page cannot drive its own history. */
 const NAV_ACTIONS: readonly (keyof PreviewNavHandle)[] = ['back', 'forward', 'reload']
@@ -488,12 +489,26 @@ async function driveScroll(
  *  string: the verb arrives off the wire, and the history ones never reach
  *  the in-page engine. */
 export async function actOnActivePreview(
-  action: Omit<PreviewActAction, 'kind'> & { kind: string }
+  action: Omit<PreviewActAction, 'kind'> & { kind: string },
+  options: { tabId?: string; allowed?: () => boolean; background?: boolean } = {}
 ): Promise<PreviewActResult> {
+  const tab = resolvePreviewTab(options.tabId)
+
+  if (!tab) {
+    return { error: NOTHING_OPEN, success: false }
+  }
+
+  const check = () => {
+    if (!tab || resolvePreviewTab(tab.id) !== tab || options.allowed?.() === false) {
+      throw new Error('Browser access was revoked or the tab changed.')
+    }
+  }
+
+  check()
   const nav = NAV_ACTIONS.find(verb => verb === action.kind)
 
   if (nav) {
-    const handle = activePreviewNav()
+    const handle = activePreviewNav(tab?.id)
 
     if (!handle) {
       return { error: NOTHING_OPEN, success: false }
@@ -506,10 +521,18 @@ export async function actOnActivePreview(
     return { acted: nav, note: 'Page is loading — call elements to see what is on it.', success: true }
   }
 
-  const run = activePreviewScriptRunner()
+  const runner = activePreviewScriptRunner(tab?.id)
 
-  if (!run) {
+  if (!runner) {
     return { error: NOTHING_OPEN, success: false }
+  }
+
+  const run: PreviewScriptRunner = async code => {
+    check()
+    const result = await runner(code)
+    check()
+
+    return result
   }
 
   const typed = action as PreviewActAction
@@ -535,7 +558,23 @@ export async function actOnActivePreview(
     return trip.kind === 'answered' ? trip.result : { acted: typed.kind, note: NAVIGATED, success: true }
   }
 
-  const input = activePreviewInput()
+  const handle = activePreviewInput(tab?.id)
+
+  const input: PreviewInputHandle | null = handle
+    ? {
+        focus: () => {
+          check()
+
+          if (!options.background) {
+            handle.focus()
+          }
+        },
+        send: event => {
+          check()
+          handle.send(event)
+        }
+      }
+    : null
 
   if (input && DRIVEN.indexOf(typed.kind) !== -1) {
     return driveAction(run, input, typed)

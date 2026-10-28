@@ -144,7 +144,7 @@ def _agent_cbs(sid: str) -> dict:
         "clarify_callback": lambda q, c, multi_select=False, questions=None: (
             _clarify_block(sid, q, c, multi_select=multi_select, questions=questions)),
         "read_terminal_callback": _read_block("terminal.read", 30),
-        "read_preview_callback": _read_block("preview.read", 45),
+        "read_preview_callback": lambda **payload: _ask("preview.read", sid, payload, timeout=45),
         # drive_preview / annotate_preview (desktop GUI): same budget as the preview read it ends with.
         "drive_preview_callback": lambda payload: _ask("preview.act", sid, dict(payload), timeout=45),
         # read_window_below (desktop GUI): main process enumerates native windows.

@@ -61,6 +61,7 @@ interface AuxTaskCopy {
 }
 
 export interface Translations {
+  browserAccess: { useInChat: string; title: string; body: string; allow: string; stop: string }
   additional: typeof additionalEn
   intro: {
     stock: Record<string, string[]>

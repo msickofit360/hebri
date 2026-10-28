@@ -21728,6 +21728,23 @@
             "title": "Action",
             "type": "string"
           },
+          "tab_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tab Id"
+          },
+          "delegated": {
+            "default": false,
+            "title": "Delegated",
+            "type": "boolean"
+          },
           "ref": {
             "anyOf": [
               {
@@ -21875,6 +21892,66 @@
           "url"
         ],
         "title": "PreviewOpenPayload",
+        "type": "object"
+      },
+      "PreviewReadRequestParams": {
+        "additionalProperties": false,
+        "properties": {
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start"
+          },
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Count"
+          },
+          "action": {
+            "default": "read",
+            "title": "Action",
+            "type": "string"
+          },
+          "tab_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tab Id"
+          },
+          "delegated": {
+            "default": false,
+            "title": "Delegated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "session_id"
+        ],
+        "title": "PreviewReadRequestParams",
         "type": "object"
       },
       "PreviewRestartParams": {
@@ -37498,7 +37575,7 @@
         {
           "name": "params",
           "schema": {
-            "$ref": "#/components/schemas/ReadRangeRequestParams"
+            "$ref": "#/components/schemas/PreviewReadRequestParams"
           }
         }
       ],

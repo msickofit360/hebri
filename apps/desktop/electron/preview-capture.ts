@@ -26,6 +26,31 @@ export interface CaptureGuest {
   isDestroyed: () => boolean
 }
 
+/** A renderer may capture only an embedded guest it owns, never another window. */
+export async function captureOwnedPreviewContents(
+  event: { sender: { mainFrame: unknown }; senderFrame: unknown },
+  guest: (CaptureGuest & { hostWebContents: unknown }) | null | undefined,
+  rect?: CaptureRect,
+  viewport?: CaptureViewport
+): Promise<string> {
+  if (
+    !guest ||
+    guest.hostWebContents !== event.sender ||
+    !event.senderFrame ||
+    event.senderFrame !== event.sender.mainFrame
+  ) {
+    throw new Error('Browser capture is restricted to this window’s own tabs.')
+  }
+
+  const result = await capturePreviewContents(guest, rect, viewport)
+
+  if (guest.isDestroyed() || guest.hostWebContents !== event.sender) {
+    throw new Error('Browser capture owner changed.')
+  }
+
+  return result
+}
+
 export interface CaptureImage {
   crop?: (rect: CaptureRect) => CaptureImage
   getSize?: () => CaptureViewport

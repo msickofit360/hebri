@@ -12,12 +12,12 @@
  * directly (read_file / the conversation's artifact).
  */
 
-import { $rightRailActiveTabId } from '@/store/layout'
-import { $previewTabs } from '@/store/preview'
-
 import { nudgeOverlay } from './preview-nudge'
+import { resolvePreviewTab } from './preview-surface'
 
 export interface PreviewReadOptions {
+  tabId?: string
+  allowed?: () => boolean
   /** Characters to return from `start` (capped at PREVIEW_READ_MAX_CHARS). */
   count?: number
   /** 0-indexed character offset into the page text. */
@@ -77,10 +77,9 @@ function windowText(
 
 /** Read the ACTIVE preview tab. Null only when no tab is open at all. */
 export async function readActivePreview(opts: PreviewReadOptions = {}): Promise<PreviewReadResult | null> {
-  const tabs = $previewTabs.get()
-  const tab = tabs.find(t => t.id === $rightRailActiveTabId.get()) ?? tabs[0]
+  const tab = resolvePreviewTab(opts.tabId)
 
-  if (!tab) {
+  if (!tab || opts.allowed?.() === false) {
     return null
   }
 
@@ -91,12 +90,18 @@ export async function readActivePreview(opts: PreviewReadOptions = {}): Promise<
     try {
       const page = await reader()
 
+      if (resolvePreviewTab(tab.id) !== tab || opts.allowed?.() === false) {
+        return null
+      }
+
       // Say it on the page. Reading is by far the cheapest thing the agent
       // does — a few hundredths of a second against a model round trip either
       // side of it — so a run of reads used to leave the pane dark for the
       // twenty seconds it took to page through a document, immediately after
       // the one moment that showed anything.
-      nudgeOverlay('read')
+      if (resolvePreviewTab()?.id === tab.id) {
+        nudgeOverlay('read')
+      }
 
       return windowText(
         { kind: target.kind, path: target.path, title: page.title || target.label, url: page.url || target.url },

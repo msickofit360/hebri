@@ -552,6 +552,8 @@ def _ensure_codex_session(agent, messages: List[Dict[str, Any]] | None = None) -
     if str(getattr(agent, "provider", "") or "").strip().lower() == "custom":
         from hermes_cli.runtime_provider_custom import codex_model_provider_id
         model_provider = codex_model_provider_id(str(getattr(agent, "requested_provider", "") or ""))
+    from agent.codex_browser_tools import CodexBrowserTools
+    browser_tools = CodexBrowserTools(agent)
     agent._codex_session = CodexAppServerSession(
         cwd=getattr(agent, "session_cwd", None) or str(resolve_agent_cwd()), approval_callback=approval_callback,
         codex_bin=get_configured_codex_binary(load_config()),
@@ -560,6 +562,7 @@ def _ensure_codex_session(agent, messages: List[Dict[str, Any]] | None = None) -
         developer_instructions=developer_instructions or None,
         model=getattr(agent, "model", None) if model_provider else None, model_provider=model_provider,
         resume_thread_id=resume_thread_id, history_seed=history_seed,
+        browser_tools=browser_tools if browser_tools.definitions() else None,
     )
 
 

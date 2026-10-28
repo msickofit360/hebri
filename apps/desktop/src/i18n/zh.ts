@@ -4,6 +4,13 @@ import { defineLocale } from './define-locale'
 import { introZh } from './intro-zh'
 
 export const zh = defineLocale({
+  browserAccess: {
+    useInChat: '允许此智能体使用此标签页',
+    title: '允许后台浏览器访问？',
+    body: '在10分钟内，此聊天及其委派的代理可读取、截图和操作上方网站的此标签页，即使你正在使用其他聊天。这不授权购买、交易或其他重大操作。可用浏览器上方的按钮停止访问。关闭标签页、切换配置或离开此网站将撤销访问权限。',
+    allow: '允许10分钟',
+    stop: '停止后台浏览器访问'
+  },
   intro: introZh,
   connectors: {
     title: '连接你的应用',
