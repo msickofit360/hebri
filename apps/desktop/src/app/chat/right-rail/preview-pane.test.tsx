@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { onComposerAttachImagesRequest } from '@/app/chat/composer/focus'
-import { $previewTabs, closeRightRail, openPreview, previewTabId } from '@/store/preview'
+import { $previewTabs, closeRightRail, openPreview, previewTabId, setPreviewScope } from '@/store/preview'
 import { $connection, $selectedStoredSessionId } from '@/store/session'
 
 import { PreviewTilePane } from './preview'
@@ -883,4 +883,24 @@ describe('PreviewPane local HTML Render|Source toggle', () => {
     expect(rendered.queryByRole('button', { name: 'PREVIEW' })).toBeNull()
     expect(rendered.container.querySelector('webview')).toBeNull()
   })
+})
+
+it('keeps the same live webview through bot switches and a human access handoff', async () => {
+  setPreviewScope('default')
+  closeRightRail()
+  openPreview({ kind: 'url', label: 'Browser', source: 'https://example.com', url: 'https://example.com' })
+  const tab = $previewTabs.get()[0]
+  const rendered = render(<PreviewTilePane tabId={tab.id} />)
+  const guest = rendered.container.querySelector('webview')!
+  expect(guest).not.toBeNull()
+  guest.setAttribute('data-live-page-state', 'kept')
+  await act(async () => setPreviewScope('another-bot'))
+  expect(rendered.container.querySelector('webview')).toBe(guest)
+  fireEvent.click(rendered.getByRole('button', { name: 'Allow this agent to use this tab' }))
+  expect(rendered.container.querySelector('webview')).toBe(guest)
+  await act(async () => setPreviewScope('default'))
+  expect(rendered.container.querySelector('webview')).toBe(guest)
+  expect(guest.getAttribute('data-live-page-state')).toBe('kept')
+  cleanup()
+  closeRightRail()
 })

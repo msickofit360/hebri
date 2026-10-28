@@ -35,13 +35,16 @@ import { notify, notifyError } from '@/store/notifications'
 import {
   $browserPages,
   $previewServerRestart,
+  $previewTabs,
   commitBrowserTabLocation,
   failPreviewServerRestart,
   noteBrowserPage,
   popOutBrowserTab,
+  previewBelongsToScope,
   type PreviewRenderMode,
   type PreviewTarget,
-  setPreviewRenderMode
+  setPreviewRenderMode,
+  shareBrowserTabWithCurrentProfile
 } from '@/store/preview'
 import { $selectedStoredSessionId } from '@/store/session'
 import { canOpenBrowserWindow, isBrowserWindow } from '@/store/windows'
@@ -243,6 +246,7 @@ function PreviewLoadError({
 export function PreviewPane({ embedded = false, onRestartServer, reloadRequest = 0, tabId, target }: PreviewPaneProps) {
   const { t } = useI18n()
   const browserAccess = useStore($previewAccess)
+  const currentTab = useStore($previewTabs).find(tab => tab.id === tabId)
   const copy = t.preview.web
   // The console store belongs to the TAB, not this render: the toggles live on
   // the tab and must read the same logs this pane appends to.
@@ -1321,6 +1325,11 @@ export function PreviewPane({ embedded = false, onRestartServer, reloadRequest =
       }}
       {...(isWebPreview && !isRemoteHtml && tabId ? { [PREVIEW_BROWSER_ATTR]: tabId } : {})}
     >
+      {currentTab && !previewBelongsToScope(currentTab) && (
+        <Button onClick={() => shareBrowserTabWithCurrentProfile(currentTab.id)} size="sm" variant="secondary">
+          {t.browserAccess.useInChat}
+        </Button>
+      )}
       {tabId && browserAccess[tabId] && (
         <Button onClick={() => revokePreviewAccess(tabId)} size="sm" variant="secondary">
           {t.browserAccess.stop}

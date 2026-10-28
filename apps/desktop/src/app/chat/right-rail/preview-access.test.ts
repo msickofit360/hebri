@@ -8,7 +8,7 @@ import type { ServerRequestContext } from '@/app/session/hooks/use-message-strea
 import { createClientSessionState } from '@/lib/chat-runtime'
 import { $confirmRequest, settleConfirm } from '@/store/confirm'
 import { selectRightRailTab } from '@/store/layout'
-import { $previewTabs, noteBrowserPage, setPreviewScope } from '@/store/preview'
+import { $previewTabs, noteBrowserPage, setPreviewScope, shareBrowserTabWithCurrentProfile } from '@/store/preview'
 import { setActiveSessionId } from '@/store/session'
 import { recordSessionEventScope } from '@/store/session-states'
 
@@ -59,6 +59,7 @@ beforeEach(() => {
   $previewTabs.set(
     ['a', 'b'].map(id => ({
       id: `url:${id}`,
+      browserProfile: 'default',
       target: { kind: 'url', label: id, source: `https://${id}.example`, url: `https://${id}.example` }
     }))
   )
@@ -163,4 +164,32 @@ it('stops stale work on revoke, navigation, expiry, profile switch, tab close, a
   await expect(withPreviewLock('url:b', async () => undefined)).rejects.toThrow('busy')
   unlock()
   await first
+})
+
+it('keeps the page across A → B → A without giving B access or reviving an in-flight read', async () => {
+  const tab = $previewTabs.get()[0]
+  const originalPermission = previewPermission(context('read', tab.id), tab.id)
+  expect(originalPermission()).toBe(true)
+  recordSessionEventScope({ session_id: 'different-bot', profile: 'other-profile', connectionId: owner.connectionId })
+  setActiveSessionId('different-bot')
+  setPreviewScope('other-profile')
+  expect($previewTabs.get()[0]).toBe(tab)
+  const other = context('tabs')
+  other.sessionId = 'different-bot'
+  other.request.profile = 'other-profile'
+  other.deps.activeSessionIdRef.current = 'different-bot'
+  expect(await previewReadRequest(other)).toEqual({ tabs: [] })
+  other.request.params = { action: 'read', tab_id: tab.id }
+  await expect(previewReadRequest(other)).rejects.toThrow('share this tab')
+  expect(grantPreviewAccess({ ...owner, sessionId: 'different-bot', profile: 'other-profile' }, tab.id)).toBe(false)
+  shareBrowserTabWithCurrentProfile(tab.id)
+  expect($previewTabs.get()[0].target).toBe(tab.target)
+  expect(previewPermission(other, tab.id)()).toBe(true)
+  setActiveSessionId(owner.sessionId)
+  setPreviewScope('default')
+  expect(originalPermission()).toBe(false)
+  expect(previewPermission(context('read', tab.id), tab.id)()).toBe(false)
+  shareBrowserTabWithCurrentProfile(tab.id)
+  expect(previewPermission(context('read', tab.id), tab.id)()).toBe(true)
+  expect(originalPermission()).toBe(false)
 })

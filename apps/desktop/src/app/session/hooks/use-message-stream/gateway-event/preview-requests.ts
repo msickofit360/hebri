@@ -11,7 +11,7 @@ import { capturePreviewTab, previewTabInventory, resolvePreviewTab } from '@/app
 import { translateNow } from '@/i18n'
 import { $confirmRequest, confirm, settleConfirm } from '@/store/confirm'
 import { selectRightRailTab } from '@/store/layout'
-import { previewScope } from '@/store/preview'
+import { previewBelongsToScope, previewScope, previewScopeEpoch } from '@/store/preview'
 import { $activeSessionId } from '@/store/session'
 import { knownOwnerForSession } from '@/store/session-states'
 
@@ -45,11 +45,14 @@ export function previewPermission(ctx: ServerRequestContext, tabId: string) {
   const owner = previewOwner(ctx)
   const tab = resolvePreviewTab(tabId)
   const scope = previewScope()
+  const epoch = previewScopeEpoch()
 
   return () =>
     Boolean(
       tab &&
+      previewBelongsToScope(tab, owner.profile) &&
       resolvePreviewTab(tabId) === tab &&
+      previewScopeEpoch() === epoch &&
       previewScope() === scope &&
       scope === owner.profile &&
       ctx.sessionId &&
@@ -79,7 +82,13 @@ export async function previewReadRequest(ctx: ServerRequestContext) {
       throw new Error('Browser access is unavailable.')
     }
 
-    return { tabs: previewTabInventory().filter(tab => foreground || hasPreviewAccess(owner, tab.tab_id)) }
+    return {
+      tabs: previewTabInventory().filter(
+        tab =>
+          (foreground && previewBelongsToScope(resolvePreviewTab(tab.tab_id)!, owner.profile)) ||
+          hasPreviewAccess(owner, tab.tab_id)
+      )
+    }
   }
 
   if (['select', 'screenshot', 'allow_background', 'revoke'].includes(action) && !explicitId) {
@@ -99,7 +108,9 @@ export async function previewReadRequest(ctx: ServerRequestContext) {
   const allowed = previewPermission(ctx, tab.id)
 
   if (!allowed()) {
-    throw new Error('Open this chat to use the browser, or approve background access for this tab first.')
+    throw new Error(
+      'Open this chat and use the browser button to share this tab with its agent, or approve background access first.'
+    )
   }
 
   if (action === 'allow_background') {

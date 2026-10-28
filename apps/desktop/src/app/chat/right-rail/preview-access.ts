@@ -1,6 +1,6 @@
 import { atom } from 'nanostores'
 
-import { $browserPages, $previewTabs, previewScope, type PreviewTab } from '@/store/preview'
+import { $browserPages, $previewTabs, previewBelongsToScope, previewScope, type PreviewTab } from '@/store/preview'
 
 import { resolvePreviewTab } from './preview-surface'
 
@@ -44,9 +44,16 @@ export function grantPreviewAccess(owner: PreviewOwner, tabId: string): boolean 
   const tab = resolvePreviewTab(tabId)
   const origin = previewOrigin(tabId)
 
-  if (!owner.sessionId || !tab || !origin || previewScope() !== owner.profile) {
+  if (
+    !owner.sessionId ||
+    !tab ||
+    !previewBelongsToScope(tab, owner.profile) ||
+    !origin ||
+    previewScope() !== owner.profile
+  ) {
     return false
   }
+
   const grant = { owner: { ...owner }, tab, origin, expires: Date.now() + 10 * 60_000 }
   $previewAccess.set({ ...$previewAccess.get(), [tabId]: grant })
   setTimeout(() => {
@@ -91,6 +98,7 @@ export async function withPreviewLock<T>(tabId: string, work: () => Promise<T>):
   if (busy.has(tabId)) {
     throw new Error('This tab is busy. Read its current state before retrying.')
   }
+
   busy.add(tabId)
 
   try {

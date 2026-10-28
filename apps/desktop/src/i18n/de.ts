@@ -6,6 +6,7 @@ import { introDe } from './intro-de'
 export const de = defineLocale({
   intro: introDe,
   browserAccess: {
+    useInChat: 'Diesem Agenten Zugriff auf diesen Tab erlauben',
     title: 'Browserzugriff im Hintergrund erlauben?',
     body: 'Für 10 Minuten dürfen dieser Chat und seine delegierten Agenten diesen Tab auf der oben genannten Website lesen, aufnehmen und bedienen, auch während Sie einen anderen Chat verwenden. Käufe, Finanztransaktionen oder andere folgenreiche Aktionen sind damit nicht erlaubt. Der Button über dem Browser beendet den Zugriff. Schließen des Tabs, Profilwechsel oder Verlassen dieser Website widerruft den Zugriff.',
     allow: 'Für 10 Minuten erlauben',
