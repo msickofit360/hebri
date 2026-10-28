@@ -4,6 +4,7 @@
 export const OTHER_SUBPAGES: Record<string, { id: string; labelKey: string }[]> = {
   gateway: [
     { id: 'connection', labelKey: 'gatewayConnection' },
+    { id: 'hebri-devices', labelKey: 'gatewayHebriDevices' },
     { id: 'devices', labelKey: 'gatewayDevices' },
     { id: 'managed-updates', labelKey: 'gatewayManagedUpdates' }
   ],

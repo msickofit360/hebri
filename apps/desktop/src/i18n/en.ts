@@ -776,6 +776,7 @@ export const en: Translations = {
       advancedDelegation: 'Subagents',
       advancedDesktop: 'Desktop & startup',
       gatewayConnection: 'This window',
+      gatewayHebriDevices: 'Hebri devices',
       gatewayDevices: 'Saved connections',
       gatewayManagedUpdates: 'Remote updates',
       gatewayManagedUpdatesUnavailable: 'Remote updates need a desktop version with managed SSH update support.',

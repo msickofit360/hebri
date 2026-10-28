@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { deviceOperation, type DeviceSnapshot } from '@/api/devices'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Textarea } from '@/components/ui/textarea'
 import { useI18n } from '@/i18n'
 
@@ -23,6 +24,7 @@ export function DevicesPanel({
   const [name, setName] = useState(initial?.name || 'Hebri')
   const [models, setModels] = useState(initial?.models.join(', ') || '')
   const [address, setAddress] = useState(initial?.addresses[0] || '')
+  const [network, setNetwork] = useState<'lan' | 'vpn'>('lan')
   const [invite, setInvite] = useState('')
   const [incoming, setIncoming] = useState('')
   const [verification, setVerification] = useState('')
@@ -125,6 +127,15 @@ export function DevicesPanel({
         {copy.title} · {profile}
       </h3>
       <p className="text-xs text-muted-foreground">{copy.privacy}</p>
+      <SegmentedControl
+        onChange={setNetwork}
+        options={[
+          { id: 'lan', label: copy.lan },
+          { id: 'vpn', label: copy.vpn }
+        ]}
+        value={network}
+      />
+      <p className="text-xs text-muted-foreground">{network === 'vpn' ? copy.vpnHelp : copy.lanHelp}</p>
       {error && <p role="alert">{error}</p>}
       <label className="block space-y-1">
         <span>{copy.name}</span>
@@ -185,6 +196,7 @@ export function DevicesPanel({
           <label className="block space-y-1">
             <span>{copy.address}</span>
             <Input onChange={e => setAddress(e.target.value)} value={address} />
+            <p className="text-xs text-muted-foreground">{copy.addressHelp}</p>
           </label>
           <Button
             disabled={busy || !address}

@@ -1,6 +1,19 @@
 import type { Locale } from '@/i18n'
 
 const en = {
+  settingsTitle: 'Hebri devices',
+  settingsDescription:
+    'Connect your computers so their agents can ask an approved local model for help. Both Hebri apps keep their own chats and settings.',
+  localRequired: 'Switch this window to Local gateway to manage this computer’s device pairing.',
+  loading: 'Loading device settings…',
+  lan: 'Same local network',
+  vpn: 'Remote over private VPN',
+  lanHelp:
+    'Keep Hebri open on both computers. Create an invite on the helper computer, share it privately and paste it on the other computer. Compare the code on both before approving.',
+  vpnHelp:
+    'Connect both computers to the same private VPN first. Enter this computer’s VPN IPv4 address below, then share its invite privately. Remote devices do not appear in Nearby; pair by invite. Hebri does not set up a VPN or public port forwarding.',
+  addressHelp:
+    'Use an address reachable from the other computer: 10.x, 172.16–31.x, 192.168.x or 100.64–127.x. Allow peer connections only on your trusted LAN or VPN.',
   ready: 'Ready',
   notReady: 'Local model runtime is not ready',
   active: 'Active tasks',
@@ -15,7 +28,7 @@ const en = {
   nearby: 'Nearby (not trusted)',
   privacy:
     'Pair only computers you trust. Assistance sends only the task you provide to an approved local model. Private chats, files, tools and credentials are not shared.',
-  address: 'This computer’s LAN IPv4 address',
+  address: 'This computer’s LAN or VPN IPv4 address',
   invite: 'Create five-minute invite',
   join: 'Request pairing',
   paste: 'Paste the other computer’s invite',
@@ -44,6 +57,19 @@ const en = {
 }
 
 const it: typeof en = {
+  settingsTitle: 'Dispositivi Hebri',
+  settingsDescription:
+    'Collega i tuoi computer per consentire agli agenti di chiedere aiuto a un modello locale approvato. Ogni app Hebri mantiene le proprie chat e impostazioni.',
+  localRequired: 'Passa questa finestra al gateway locale per gestire l’associazione di questo computer.',
+  loading: 'Caricamento impostazioni dispositivi…',
+  lan: 'Stessa rete locale',
+  vpn: 'Remoto tramite VPN privata',
+  lanHelp:
+    'Lascia Hebri aperto su entrambi i computer. Crea un invito sul computer che offre assistenza, condividilo privatamente e incollalo sull’altro. Confronta il codice su entrambi prima di approvare.',
+  vpnHelp:
+    'Collega prima entrambi i computer alla stessa VPN privata. Inserisci sotto l’indirizzo IPv4 VPN di questo computer e condividi privatamente l’invito. I dispositivi remoti non appaiono nelle vicinanze: usa l’invito. Hebri non configura VPN o inoltro di porte pubbliche.',
+  addressHelp:
+    'Usa un indirizzo raggiungibile dall’altro computer: 10.x, 172.16–31.x, 192.168.x o 100.64–127.x. Consenti le connessioni tra dispositivi solo sulla LAN o VPN fidata.',
   ready: 'Pronto',
   notReady: 'Il runtime del modello locale non è pronto',
   active: 'Compiti attivi',
@@ -58,7 +84,7 @@ const it: typeof en = {
   nearby: 'Nelle vicinanze (non attendibili)',
   privacy:
     'Associa solo computer fidati. L’assistenza invia soltanto il compito fornito a un modello locale approvato. Chat private, file, strumenti e credenziali non vengono condivisi.',
-  address: 'Indirizzo IPv4 LAN di questo computer',
+  address: 'Indirizzo IPv4 LAN o VPN di questo computer',
   invite: 'Crea invito valido cinque minuti',
   join: 'Richiedi associazione',
   paste: 'Incolla l’invito dell’altro computer',

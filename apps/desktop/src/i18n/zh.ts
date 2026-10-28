@@ -485,6 +485,7 @@ export const zh = defineLocale({
       advancedDelegation: '子智能体',
       advancedDesktop: '桌面与启动',
       gatewayConnection: '当前窗口',
+      gatewayHebriDevices: 'Hebri 设备',
       gatewayDevices: '已保存的连接',
       gatewayManagedUpdates: '远程更新',
       gatewayManagedUpdatesUnavailable: '远程更新需要支持托管 SSH 更新的桌面版本。',
@@ -1638,8 +1639,7 @@ export const zh = defineLocale({
       authenticate: '认证',
       noOutput: '暂无输出。',
       deepLinkTitle: '添加 MCP 服务器？',
-      deepLinkDescription:
-        '一个链接请求将此 MCP 服务器添加到 Hebri。请检查下方的完整配置——它来自该链接，而非 Hebri。',
+      deepLinkDescription: '一个链接请求将此 MCP 服务器添加到 Hebri。请检查下方的完整配置——它来自该链接，而非 Hebri。',
       deepLinkStdioWarning: '此服务器会使用下方所示命令在你的电脑上运行本地进程。仅在信任其来源时继续。',
       deepLinkConfirm: '添加服务器',
       deepLinkNameInvalid: '名称须为 1-64 个字母、数字、点、连字符或下划线。',
@@ -3885,8 +3885,7 @@ export const zh = defineLocale({
     copy: '复制',
     copied: '已复制',
     done: '完成',
-    applyingBody:
-      'Hebri 更新器会在自己的窗口中接管，并在完成后自动重新打开 Hebri。更新期间请不要自行重新打开 Hebri。',
+    applyingBody: 'Hebri 更新器会在自己的窗口中接管，并在完成后自动重新打开 Hebri。更新期间请不要自行重新打开 Hebri。',
     applyingBodyBackend: '远程后端正在应用更新并将重启。恢复后 Hebri 会自动重新连接。',
     applyingClose: '此窗口会在更新期间关闭，随后 Hebri 会自动重新打开。',
     errorTitle: '更新未完成',

@@ -403,6 +403,7 @@ export const ar = defineLocale({
       advancedDelegation: 'الوكلاء الفرعيون',
       advancedDesktop: 'سطح المكتب وبدء التشغيل',
       gatewayConnection: 'هذه النافذة',
+      gatewayHebriDevices: 'أجهزة Hebri',
       gatewayDevices: 'الاتصالات المحفوظة',
       gatewayManagedUpdates: 'التحديثات البعيدة',
       gatewayManagedUpdatesUnavailable: 'تتطلب التحديثات البعيدة إصدار سطح مكتب يدعم تحديثات SSH المُدارة.',
@@ -2566,8 +2567,7 @@ export const ar = defineLocale({
     done: 'تم',
     applyingBody:
       'يتولّى مُحدِّث Hebri المهمة في نافذته الخاصة ويعيد فتح Hebri تلقائيا عند الانتهاء. الرجاء عدم إعادة فتح Hebri بنفسك أثناء التحديث.',
-    applyingBodyBackend:
-      'تطبّق الواجهة الخلفية البعيدة التحديث وستعيد التشغيل. يعيد Hebri الاتصال تلقائيا عند عودتها.',
+    applyingBodyBackend: 'تطبّق الواجهة الخلفية البعيدة التحديث وستعيد التشغيل. يعيد Hebri الاتصال تلقائيا عند عودتها.',
     applyingClose: 'ستُغلق هذه النافذة أثناء تشغيل التحديث، ثم يعيد Hebri فتح نفسه تلقائيا.',
     errorTitle: 'لم يكتمل التحديث',
     errorBody: 'لا داعي للقلق — لم يُفقد شيء. يمكنك إعادة المحاولة الآن.',

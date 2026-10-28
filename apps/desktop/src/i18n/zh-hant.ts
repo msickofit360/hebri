@@ -331,6 +331,7 @@ export const zhHant = defineLocale({
       advancedDelegation: '子代理',
       advancedDesktop: '桌面與啟動',
       gatewayConnection: '目前視窗',
+      gatewayHebriDevices: 'Hebri 裝置',
       gatewayDevices: '已儲存的連線',
       gatewayManagedUpdates: '遠端更新',
       gatewayManagedUpdatesUnavailable: '遠端更新需要支援受管理 SSH 更新的桌面版本。',
@@ -3190,8 +3191,7 @@ export const zhHant = defineLocale({
     copy: '複製',
     copied: '已複製',
     done: '完成',
-    applyingBody:
-      'Hebri 更新程式會在自己的視窗中接管，並在完成後自動重新開啟 Hebri。更新期間請勿自行重新開啟 Hebri。',
+    applyingBody: 'Hebri 更新程式會在自己的視窗中接管，並在完成後自動重新開啟 Hebri。更新期間請勿自行重新開啟 Hebri。',
     applyingBodyBackend: '遠端後端正在套用更新並將重新啟動。恢復後 Hebri 會自動重新連線。',
     applyingClose: '此視窗會在更新期間關閉，隨後 Hebri 會自動重新開啟。',
     errorTitle: '更新未完成',
