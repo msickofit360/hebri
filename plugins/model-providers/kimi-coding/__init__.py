@@ -5,14 +5,14 @@ from typing import Any
 from urllib.parse import urlparse
 
 from agent.reasoning_effort import KIMI_K3_EFFORTS, KIMI_K3_OVERRIDES, thinking_toggle_extras
-from hermes_cli import __version__ as _HERMES_VERSION
+from hermes_cli.provider_identity import APP_NAME, APP_URL, user_agent
 from providers import register_provider
 from providers.base import OMIT_TEMPERATURE, ProviderProfile
 
 _HEADERS = {
-    "HTTP-Referer": "https://synapseklabs.org",
-    "X-Title": "Hebri",
-    "User-Agent": f"HermesAgent/{_HERMES_VERSION}",
+    "HTTP-Referer": APP_URL,
+    "X-Title": APP_NAME,
+    "User-Agent": user_agent(),
 }
 
 
