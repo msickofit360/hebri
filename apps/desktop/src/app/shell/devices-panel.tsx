@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useI18n } from '@/i18n'
 
 import { devicesCopy } from './devices-copy'
+import { TailscaleSetup } from './tailscale-setup'
 
 export function DevicesPanel({
   profile,
@@ -128,7 +129,12 @@ export function DevicesPanel({
       </h3>
       <p className="text-xs text-muted-foreground">{copy.privacy}</p>
       <SegmentedControl
-        onChange={setNetwork}
+        disabled={busy}
+        onChange={value => {
+          setNetwork(value)
+          setInvite('')
+          setAddress(value === 'lan' ? initial?.addresses[0] || '' : '')
+        }}
         options={[
           { id: 'lan', label: copy.lan },
           { id: 'vpn', label: copy.vpn }
@@ -136,6 +142,14 @@ export function DevicesPanel({
         value={network}
       />
       <p className="text-xs text-muted-foreground">{network === 'vpn' ? copy.vpnHelp : copy.lanHelp}</p>
+      {network === 'vpn' && (
+        <TailscaleSetup
+          onAddress={value => {
+            setAddress(value)
+            setInvite('')
+          }}
+        />
+      )}
       {error && <p role="alert">{error}</p>}
       <label className="block space-y-1">
         <span>{copy.name}</span>

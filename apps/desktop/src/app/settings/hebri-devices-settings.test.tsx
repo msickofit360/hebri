@@ -40,14 +40,21 @@ const snapshot: DeviceSnapshot = {
   outgoing_jobs: []
 }
 
+const originalDesktop = window.hermesDesktop
+
 afterEach(() => {
   cleanup()
   vi.resetAllMocks()
+  window.hermesDesktop = originalDesktop
 })
 
 it('loads saved settings before editing and pairs over the entered VPN address only on click', async () => {
   setConnection('local')
   $activeGatewayProfile.set('A')
+  window.hermesDesktop = {
+    ...originalDesktop,
+    getTailscaleStatus: vi.fn().mockResolvedValue({ state: 'ready', address: '100.90.1.2' })
+  }
   vi.mocked(deviceOperation).mockImplementation(async (_profile, operation) =>
     operation === 'invite' ? { invite: 'private-invite' } : snapshot
   )
@@ -55,8 +62,11 @@ it('loads saved settings before editing and pairs over the entered VPN address o
   await screen.findByDisplayValue('Shinobi')
   expect(screen.getByDisplayValue('local-model')).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: 'Remote over private VPN' }))
-  expect(screen.getByText(/Remote devices do not appear/)).toBeTruthy()
+  expect(screen.getByRole('region', { name: 'Set up a remote connection' })).toBeTruthy()
   expect(vi.mocked(deviceOperation).mock.calls.every(call => call[1] === 'status')).toBe(true)
+  fireEvent.click(screen.getByRole('button', { name: 'Check Tailscale connection' }))
+  await screen.findByText(/Tailscale is connected/)
+  expect(screen.getByDisplayValue('100.90.1.2')).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: 'Create five-minute invite' }))
   await waitFor(() => expect(deviceOperation).toHaveBeenCalledWith('A', 'invite', { address: '100.90.1.2' }))
   expect(await screen.findByDisplayValue('private-invite')).toBeTruthy()

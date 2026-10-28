@@ -450,6 +450,7 @@ import { createSshTeardownTracker } from './ssh-teardown'
 import { createStreamThrottle } from './stream-throttle'
 import { registerSynapsekAccountIpc } from './synapsek-account-ipc'
 import { synapsekBackendEnvironment } from './synapsek-account-runtime'
+import { registerTailscaleIpc } from './tailscale-ipc'
 import { registerTerminalIpc } from './terminal-ipc'
 import { nativeOverlayWidth as computeNativeOverlayWidth, titleBarOverlayOptions } from './titlebar-overlay-width'
 import {
@@ -18408,6 +18409,7 @@ function showAboutPanelFresh() {
 }
 
 registerSynapsekAccountIpc(() => DEV_SERVER || pathToFileURL(resolveRendererIndex()).href)
+registerTailscaleIpc(() => DEV_SERVER || pathToFileURL(resolveRendererIndex()).href)
 
 ipcMain.handle('hermes:version', async () => {
   const skew = await detectRendererSkew()
