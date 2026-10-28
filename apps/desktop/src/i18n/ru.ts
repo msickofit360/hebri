@@ -443,6 +443,7 @@ export const ru = defineLocale({
       advancedDelegation: 'Субагенты',
       advancedDesktop: 'Приложение и запуск',
       gatewayConnection: 'Это окно',
+      gatewayHebriDevices: 'Устройства Hebri',
       gatewayDevices: 'Сохранённые подключения',
       gatewayManagedUpdates: 'Удалённые обновления',
       gatewayManagedUpdatesUnavailable: 'Нужна версия приложения с поддержкой управляемых обновлений SSH.',
@@ -2091,8 +2092,7 @@ export const ru = defineLocale({
     restartFailedManual: 'Не удалось перезапустить шлюз — перезапустите его вручную и проверьте журналы.',
     telegramQr: {
       title: 'Выберите способ подключения Telegram-бота',
-      subtitle:
-        'Оба способа подключают бота под вашим контролем и сохраняют его данные только в этой установке Hebri.',
+      subtitle: 'Оба способа подключают бота под вашим контролем и сохраняют его данные только в этой установке Hebri.',
       quickSetup: 'Быстрая настройка',
       recommended: 'Рекомендуется',
       quickHelp:

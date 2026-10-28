@@ -306,6 +306,7 @@ const itBase = {
       advancedDelegation: 'Agenti secondari',
       advancedDesktop: 'Desktop e avvio',
       gatewayConnection: 'Questa finestra',
+      gatewayHebriDevices: 'Dispositivi Hebri',
       gatewayDevices: 'Connessioni salvate',
       gatewayManagedUpdates: 'Aggiornamenti remoti',
       gatewayManagedUpdatesUnavailable:

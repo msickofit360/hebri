@@ -790,6 +790,7 @@ export const de = defineLocale({
       advancedDelegation: 'Subagenten',
       advancedDesktop: 'Desktop & Start',
       gatewayConnection: 'Dieses Fenster',
+      gatewayHebriDevices: 'Hebri-Geräte',
       gatewayDevices: 'Gespeicherte Verbindungen',
       gatewayManagedUpdates: 'Remote-Updates',
       gatewayManagedUpdatesUnavailable:
@@ -1540,8 +1541,7 @@ export const de = defineLocale({
           title: 'Oberfläche + Agent deinstallieren, Daten behalten',
           description:
             'Entfernt die App und den Hebri-Agent, behält aber Konfiguration, Chats und Geheimnisse für eine spätere Neuinstallation.',
-          consequence:
-            'die Chat-Oberfläche und den Hebri-Agent (Konfiguration, Chats und Geheimnisse bleiben erhalten)'
+          consequence: 'die Chat-Oberfläche und den Hebri-Agent (Konfiguration, Chats und Geheimnisse bleiben erhalten)'
         },
         full: {
           title: 'Alles deinstallieren',
