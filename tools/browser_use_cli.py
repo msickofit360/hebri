@@ -182,7 +182,7 @@ def _read_browser_cfg() -> dict:
 
 
 def _use_gateway(browser_cfg: dict) -> bool:
-    """True when the browser section selects the Nous Tool Gateway — by the current ``hermes tools``
+    """True when the browser section selects the Nous Tool Gateway — by the current ``hebri tools``
     picker row (``cloud_provider: nous``) or the pre-picker ``use_gateway: true`` flag. Reading only
     the legacy flag missed every picker-configured gateway, and the direct-API branch it fell into
     holds no credentials in managed mode (#108310)."""
@@ -240,7 +240,7 @@ def default_downgrade_notice() -> Optional[str]:
         with contextlib.suppress(OSError):
             stamp.parent.mkdir(parents=True, exist_ok=True)
             stamp.touch()
-        return ("Browser Use CLI not found — using the built-in browser tools. Run `hermes tools` "
+        return ("Browser Use CLI not found — using the built-in browser tools. Run `hebri tools` "
                 "(Browser Automation → Browser Use) to install it, or `browser.backend: off` in config.yaml to silence this.")
     except Exception as e:  # pragma: no cover — a notice must never break startup
         logger.debug("browser-use downgrade notice failed: %s", e)
@@ -391,7 +391,7 @@ def _resolve_lightpanda_cdp(env: dict, task_id: Optional[str], session_name: str
     err = _export_session_cdp(
         env, _get_session_info, _backend_cache_key(task_id, session_name),
         lambda e: (f"Lightpanda could not be started: {e} Set browser.engine to auto "
-                   "to use local Chrome, or switch backends via `hermes tools` → Browser Automation."),
+                   "to use local Chrome, or switch backends via `hebri tools` → Browser Automation."),
         "Lightpanda session returned no CDP endpoint. Set browser.engine to auto to use local Chrome.",
     )
     if err is None:
@@ -419,7 +419,7 @@ def _resolve_managed_chromium_cdp(env: dict, task_id: Optional[str], session_nam
     cdp = str(((res or {}).get("data") or {}).get("cdpUrl") or "") if (res or {}).get("success") else ""
     if not cdp:
         return (f"The local browser could not be started: {(res or {}).get('error') or 'agent-browser returned no CDP endpoint'} "
-                "Run `hermes tools` → Browser Automation to (re)install Chromium, or switch backends.")
+                "Run `hebri tools` → Browser Automation to (re)install Chromium, or switch backends.")
     _set_cdp_env(env, cdp)
     env[_PRIVATE_BROWSER_SENTINEL] = "1"  # one Chromium per cache key: nothing to share a tab with
     env[_BOT_DESKTOP_BROWSER_SENTINEL] = "1"
@@ -475,7 +475,7 @@ def _resolve_backend_cdp(env: dict, task_id: Optional[str], session_name: str = 
     err = _export_session_cdp(
         env, _get_session_info, _backend_cache_key(task_id, session_name),
         lambda e: (f"Cloud browser provider {provider_name} failed to provide a session: {e}. "
-                   "Fix the provider configuration or switch backends via `hermes tools` → Browser Automation."),
+                   "Fix the provider configuration or switch backends via `hebri tools` → Browser Automation."),
         f"Cloud browser provider {provider_name} returned no CDP endpoint, so Browser Use mode "
         "cannot drive it. Switch to the built-in browser tools for this provider.",
     )
@@ -777,7 +777,7 @@ def _dynamic_schema_overrides() -> dict:
         props = dict(BROWSER_EXEC_SCHEMA["parameters"]["properties"])
         props["local"] = {
             "type": "boolean", "default": False,
-            "description": ("Drive the user's own local browser (a Hermes-managed copy of their real "
+            "description": ("Drive the user's own local browser (a Hebri-managed copy of their real "
                             "default-Chromium profile, logins/cookies included) instead of the configured "
                             "cloud browser backend. Use when the user asks to act as themselves — their "
                             "accounts, their sessions. No-op when the backend is already local. Default false."),

@@ -6,6 +6,7 @@ import type { SessionProfileRoute } from '@/store/session-request-router'
 import { markSelectionRestore } from '@/store/session-states'
 
 interface RouteResumeOptions {
+  startupNavigationReady?: boolean
   activeSessionId: string | null
   activeSessionIdRef: MutableRefObject<string | null>
   creatingSessionRef: MutableRefObject<boolean>
@@ -69,6 +70,7 @@ function rawHashLooksLikeSession(): boolean {
 }
 
 export function useRouteResume({
+  startupNavigationReady = true,
   activeSessionId,
   activeSessionIdRef,
   creatingSessionRef,
@@ -109,6 +111,10 @@ export function useRouteResume({
 
   // eslint-disable-next-line no-restricted-syntax -- legitimate non-atom ref write (see eslint rule comment)
   useEffect(() => {
+    if (!startupNavigationReady) {
+      return
+    }
+
     const gatewayOpen = gatewayState === 'open'
     const pathnameChanged = lastPathnameRef.current !== locationPathname
     // Fire only on a genuine closed->open transition (a reconnect). seenGatewayStateRef
@@ -136,8 +142,7 @@ export function useRouteResume({
         sessionResumeRequest?.sessionId === routedSessionId &&
         sessionResumeRequest.sequence > handledResumeRequestRef.current
 
-      // Self-heal a desynced view: the route points at a session that isn't the
-      // loaded one. A create/stream race can leave selected/active null while
+      // Self-heal a view with no selection. A create/stream race can leave selected/active null while
       // the route stays on /:sid (symptom: brand-new chat shows "Thinking" then
       // an empty transcript even though the turn completed and persisted). The
       // pathname didn't change, so the normal gate would skip and the view stays
@@ -150,7 +155,11 @@ export function useRouteResume({
       // pathname flips to / (same null+/:sid signature). freshDraftReady is the
       // discriminator: it's true while heading into a blank new chat, false when
       // genuinely stranded on a routed session.
-      const stuckOnRoutedSession = routedSessionId !== selectedStoredSessionIdRef.current && !freshDraftReady
+      // A different non-null selection is newer intent: resumeSession selects
+      // its target before awaiting metadata and publishing the new route. Trying
+      // to repair that gap would cancel the new resume and reopen the old chat.
+      // Actual URL changes and explicit requests still resume below.
+      const stuckOnRoutedSession = selectedStoredSessionIdRef.current === null && !freshDraftReady
 
       // Resume when the route meaningfully changed, the gateway just opened, or
       // we're stranded on a routed session that never loaded. The first two
@@ -195,6 +204,8 @@ export function useRouteResume({
 
     if (
       isNewChatRoute(locationPathname) &&
+      // An unchanged draft route can also lag an explicit resume selection.
+      (pathnameChanged || selectedStoredSessionIdRef.current === null) &&
       !creatingSessionRef.current &&
       (selectedStoredSessionId || activeSessionId || !freshDraftReady) &&
       !rawHashLooksLikeSession()
@@ -204,6 +215,7 @@ export function useRouteResume({
       startFreshSessionDraft(true)
     }
   }, [
+    startupNavigationReady,
     activeSessionId,
     activeSessionIdRef,
     creatingSessionRef,
@@ -250,7 +262,7 @@ export function useRouteResume({
       retryAttemptRef.current = 0
     }
 
-    if (currentView !== 'chat' || gatewayState !== 'open') {
+    if (!startupNavigationReady || currentView !== 'chat' || gatewayState !== 'open') {
       return
     }
 
@@ -316,6 +328,7 @@ export function useRouteResume({
 
     return () => clearTimeout(timer)
   }, [
+    startupNavigationReady,
     activeSessionIdRef,
     creatingSessionRef,
     currentView,

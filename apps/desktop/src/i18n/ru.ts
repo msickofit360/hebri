@@ -80,7 +80,7 @@ export const ru = defineLocale({
     connect: 'Подключить',
     connecting: 'Подключение',
     continue: 'Продолжить',
-    bots: 'Боты',
+    bots: 'Bits',
     copied: 'Скопировано',
     copy: 'Копировать',
     copyFailed: 'Не удалось скопировать',
@@ -422,7 +422,7 @@ export const ru = defineLocale({
       appearanceTypography: 'Шрифты и масштаб',
       appearanceWindowLayout: 'Окно и расположение',
       appearanceChatDisplay: 'Отображение чата',
-      appearancePet: 'Питомец',
+      appearancePet: 'Hebits',
       appearanceGeneral: 'Общие',
       modelMain: 'Основная модель',
       modelAuxiliary: 'Вспомогательные модели',
@@ -729,7 +729,7 @@ export const ru = defineLocale({
       removeTheme: 'Удалить тему',
       importedBadge: 'Импортирована',
       pet: {
-        title: 'Питомец',
+        title: 'Hebits',
         intro:
           'Заберите анимированного питомца из petdex, который парит над приложением и реагирует на действия Hebri — «бегает», пока выполняются инструменты, радуется успеху и хмурится при ошибках.',
         restartHint:
@@ -1035,7 +1035,7 @@ export const ru = defineLocale({
       versionUnavailable: 'Версия недоступна',
       bundleOutOfSync: 'Сборка приложения устарела',
       bundleOutOfSyncDesc:
-        'Рантайм Hebri обновлён, но само приложение — ещё старая сборка: новые функции интерфейса (например, Bot Mode) не появятся до обновления. Запустите обновление ниже, чтобы пересобрать приложение. Если предупреждение не исчезнет, переустановите с последнего установщика.',
+        'Рантайм Hebri обновлён, но само приложение — ещё старая сборка: новые функции интерфейса (например, Bits) не появятся до обновления. Запустите обновление ниже, чтобы пересобрать приложение. Если предупреждение не исчезнет, переустановите с последнего установщика.',
       bundleOutOfSyncAction: 'Скачать установщик',
       updates: 'Обновления',
       checkNow: 'Проверить сейчас',
@@ -1704,7 +1704,7 @@ export const ru = defineLocale({
     edit: 'Изменить',
     archive: 'В архив',
     skillArchivedTitle: 'Навык в архиве',
-    skillArchivedMessage: 'Восстановить через hermes curator restore.',
+    skillArchivedMessage: 'Восстановить через hebri curator restore.',
     hub: {
       searchPlaceholder: 'Поиск в хабе навыков',
       search: 'Поиск',
@@ -1851,7 +1851,7 @@ export const ru = defineLocale({
     changeTheme: 'Сменить тему',
     changeColorMode: 'Сменить цветовой режим…',
     pets: {
-      title: 'Питомцы',
+      title: 'Hebits',
       placeholder: 'Поиск питомцев…',
       loading: 'Загрузка галереи petdex…',
       error: 'Не удалось подключиться к галерее petdex.',
@@ -1941,7 +1941,7 @@ export const ru = defineLocale({
     noSessions: 'Сеансов пока нет.',
     gatewayRunning: 'Шлюз сообщений работает',
     gatewayStopped: 'Шлюз сообщений остановлен',
-    hermesActiveSessions: (version, count) => `Hebri ${version} · Активные сеансы: ${count}`,
+    hermesActiveSessions: (version, count) => `Бэкенд Hebri ${version} · Активные сеансы: ${count}`,
     restartGateway: 'Перезапустить шлюз',
     openBrowser: 'Открыть браузер',
     gatewayRestartFailed: 'Не удалось перезапустить шлюз.',
@@ -3188,6 +3188,14 @@ export const ru = defineLocale({
     }
   },
   updates: {
+    releaseInstalled: 'Обновление установлено',
+    quitToInstall: 'Выйти и установить',
+    releaseReady: 'Загрузка завершена',
+    releaseReadyBody:
+      'Сохраните работу, полностью закройте Hebri для установки обновления, затем откройте снова. Работающее приложение пока не изменилось. В Windows следуйте инструкциям установщика и дождитесь завершения перед повторным открытием.',
+    releaseVerifying: 'Проверка загрузки…',
+    releaseDownloadBody: 'Загрузка обновления Hebri. Текущая работа остаётся открытой.',
+    releaseDownloadFooter: 'Перед установкой загруженный файл будет проверен.',
     stages: {
       idle: 'Готовимся…',
       prepare: 'Готовимся…',
@@ -4106,7 +4114,7 @@ export const ru = defineLocale({
     resumeStrandedBody:
       'Соединение с этим сеансом оборвалось, и автоматические повторные попытки исчерпаны. Проверьте, что шлюз работает, и попробуйте снова.',
     poolSlotTimeoutBody:
-      'Все слоты локальных бэкендов профилей заняты. Увеличьте Warm Bot Backends в «Настройки» → «Дополнительно» или повторите попытку после освобождения неактивного бэкенда.',
+      'Все слоты локальных бэкендов профилей заняты. Увеличьте Warm Bit Backends в «Настройки» → «Дополнительно» или повторите попытку после освобождения неактивного бэкенда.',
     poolSlotTimeoutOpenSettings: 'Открыть расширенные настройки',
     resumeRetry: 'Повторить',
     nothingToBranch: 'Нечего ветвить',
@@ -4153,7 +4161,7 @@ export const ru = defineLocale({
       success: platform => `Передаём в ${platform}. Возобновите здесь в любой момент.`,
       systemNote: platform => `↻ Передано в ${platform} — возобновите здесь в любой момент.`,
       failed: error => `Передача не удалась: ${error}`,
-      timedOut: 'Превышено время ожидания шлюза. Выполняется ли `hermes gateway`?'
+      timedOut: 'Превышено время ожидания шлюза. Выполняется ли `hebri gateway`?'
     }
   },
   errors: {

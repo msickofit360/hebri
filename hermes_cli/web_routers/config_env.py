@@ -186,7 +186,7 @@ def _catalog_provider_env_metadata() -> dict:
 
     Returns ``{env_var: {provider, provider_label, description, url, is_password,
     advanced}}`` for every API-key provider in the unified ``provider_catalog()``
-    (the ``hermes model`` universe), so the desktop Keys tab renders a card even
+    (the ``hebri model`` universe), so the desktop Keys tab renders a card even
     for providers never hand-added to ``OPTIONAL_ENV_VARS``. Hand
     ``OPTIONAL_ENV_VARS`` prose is layered on top in the endpoint; this only
     supplies membership + grouping + fallbacks.
@@ -268,7 +268,7 @@ def _get_env_vars_sync(profile: Optional[str] = None):
             # Keys/Env page hides it rather than duplicate the richer UI.
             "channel_managed": var_name in channel_keys,
             # Provider grouping from the unified catalog, so the desktop groups
-            # by the SAME provider identity the CLI `hermes model` picker uses.
+            # by the SAME provider identity the CLI `hebri model` picker uses.
             "provider": cat_meta.get("provider", ""),
             "provider_label": cat_meta.get("provider_label", ""),
             # True for a .env key in no catalog at all — an arbitrary/custom var
@@ -575,7 +575,7 @@ def _write_custom_endpoint(cfg: Dict[str, Any], body: CustomEndpointUpdate) -> T
     })
     # A Responses-only or Anthropic-compatible host 404s on the runtime's
     # Chat Completions default, so the panel pins the transport the same way
-    # ``hermes model`` does (``api_mode``; the runtime also reads the v12
+    # ``hebri model`` does (``api_mode``; the runtime also reads the v12
     # ``transport`` spelling, so drop it rather than let the two disagree).
     # ``None`` = older UI payload: keep whatever is hand-written. See #93622.
     if body.api_mode is not None:

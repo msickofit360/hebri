@@ -6,7 +6,7 @@ import { adoptNewSessionDraft, stashSessionDraft, takeSessionDraft } from '@/sto
 import { requestMcpInstallFromDeepLink } from '@/store/mcp-deeplink-install'
 import { requestPluginCatalogInstallFromDeepLink } from '@/store/plugin-catalog-install'
 import { openPluginInstallRequest } from '@/store/plugin-install-request'
-import { _resetLegacyDiscardForTests } from '@/store/session'
+import { _resetLegacyDiscardForTests, _resetSessionOwnerHintsForTests, setSessionOwnerHint } from '@/store/session'
 import { dropSessionState, publishSessionState } from '@/store/session-states'
 import type * as WindowsStore from '@/store/windows'
 import type { SessionInfo } from '@/types/hermes'
@@ -60,6 +60,7 @@ describe('useDesktopIntegrations', () => {
   beforeEach(() => {
     window.localStorage.clear()
     _resetLegacyDiscardForTests()
+    _resetSessionOwnerHintsForTests()
     vi.mocked(requestMcpInstallFromDeepLink).mockClear()
     navigate = vi.fn()
     // Every test starts as a main window; only the HUD describe flips this.
@@ -146,6 +147,35 @@ describe('useDesktopIntegrations', () => {
   }
 
   describe('profile-ready gate', () => {
+    it('releases route initialization only after the remembered destination has landed', () => {
+      window.localStorage.setItem('hermes.desktop.lastRoute.profile.default', '/remembered-session')
+      const sessions = [session({ id: 'remembered-session', profile: 'default' })]
+      const { result, rerender } = render({ sessions })
+      expect(result.current).toBe(false)
+
+      const props = {
+        activeProfile: 'default',
+        locationPathname: '/',
+        profileReady: true,
+        resumeExhaustedSessionId: null,
+        resumeLastSession: true,
+        routedSessionId: null as string | null,
+        sessions
+      }
+
+      rerender(props)
+      expect(navigate).toHaveBeenCalledWith('/remembered-session', { replace: true })
+      expect(result.current).toBe(false)
+
+      // A session-list refresh may render before the router commits navigation.
+      rerender({ ...props, sessions: [...sessions] })
+      expect(result.current).toBe(false)
+      expect(window.localStorage.getItem('hermes.desktop.lastRoute.profile.default')).toBe('/remembered-session')
+
+      rerender({ ...props, locationPathname: '/remembered-session', routedSessionId: 'remembered-session' })
+      expect(result.current).toBe(true)
+    })
+
     it('does NOT restore before profileReady is true', () => {
       // Set remembered state, but profileReady=false.
       window.localStorage.setItem('hermes.desktop.lastRoute.profile.default', '/remembered-session')
@@ -442,6 +472,33 @@ describe('useDesktopIntegrations', () => {
   })
 
   describe('route-scoped restoration', () => {
+    it('remembers and restores an unlisted chat only under its recorded owning profile', () => {
+      setSessionOwnerHint('hidden-chat', { connectionId: 'local', profile: 'default' })
+
+      const opened = render({
+        locationPathname: '/hidden-chat',
+        profileReady: true,
+        routedSessionId: 'hidden-chat'
+      })
+
+      expect(window.localStorage.getItem('hermes.desktop.lastRoute.profile.default')).toBe('/hidden-chat')
+      opened.unmount()
+
+      const restarted = render({ profileReady: true })
+      expect(navigate).toHaveBeenCalledExactlyOnceWith('/hidden-chat', { replace: true })
+      restarted.unmount()
+      navigate.mockClear()
+
+      render({
+        activeProfile: 'ops',
+        locationPathname: '/hidden-chat',
+        profileReady: true,
+        routedSessionId: 'hidden-chat'
+      })
+      expect(window.localStorage.getItem('hermes.desktop.lastRoute.profile.ops')).toBeNull()
+      expect(navigate).not.toHaveBeenCalled()
+    })
+
     it('restores a non-session route like /capabilities', () => {
       window.localStorage.setItem('hermes.desktop.lastRoute.profile.default', '/capabilities')
 

@@ -1,4 +1,4 @@
-"""``hermes debug`` subcommand parser."""
+"""``hebri debug`` subcommand parser."""
 
 from __future__ import annotations
 
@@ -16,14 +16,14 @@ def build_debug_parser(subparsers, *, cmd_debug: Callable) -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 Examples:
-    hermes debug share              Upload debug report (asks for confirmation)
-    hermes debug share --yes        Skip confirmation (for scripts/CI)
-    hermes debug share --lines 500  Include more log lines
-    hermes debug share --expire 30  Keep dpaste.com fallback pastes for 30 days
-    hermes debug share --local      Print report locally (no upload)
-    hermes debug share --no-redact  Disable upload-time secret redaction
-    hermes debug share --nous       Upload to Nous-internal storage (private)
-    hermes debug delete <url>       Delete a previously uploaded paste
+    hebri debug share              Upload debug report (asks for confirmation)
+    hebri debug share --yes        Skip confirmation (for scripts/CI)
+    hebri debug share --lines 500  Include more log lines
+    hebri debug share --expire 30  Keep dpaste.com fallback pastes for 30 days
+    hebri debug share --local      Print report locally (no upload)
+    hebri debug share --no-redact  Disable upload-time secret redaction
+    hebri debug share --nous       Upload to Nous-internal storage (private)
+    hebri debug delete <url>       Delete a previously uploaded paste
 """)
     debug_sub = debug_parser.add_subparsers(dest="debug_command")
     share_parser = debug_sub.add_parser(
@@ -58,7 +58,7 @@ Examples:
             "gated viewer — and auto-deletes after 14 days. Still force-redacts "
             "secrets unless --no-redact is also passed.")
     delete_parser = debug_sub.add_parser(
-        "delete", help="Delete a paste uploaded by 'hermes debug share'")
+        "delete", help="Delete a paste uploaded by 'hebri debug share'")
     delete_parser.add_argument(
         "urls", nargs="*", default=[],
         help="One or more paste URLs to delete (e.g. https://paste.rs/abc123)")

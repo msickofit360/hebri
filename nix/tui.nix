@@ -4,6 +4,13 @@ hermesNpmLib.buildNpmPackage {
   dirs = [
     "ui-tui"
     "apps/shared"
+    "scripts/synapsek-account-client.ts"
+    "apps/desktop/electron/synapsek-account.ts"
+    "apps/desktop/electron/synapsek-account-types.ts"
+    "apps/desktop/electron/synapsek-inference-bridge.ts"
+    "apps/desktop/electron/native-oauth.ts"
+    "apps/desktop/electron/native-auth-decisions.ts"
+    "apps/desktop/electron/api-transport.ts"
   ];
 
   doCheck = false;

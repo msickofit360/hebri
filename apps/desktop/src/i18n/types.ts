@@ -2076,6 +2076,12 @@ export interface Translations {
         missing_app: string
         unknown: string
       }
+      catalogSearch: string
+      catalogNotice: string
+      catalogEmpty: string
+      catalogRuntime: string
+      catalogReview: string
+      catalogMore: string
       catalogTitle: string
       catalogBrowse: string
       catalogHide: string
@@ -3378,6 +3384,13 @@ export interface Translations {
   }
 
   updates: {
+    releaseInstalled: string
+    releaseReady: string
+    quitToInstall: string
+    releaseReadyBody: string
+    releaseVerifying: string
+    releaseDownloadBody: string
+    releaseDownloadFooter: string
     stages: Record<string, string>
     checking: string
     checkFailedTitle: string

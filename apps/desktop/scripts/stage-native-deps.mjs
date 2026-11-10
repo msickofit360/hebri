@@ -454,19 +454,19 @@ const getAddon = () => {
 };
 
 export async function activeWindow() {
-\treturn getAddon().getActiveWindow();
+\treturn getAddon().getActiveWindow() ?? undefined;
 }
 
 export function activeWindowSync() {
-\treturn getAddon().getActiveWindow();
+\treturn getAddon().getActiveWindow() ?? undefined;
 }
 
 export function openWindows() {
-\treturn getAddon().getOpenWindows();
+\treturn getAddon().getOpenWindows() ?? [];
 }
 
 export function openWindowsSync() {
-\treturn getAddon().getOpenWindows();
+\treturn getAddon().getOpenWindows() ?? [];
 }
 `
 
@@ -496,7 +496,7 @@ function resolveGetWindowsRoot() {
  * a Windows host — cross-platform packs already can't happen, see
  * stageNodePtyInto), Linux nothing (it shells out to xprop at runtime).
  */
-const GET_WINDOWS_VERSION = '9.3.0'
+const GET_WINDOWS_VERSION = '10.0.0'
 
 export function stageGetWindowsInto(
   srcRoot,
@@ -589,7 +589,7 @@ export function stageGetWindowsInto(
       bindingDirs = scanBindingDirs()
     }
     if (bindingDirs.length === 0) {
-      // get-windows 9.3.0 publishes win32 prebuilds for ia32/x64 only, and a
+      // A release can lack a binding for the target architecture, and a
       // half-extracted install (#90829) can leave even those without one. The
       // staged windows.js deliberately fails soft when binding/ is absent, so
       // preserve the desktop build and disable only window enumeration.
@@ -681,7 +681,7 @@ export function missingGetWindowsWarning({ platform, arch, halfInstalledDir }) {
       `[stage-native-deps] ${halfInstalledDir} exists but is not a loadable package — an ` +
         'interrupted npm install left it half-extracted (look for TAR_ENTRY_ERROR in the install log). ' +
         'To restore read_window_below: close every Hermes window and gateway so the extract is not ' +
-        'interrupted again, then run `hermes desktop --force-build` — it removes the stale dir before npm.'
+        'interrupted again, then run `hebri desktop --force-build` — it removes the stale dir before npm.'
     )
   }
   return lines.join('\n')

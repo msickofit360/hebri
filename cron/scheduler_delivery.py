@@ -724,7 +724,7 @@ _BOT_CHAT_BANNER_PREFIXES = ("Resumed session", "session_id:")
 
 
 def _run_bot_chat_turn(argv: list, env: dict, report_path: str, timeout: float) -> subprocess.CompletedProcess:
-    """Run one ``hermes chat -Q`` delivery child; the cap bounds the TURN, not the process (#113608).
+    """Run one ``hebri chat -Q`` delivery child; the cap bounds the TURN, not the process (#113608).
 
     The booking policy lives with the report contract (``quiet_single_query.run_reported_turn``):
     this lane needs only the outcome, so a child that reported its turn gets the exit grace and is
@@ -883,10 +883,10 @@ def _deliver_to_bot_chat(job: dict, content: str, profile: str, *, deferred: Opt
     if found:
         argv = [sys.executable, "-m", "hermes_cli.main"]
     else:
-        hermes_bin = shutil.which("hermes")
+        hermes_bin = shutil.which("hebri")
         if not hermes_bin:
-            return ("Hermes could not deliver this result to Bot Chat: the `hermes` command was not found. "
-                    "The result is saved; run `hermes cron runs` to see it, or `hermes doctor` if this keeps happening")
+            return ("Hermes could not deliver this result to Bot Chat: the `hebri` command was not found. "
+                    "The result is saved; run `hebri cron runs` to see it, or `hebri doctor` if this keeps happening")
         argv = [hermes_bin]
 
     def _fail(msg: str, **log_kwargs) -> str:
@@ -935,7 +935,7 @@ def _deliver_to_bot_chat(job: dict, content: str, profile: str, *, deferred: Opt
                 job_id, profile_label, home, tail)
             return (
                 f"Hermes could not deliver this result to Bot Chat (profile '{profile_label}'). "
-                "The result is saved; run `hermes cron runs` to see it, or `hermes doctor` if this keeps happening"
+                "The result is saved; run `hebri cron runs` to see it, or `hebri doctor` if this keeps happening"
                 f". Details: {tail}")
         logger.info("Job '%s': delivered to Bot Chat of profile '%s'", job_id, profile_label)
         return None
@@ -949,7 +949,7 @@ def _deliver_to_bot_chat(job: dict, content: str, profile: str, *, deferred: Opt
             marker = (
                 f"DELIVERY DEGRADED: this alert's bot-chat turn timed out after "
                 f"{timeout_s}s, so the full output could NOT be posted here. Read the "
-                f"complete saved output with `hermes cron runs` (job '{job_id}'). "
+                f"complete saved output with `hebri cron runs` (job '{job_id}'). "
                 f"Excerpt: {content.strip()[:280]}"
             )
             try:
@@ -967,9 +967,9 @@ def _deliver_to_bot_chat(job: dict, content: str, profile: str, *, deferred: Opt
                     job_id, defer_exc)
         hint = (
             "a short degraded-delivery notice was queued to Bot Chat — posted once the "
-            f"session frees; full output stays saved, run `hermes cron runs` for job '{job_id}'"
+            f"session frees; full output stays saved, run `hebri cron runs` for job '{job_id}'"
             if marker_queued else
-            "the result is saved; run `hermes cron runs` to see it, or `hermes doctor` "
+            "the result is saved; run `hebri cron runs` to see it, or `hebri doctor` "
             "if this keeps happening")
         return _fail(
             f"bot-chat delivery to profile '{profile_label}' timed out "
@@ -981,7 +981,7 @@ def _deliver_to_bot_chat(job: dict, content: str, profile: str, *, deferred: Opt
             str(e) or type(e).__name__, exc_info=True)
         return (
             f"Hermes could not deliver this result to Bot Chat (profile '{profile_label}'). "
-            "The result is saved; run `hermes cron runs` to see it, or `hermes doctor` if this keeps happening")
+            "The result is saved; run `hebri cron runs` to see it, or `hebri doctor` if this keeps happening")
     finally:
         if query_file:
             for path in (query_file, f"{query_file}.turn.json"):
@@ -1920,7 +1920,7 @@ def _deliver_result(
     # Restart-safe workers have no live gateway adapters: hand the send back through a durable
     # queue so the current or replacement gateway performs it with relay/E2EE parity. The execution
     # id is the idempotency key (the queue never retries an uncertain claimed send). Match on THIS
-    # job's own attempt: a worker's script may dispatch another job in-process (`hermes cron run`),
+    # job's own attempt: a worker's script may dispatch another job in-process (`hebri cron run`),
     # and that nested delivery must not be keyed under the outer execution id.
     external_execution = os.environ.get("_HERMES_CRON_EXTERNAL_WORKER", "")
     if (external_execution and adapters is None
@@ -1950,7 +1950,7 @@ def _deliver_result(
     # Mark live sends FINAL so the platform pushes them (Telegram "important" mode mutes otherwise).
     notify_delivery = _cron_delivery_notify_enabled(user_cfg)
     # Targets acked with NO evidence (bare SendResult(success=True) — Slack/Matrix/Mattermost);
-    # persisted as ``last_delivery_unverified`` so `hermes cron list` shows it.
+    # persisted as ``last_delivery_unverified`` so `hebri cron list` shows it.
     unverified_targets: list = []
     if wrap_response:
         task_name = job.get("name", job["id"])
@@ -1967,7 +1967,7 @@ def _deliver_result(
 
     from gateway.platforms.base import BasePlatformAdapter
     # Bridge media-policy config into the env vars the path validator reads. The gateway does this
-    # at boot; standalone runs (`hermes cron run`) did not, silently dropping files. Idempotent.
+    # at boot; standalone runs (`hebri cron run`) did not, silently dropping files. Idempotent.
     from gateway.media_policy import apply_media_policy_env
     apply_media_policy_env(user_cfg)
     media_files, cleaned_delivery_content = BasePlatformAdapter.extract_media(delivery_content)

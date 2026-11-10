@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import crypto from 'node:crypto'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 
 import { test } from 'vitest'
 
@@ -20,6 +24,42 @@ import {
 } from './windows-remote-lifecycle'
 
 const ownershipId = '0123456789abcdef0123456789abcdef'
+
+test.skipIf(process.platform !== 'win32')('native Windows discovery keeps a foreign Hermes installation separate', async () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'hebri command '))
+  const home = path.join(root, 'hebri')
+  const foreign = path.join(root, 'foreign')
+  const scripts = path.join(home, 'hebri-agent', 'venv', 'Scripts')
+  mkdirSync(scripts, { recursive: true })
+  mkdirSync(foreign)
+  writeFileSync(path.join(foreign, 'hermes.exe'), '')
+  writeFileSync(path.join(foreign, 'python.exe'), '')
+  const powershell = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+
+  const ssh = {
+    async exec(command: string) {
+      return execFileSync(powershell, ['-NoProfile', '-NonInteractive', '-EncodedCommand', command.split(' ').at(-1)!], {
+        encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env, HEBRI_HOME: home, HERMES_HOME: foreign, PATH: foreign }
+      })
+    }
+  }
+
+  try {
+    await assert.rejects(() => probeWindowsRemote(ssh), /Hebri is not installed/)
+    writeFileSync(path.join(scripts, 'hebri.exe'), '')
+    writeFileSync(path.join(scripts, 'python.exe'), '')
+    const found = await probeWindowsRemote(ssh)
+    assert.equal(found.hermesHome, home)
+    assert.equal(found.hermesPath, path.join(scripts, 'hebri.exe'))
+    const explicit = await probeWindowsRemote(ssh, path.join(scripts, 'hebri.exe'))
+    assert.equal(explicit.hermesPath, found.hermesPath)
+  } finally {
+    assert.equal(path.dirname(root), path.resolve(os.tmpdir()))
+    assert.ok(path.basename(root).startsWith('hebri command '))
+    rmSync(root, { recursive: true, force: true })
+  }
+})
 
 test('Windows spawn holds the update mutex across marker check and helper spawn', () => {
   const command = atomicWindowsSpawnCommand({
@@ -122,7 +162,7 @@ test('Windows relaunch gate refuses live and uncertain markers before executing 
       const script = Buffer.from(command.split(' ').at(-1) || '', 'base64').toString('utf16le')
       scripts.push(script)
 
-      if (script.includes('Get-Command hermes.exe')) {
+      if (script.includes('Get-Command hebri.exe')) {
         return JSON.stringify({
           os: 'Windows',
           arch: 'AMD64',

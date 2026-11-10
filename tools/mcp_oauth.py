@@ -348,7 +348,7 @@ def _raise_if_non_interactive(lead: str) -> None:
     """
     if not _is_interactive():
         raise OAuthNonInteractiveError(
-            f"{lead} Run `hermes mcp login <server>` interactively to (re)authorize, then restart or reload the gateway."
+            f"{lead} Run `hebri mcp login <server>` interactively to (re)authorize, then restart or reload the gateway."
         )
 
 
@@ -387,7 +387,8 @@ def _read_json(path: Path) -> dict | None:
     if not path.exists():
         return None
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        from tools.mcp_oauth_storage import read_oauth_json
+        return read_oauth_json(path)
     except (json.JSONDecodeError, OSError) as exc:
         logger.warning("Failed to read %s: %s", path, exc)
         return None
@@ -400,7 +401,8 @@ def _write_json(path: Path, data: dict) -> None:
 
     mkdir_under_hermes_home(path.parent)
     secure_parent_dir(path)
-    atomic_json_write(path, data, mode=0o600, default=str)
+    from tools.mcp_oauth_storage import write_oauth_json
+    write_oauth_json(path, data)
 
 
 def _model_json(model: Any) -> dict:
@@ -717,7 +719,7 @@ def _paste_callback_reader(result: dict) -> None:
     if line.lower() in _SKIP_TOKENS:
         result["error"] = _USER_SKIPPED_SENTINEL
         print(
-            "  OAuth skipped. Run `hermes mcp login <server>` later to authenticate, "
+            "  OAuth skipped. Run `hebri mcp login <server>` later to authenticate, "
             "or set ``enabled: false`` on that server in config.yaml to disable persistently.",
             file=sys.stderr)
         return
@@ -920,10 +922,10 @@ def remove_oauth_tokens(server_name: str, *, hermes_home: str | Path | None = No
 
 
 # CIMD (OAuth Client ID Metadata Documents): the client_id IS an HTTPS URL the server fetches for our
-# name/logo/redirect URIs, replacing per-install DCR. The SDK does the protocol; Hermes only decides
-# eligibility. Published from ``website/static/oauth/client-metadata.json``; the github.io origin is
-# deliberate — servers MUST NOT follow redirects when fetching it, and hermes-agent.nousresearch.com/docs/* 301s here.
-_CIMD_CLIENT_METADATA_URL = "https://nousresearch.github.io/hermes-agent/docs/oauth/client-metadata.json"
+# name/logo/redirect URIs, replacing per-install DCR. The SDK does the protocol.
+# Publish the matching website document before releasing this client. New grants
+# identify Hebri; existing cached registrations are preserved until reauthorization.
+_CIMD_CLIENT_METADATA_URL = "https://synapseklabs.org/oauth/hebri-client-metadata.json"
 # Loopback ports/hosts declared in that document (exact match, so no ephemeral port under CIMD);
 # below Linux's 32768 ephemeral floor. tests/tools/test_mcp_cimd.py keeps them in sync.
 _CIMD_PORTS = (27890, 27891, 27892, 27893, 27894)
@@ -1020,7 +1022,7 @@ def token_request_user_agent(cfg: dict) -> str | None:
 
 
 def login_connect_timeout(config: dict) -> float:
-    """Connect bound for an interactive OAuth login probe (CLI ``hermes mcp login``, dashboard and
+    """Connect bound for an interactive OAuth login probe (CLI ``hebri mcp login``, dashboard and
     Desktop re-auth): the server's ``connect_timeout`` or its ``oauth.timeout`` callback window
     (default 300 s) plus 15 s headroom for the token exchange, whichever is longer. A fixed 315 s
     floor here made raising ``oauth.timeout`` alone a no-op — the probe timed out first (#116278)."""
@@ -1085,9 +1087,9 @@ def _resolve_redirect_uri(cfg: dict, port: int) -> str:
     return cfg.get("redirect_uri") or f"http://{cfg.get('redirect_host') or '127.0.0.1'}:{port}/callback"
 
 
-# Figma's remote MCP allowlists DCR by client_name ("Claude Code"/"Codex" register, others 403);
-# register under an allowlisted name so the flow can start. oauth.client_name overrides.
-_FIGMA_DCR_CLIENT_NAME = "Claude Code"
+# Use our own identity even when a provider restricts dynamic registration.
+# A provider rejection requires a registered/approved Hebri client, not impersonation.
+_FIGMA_DCR_CLIENT_NAME = "Hebri"
 _FIGMA_DEFAULT_SCOPE = "mcp:connect"
 
 
@@ -1108,7 +1110,7 @@ def apply_oauth_provider_defaults(cfg: dict, *, server_name: str = "", server_ur
         if not cfg.get("client_name"):
             cfg["client_name"] = _FIGMA_DCR_CLIENT_NAME
             logger.info(
-                "MCP OAuth '%s': Figma DCR allowlist — registering as client_name=%r (override via oauth.client_name)",
+                "MCP OAuth '%s': registering with Hebri client identity %r",
                 server_name or server_url, _FIGMA_DCR_CLIENT_NAME)
         if not cfg.get("scope"):
             cfg["scope"] = _FIGMA_DEFAULT_SCOPE
@@ -1169,9 +1171,9 @@ def _invalidate_tokens_on_client_change(
             logger.warning("MCP OAuth '%s': could not remove stale %s after client change: %s", storage._server_name, path.name, exc)
     if removed:
         logger.warning(
-            "MCP OAuth '%s': configured OAuth client changed (client_id %r -> %r); discarded tokens minted under "
-            "the previous client. Re-authorize with: hermes mcp login %s",
-            storage._server_name, old_client_id, new_client_id, storage._server_name)
+            "MCP OAuth '%s': configured OAuth client changed; discarded tokens minted under "
+            "the previous client. Re-authorize with: hebri mcp login %s",
+            storage._server_name, storage._server_name)
 
 
 def _maybe_preregister_client(storage: "HermesTokenStorage", cfg: dict, client_metadata: "OAuthClientMetadata") -> None:
@@ -1189,14 +1191,13 @@ def _maybe_preregister_client(storage: "HermesTokenStorage", cfg: dict, client_m
         "token_endpoint_auth_method": client_metadata.token_endpoint_auth_method,
         **{key: cfg[key] for key in ("client_secret", "client_name", "scope") if cfg.get(key)}}
     _write_json(storage._client_info_path(), _model_json(info_cls.model_validate(info_dict)))
-    logger.debug("Pre-registered client_id=%s for '%s'", client_id, storage._server_name)
+    logger.debug("Pre-registered OAuth client for '%s'", storage._server_name)
 
 
 def humanize_oauth_registration_error(
     server_name: str, exc: BaseException | str, *, server_url: str | None = None) -> str | None:
     """Turn a DCR 403/Forbidden into a useful next step; None for anything else so the caller keeps the
-    original text. Figma gates DCR on exact ``client_name`` (auto-set to ``Claude Code``), so this fires
-    when the user overrode it or an older Hermes is running."""
+    original text. Provider client approval cannot be replaced by another product's name."""
     msg = str(exc)
     lowered = msg.lower()
     from tools.mcp_oauth_provider import _DISCOVERY_CONTEXT_LEAD
@@ -1210,13 +1211,12 @@ def humanize_oauth_registration_error(
         return None
     if _is_figma_remote_mcp(server_name, server_url):
         return (
-            f"'{server_name}' is Figma's remote MCP — DCR is allowlisted by exact client_name "
-            f"(\"{_FIGMA_DCR_CLIENT_NAME}\" and \"Codex\" work; most other names 403). Hermes defaults to "
-            f"client_name: {_FIGMA_DCR_CLIENT_NAME!r} automatically. If you set oauth.client_name yourself, "
-            f"change it to one of those, or clear it and re-run:\n  hermes mcp login {server_name}")
+            f"'{server_name}' rejected Hebri's OAuth client registration. A provider-approved Hebri client "
+            "is required for this connection. Configure its assigned oauth.client_id and any required secret, "
+            "or use Figma's supported local MCP server. Do not register as another product.")
     return (
         f"'{server_name}' only allows pre-approved OAuth clients — it rejected client registration (403), so no "
-        "browser flow can start. Options: set oauth.client_name to a name the provider allowlists, add a "
+        "browser flow can start. Obtain provider approval for Hebri, add a "
         "pre-registered client (oauth: {client_id: ..., client_secret: ...}), or use the provider's stdio / "
         "API-key / local server instead.")
 
@@ -1234,7 +1234,7 @@ def build_oauth_auth(server_name: str, server_url: str, oauth_config: dict | Non
     if not _is_interactive() and not storage.has_cached_tokens():
         raise OAuthNonInteractiveError(
             f"MCP OAuth for '{server_name}': non-interactive environment and no cached tokens found. The OAuth flow "
-            f"requires browser authorization. Run `hermes mcp login {server_name}` interactively first to complete "
+            f"requires browser authorization. Run `hebri mcp login {server_name}` interactively first to complete "
             "initial authorization, then cached tokens will be reused.")
     kwargs = build_provider_kwargs(cfg, storage, ssh_proxy_hint=True)
     if HermesOAuthClientProvider is None:

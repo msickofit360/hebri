@@ -331,7 +331,7 @@ export const ja: Translations = {
       "保存しました — 変更を適用するにはゲートウェイを再起動してください。",
     forceReinstall: "強制再インストール (既存のフォルダを先に削除)",
     headline:
-      "Hebri プラグインを発見、インストール、有効化、更新します (`hermes plugins` 相当)。",
+      "Hebri プラグインを発見、インストール、有効化、更新します (`hebri plugins` 相当)。",
     identifierLabel: "Git URL または owner/repo",
     inactive: "非アクティブ",
     installBtn: "インストール",

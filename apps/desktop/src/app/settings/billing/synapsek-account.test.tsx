@@ -19,6 +19,27 @@ afterEach(() => {
 })
 
 describe('Synapsek account controls', () => {
+  it.each(['service_unavailable', 'account_operation_failed'])(
+    'offers server sign-out after %s hides the saved account',
+    async code => {
+      const bridge = vi.fn(async (operation: string) =>
+        operation === 'signOut'
+          ? { ok: true as const, value: { state: 'signed_out' as const } }
+          : { ok: false as const, code }
+      )
+      window.hermesDesktop = { ...previous, synapsekAccount: bridge } as NonNullable<typeof window.hermesDesktop>
+      render(<SynapsekAccountSettings />)
+      expect(await screen.findByRole('alert')).toBeTruthy()
+      expect(screen.queryByText(/Unlock your operating system/)).toBeNull()
+      expect(screen.queryByText(/not enabled for this device/)).toBeNull()
+      fireEvent.click(screen.getByText('Sign out'))
+      await waitFor(() => expect(bridge).toHaveBeenCalledWith('signOut'))
+      await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
+      expect(screen.getByText('Sign in with Synapsek')).toHaveProperty('disabled', false)
+      expect(bridge).not.toHaveBeenCalledWith('forgetLocal')
+    }
+  )
+
   it('labels sponsored developer usage without inventing purchased credits or quota', async () => {
     window.hermesDesktop = {
       ...previous,

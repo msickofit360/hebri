@@ -357,7 +357,7 @@ def _profile_action_environment(
     """Environment for a detached ``hermes <subcommand>`` action.
 
     The dashboard loads its own profile's ``.env`` into process-global ``os.environ``. Copying
-    that mapping verbatim into ``hermes -p <other> ...`` lets the named child see the dashboard
+    that mapping verbatim into ``hebri -p <other> ...`` lets the named child see the dashboard
     profile's platform credentials and ports *before* its own dotenv loads (``load_hermes_dotenv``
     does not override keys already present): a supposedly A2A-only profile then claims the default
     Discord token and binds the default API/BlueBubbles ports.
@@ -429,7 +429,7 @@ def _action_targets_system_gateway(subcommand: List[str]) -> bool:
     Scope is decided by the CLI's own picker (``_select_systemd_scope``) evaluated for the profile
     the action addresses, not by "a system unit exists": a host carrying both units resolves to the
     user unit, which the dashboard user operates unelevated. Same root/sudo posture as the
-    ``hermes update`` fleet restart (``update_cmd_fleet._needs_sudo`` / ``_sudo_noninteractive_ok``).
+    ``hebri update`` fleet restart (``update_cmd_fleet._needs_sudo`` / ``_sudo_noninteractive_ok``).
     """
     from hermes_cli.update_cmd_fleet import _needs_sudo
 
@@ -476,7 +476,7 @@ def _spawn_hermes_action(
         # HERMES_HOME past sudo's env_reset and reads SUDO_USER for the service identity.
         # ``-n`` never prompts (stdin is DEVNULL anyway); without a passwordless path the
         # REQUEST fails instead of reporting a started action whose child refuses. Same
-        # two-step gate as the ``hermes update`` fleet restart: a refused blanket probe falls
+        # two-step gate as the ``hebri update`` fleet restart: a refused blanket probe falls
         # back to ``sudo -l`` on the exact argv, so a command-scoped NOPASSWD entry qualifies.
         from hermes_cli.update_cmd_fleet import _sudo_noninteractive_ok
 
@@ -512,7 +512,7 @@ def _spawn_hermes_action(
 
 def _own_profile_selector(profile: Optional[str]) -> Optional[str]:
     """The profile a lifecycle verb addresses: the explicit selector, else the process's own named
-    profile (a pooled Desktop ``hermes --profile X serve`` answers ``/api/gateway/*`` without
+    profile (a pooled Desktop ``hebri --profile X serve`` answers ``/api/gateway/*`` without
     ``?profile=``; an unscoped verb there is about X, not about the default home)."""
     requested = (profile or "").strip()
     if requested:
@@ -565,7 +565,7 @@ def multiplexed_profile_refusal(profile: Optional[str], verb: str) -> Optional[s
     """Refusal text for ``gateway start``/``stop`` on a named profile with no gateway of its own (a
     ``--force``-started separate one is managed normally), else None. A profile the live host
     multiplexer serves is parked by ``stop`` and a parked one is unparked by ``start`` (the spawned
-    ``hermes -p X gateway <verb>`` runs ``gateway_profile_lifecycle``), so neither is refused;
+    ``hebri -p X gateway <verb>`` runs ``gateway_profile_lifecycle``), so neither is refused;
     ``start`` on an unparked named profile is — one host gateway serves every profile, so a new
     per-profile gateway is never the answer (the CLI twin ``_named_profile_refused_under_multiplexer``
     exits 78 into an action log nobody reads while the UI shows the verb as done)."""
@@ -601,9 +601,9 @@ def multiplexed_profile_refusal(profile: Optional[str], verb: str) -> Optional[s
     if _installed_services(profile_dir):
         return None  # a --force-installed fleet member is not NEW; its own service is started normally
     return (f"Profile '{requested}' does not get a gateway of its own: one host gateway serves every "
-            f"profile. Install or start it from the default profile (hermes gateway install), or fold an "
-            f"existing per-profile fleet with `hermes gateway migrate --multiplex`; "
-            f"`hermes -p {requested} gateway install --force` starts a separate one anyway.")
+            f"profile. Install or start it from the default profile (hebri gateway install), or fold an "
+            f"existing per-profile fleet with `hebri gateway migrate --multiplex`; "
+            f"`hebri -p {requested} gateway install --force` starts a separate one anyway.")
 
 
 def _restart_gateway_after(profile: Optional[str], *, what: str, label: str) -> dict[str, Any]:

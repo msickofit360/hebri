@@ -92,7 +92,7 @@ export const zh = defineLocale({
     connect: '连接',
     connecting: '连接中',
     continue: '继续',
-    bots: '机器人',
+    bots: 'Bits',
     copied: '已复制',
     copy: '复制',
     copyFailed: '复制失败',
@@ -464,7 +464,7 @@ export const zh = defineLocale({
       appearanceTypography: '字体与缩放',
       appearanceWindowLayout: '窗口与布局',
       appearanceChatDisplay: '聊天显示',
-      appearancePet: '宠物',
+      appearancePet: 'Hebits',
       appearanceGeneral: '常规',
       modelMain: '主模型',
       modelAuxiliary: '辅助模型',
@@ -855,7 +855,7 @@ export const zh = defineLocale({
       removeTheme: '移除主题',
       importedBadge: '已导入',
       pet: {
-        title: '宠物',
+        title: 'Hebits',
         intro:
           '领养一只悬浮在应用上的 petdex 动画宠物，它会根据 Hebri 的状态做出反应——工具执行时奔跑、成功时欢呼、出错时沮丧。',
         restartHint: '宠物功能需要重启——当前运行的应用在此功能加入前启动。请退出并重新打开 Hebri，然后回到此处。',
@@ -1253,7 +1253,7 @@ export const zh = defineLocale({
       versionUnavailable: '版本不可用',
       bundleOutOfSync: '应用构建版本过旧',
       bundleOutOfSyncDesc:
-        'Hebri 运行时已更新,但桌面应用本身仍是旧构建——在应用更新之前,新的界面功能(如 Bot Mode)不会显示。请运行下方的更新以重新构建应用。如果此警告仍未消除,请从最新的桌面安装程序重新安装。',
+        'Hebri 运行时已更新,但桌面应用本身仍是旧构建——在应用更新之前,新的界面功能(如 Bits)不会显示。请运行下方的更新以重新构建应用。如果此警告仍未消除,请从最新的桌面安装程序重新安装。',
       bundleOutOfSyncAction: '获取安装程序',
       bundleSwapPending: '重启以完成更新',
       bundleSwapPendingDesc: '更新后的应用已安装完成，只需重启 Hebri 即可加载新版本。聊天记录和设置不会受到影响。',
@@ -2268,7 +2268,7 @@ export const zh = defineLocale({
     edit: '编辑',
     archive: '归档',
     skillArchivedTitle: '技能已归档',
-    skillArchivedMessage: '可通过 hermes curator restore 恢复。',
+    skillArchivedMessage: '可通过 hebri curator restore 恢复。',
     tabPlugins: '插件',
     plugins: {
       agentTitle: 'Agent 插件',
@@ -2299,11 +2299,16 @@ export const zh = defineLocale({
       toggleFailed: (name: string) => `无法切换 ${name}`,
       legacyBackend: '此后端版本较旧，不支持按键名切换插件 — 请更新 Hebri 后再在此管理。',
       portableBadge: '便携',
+      catalogSearch: '搜索插件',
+      catalogNotice: '内置目录。第三方条目不代表 Synapsek 对安全性或兼容性的保证。安装前请检查代码和要求。',
+      catalogEmpty: '没有匹配的插件。',
+      catalogRuntime: '上游运行环境',
+      catalogReview: '查看',
+      catalogMore: '显示更多',
       catalogTitle: '插件目录',
       catalogBrowse: '浏览',
       catalogHide: '隐藏目录浏览器',
-      catalogHint:
-        '点击任意插件上的「+ Add to this Agent」— 经过审核的条目会以其固定提交安装到所选配置。捆绑的 agent+桌面插件会同时提供两部分。',
+      catalogHint: '查看将打开所选 Bit 的安装对话框。确认之前不会安装任何内容。',
       alreadyInstalled: (name: string) => `${name} 已安装在此配置中。`,
       catalogProvenance: (sha: string) => `从 Hebri 目录安装${sha ? `，固定提交 ${sha}` : ''}。`,
       pinnedProvenance: (sha: string) => `已固定到提交 ${sha}。重新固定前将拒绝更新。`,
@@ -2475,7 +2480,7 @@ export const zh = defineLocale({
     changeTheme: '更改主题',
     changeColorMode: '更改颜色模式…',
     pets: {
-      title: '宠物',
+      title: 'Hebits',
       placeholder: '搜索宠物…',
       loading: '正在加载 petdex 画廊…',
       error: '无法连接到 petdex 画廊。',
@@ -2564,7 +2569,7 @@ export const zh = defineLocale({
     noSessions: '暂无会话。',
     gatewayRunning: '消息网关运行中',
     gatewayStopped: '消息网关已停止',
-    hermesActiveSessions: (version, count) => `Hebri ${version} · 活跃会话 ${count}`,
+    hermesActiveSessions: (version, count) => `Hebri 后端 ${version} · 活跃会话 ${count}`,
     restartGateway: '重启网关',
     openBrowser: '打开浏览器',
     gatewayRestartFailed: '网关重启失败。',
@@ -2823,7 +2828,7 @@ export const zh = defineLocale({
       wecom: '在企业微信中添加群机器人，复制其 webhook key 作为 WECOM_BOT_ID。仅可发送——双向请用企业微信 (应用) 选项。',
       wecom_callback: '设置一个企业微信自建应用，暴露其回调 URL，并提供 corp ID、secret、agent ID 和 AES key。',
       weixin:
-        '运行 `hermes gateway setup`，选择 Weixin，然后使用个人微信账号扫描并确认二维码。Hebri 会通过腾讯 iLink Bot API 连接并保存凭据。',
+        '运行 `hebri gateway setup`，选择 Weixin，然后使用个人微信账号扫描并确认二维码。Hebri 会通过腾讯 iLink Bot API 连接并保存凭据。',
       qqbot: '在 QQ 开放平台 (q.qq.com) 注册一个应用，复制 App ID 和 Client Secret。',
       api_server:
         '把 Hebri 暴露为兼容 OpenAI 的 API。设置一个鉴权密钥，然后把 Open WebUI / LobeChat 等指向 host:port。',
@@ -3851,6 +3856,14 @@ export const zh = defineLocale({
   },
 
   updates: {
+    releaseInstalled: '更新已安装',
+    quitToInstall: '退出并安装',
+    releaseReady: '下载完成',
+    releaseReadyBody:
+      '保存工作，完全退出 Hebri 以安装更新，然后重新打开 Hebri。当前运行的应用尚未更改。 在 Windows 上，请按照安装程序的提示操作，等待安装完成后再重新打开。',
+    releaseVerifying: '正在验证下载…',
+    releaseDownloadBody: '正在下载 Hebri 桌面更新。当前工作将保持打开。',
+    releaseDownloadFooter: '下载内容将在准备安装前经过验证。',
     stages: {
       idle: '准备中…',
       prepare: '准备中…',
@@ -4909,7 +4922,7 @@ export const zh = defineLocale({
     resumeStrandedTitle: '无法加载此会话',
     resumeStrandedBody: '与此会话的连接失败，自动重试已停止。请确认网关正在运行，然后重试。',
     poolSlotTimeoutBody:
-      '所有本地配置后端槽位都在使用中。请在“设置”→“高级”中增加 Warm Bot Backends，或等待空闲后端被驱逐后重试。',
+      '所有本地配置后端槽位都在使用中。请在“设置”→“高级”中增加 Warm Bit Backends，或等待空闲后端被驱逐后重试。',
     poolSlotTimeoutOpenSettings: '打开高级设置',
     resumeRetry: '重试',
     nothingToBranch: '没有可分支的内容',
@@ -4959,7 +4972,7 @@ export const zh = defineLocale({
       success: platform => `已移交到 ${platform}。随时可在此处恢复。`,
       systemNote: platform => `↻ 已移交到 ${platform} — 随时可在此处恢复。`,
       failed: error => `移交失败：${error}`,
-      timedOut: '等待网关超时。`hermes gateway` 是否正在运行？'
+      timedOut: '等待网关超时。`hebri gateway` 是否正在运行？'
     }
   },
 

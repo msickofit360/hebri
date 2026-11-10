@@ -93,6 +93,7 @@ describe('Synapsek native account', () => {
     const { storage } = fileStore()
     saveAccount(saved, storage)
     let calls = 0
+    let connectorCalls = 0
     let consent = true
 
     const server = http.createServer(async (req, res) => {
@@ -118,6 +119,15 @@ describe('Synapsek native account', () => {
       }
 
       expect(req.headers.authorization).toBe('Bearer test-access')
+
+      if (req.url === '/api/hebri-connectors') {
+        connectorCalls++
+        const chunks: Buffer[] = []
+        for await (const chunk of req) chunks.push(chunk)
+        expect(JSON.parse(Buffer.concat(chunks).toString())).toEqual({ command: { action: 'catalog' } })
+        res.end(JSON.stringify({ items: [] }))
+        return
+      }
 
       if (req.url === '/api/teams') {
         calls++
@@ -158,6 +168,12 @@ describe('Synapsek native account', () => {
 
     try {
       const command = { action: 'list', data: {}, expectedUserId: user }
+      expect(await account.connectorRequest({ command: { action: 'catalog' } }, user)).toEqual({ items: [] })
+      await expect(account.connectorRequest({ command: { action: 'catalog' } }, client)).rejects.toThrow(
+        'account_mismatch'
+      )
+      await expect(account.connectorRequest({ value: 'x'.repeat(24_001) }, user)).rejects.toThrow()
+      expect(connectorCalls).toBe(1)
       expect((await account.teamRequest(command)).teams[0].name).toBe('Private team')
       await expect(account.teamRequest({ ...command, expectedUserId: client })).rejects.toThrow('account_mismatch')
       expect(calls).toBe(1)

@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 _RECEIPT_KEEP = 20  # keep the last N receipts per profile home
 COMMAND_BOUNDARY_STOP_REASON = "completed at command boundary"
 
-# ``hermes update`` is a single-threaded CLI command; a module singleton lets the 7k-line updater
+# ``hebri update`` is a single-threaded CLI command; a module singleton lets the 7k-line updater
 # record steps from any depth without threading a handle through every helper.
 _current: Optional["UpdateReceipt"] = None
 
@@ -52,7 +52,7 @@ def _str_records(entries: Any, keys: tuple[str, ...], *, pid: bool = False) -> l
 
 
 class UpdateReceipt:
-    """Collects the observable facts of one ``hermes update`` run."""
+    """Collects the observable facts of one ``hebri update`` run."""
 
     def __init__(self) -> None:
         self.data: dict[str, Any] = {
@@ -96,7 +96,7 @@ class UpdateReceipt:
             persisted["skipped"] = _str_records(
                 fresh_recovery.get("skipped", []), ("profile", "kind", "supervisor", "reason")
             )
-            # ``hermes serve`` hosts tui_gateway and is not a gateway profile, so neither the
+            # ``hebri serve`` hosts tui_gateway and is not a gateway profile, so neither the
             # per-profile buckets above nor the fleet-version matrix can describe it. Persist its
             # unit outcomes and any process that survived on the pre-update generation, or the
             # receipt keeps claiming a clean recovery the operator's box contradicts.
@@ -221,7 +221,7 @@ def finalize_update_receipt(outcome: str, fleet: list | None = None, stop_reason
 def finalize_pending_update_receipt(exit_code: Optional[int] = None, stop_reason: str = "") -> Optional[Path]:
     """Command-boundary safety net: persist a still-open receipt, if any. Never raises.
 
-    ``hermes update`` has many early ``sys.exit`` paths (preflight refusals, venv-holder refusal,
+    ``hebri update`` has many early ``sys.exit`` paths (preflight refusals, venv-holder refusal,
     fetch failure) predating the inner finalize calls; finalizing here means refused/failed runs —
     where a receipt matters most — leave a record. Exit 0/None → ``success``, exit 2 → ``refused``
     (preflight convention), else → ``failed``.
@@ -250,8 +250,8 @@ def settle_latest_receipt_fleet(fleet: list[dict[str, Any]], *, discharges) -> b
     """Record on ``latest.json`` that the fleet it still reports as owed now serves the checkout.
 
     A failed receipt whose plan rows cannot be matched to a live gateway (unknown identity,
-    pre-pull SHAs) keeps ``hermes update`` exiting 1 and every CLI start warning about mixed
-    modules, long after the operator's ``hermes gateway restart`` fixed the fleet (#117051). The
+    pre-pull SHAs) keeps ``hebri update`` exiting 1 and every CLI start warning about mixed
+    modules, long after the operator's ``hebri gateway restart`` fixed the fleet (#117051). The
     caller has just verified every live row is current at the checkout SHA; persisting that
     matrix as the receipt's post-restart ``fleet`` (and un-flagging ``gateway_restart``) is what
     lets the stale-runtime readers see the recovery. ``discharges(settled_receipt)`` decides on
@@ -537,7 +537,7 @@ _FLEET_ROW_UNKNOWN = "  ? {profile} (pid {pid}) — version unknown (gateway pre
 # so the copy does not claim one.
 _FLEET_ROW_IDENTITY_PENDING = (
     "  ? {profile} (pid {pid}) — new pid since the update, code identity not published yet"
-    " — re-check with `hermes gateway status`"
+    " — re-check with `hebri gateway status`"
 )
 
 
@@ -574,7 +574,7 @@ def print_fleet_version_matrix(fleet: list[dict[str, Any]]) -> bool:
     if RESTART_PENDING_STATE in states:
         print()
         print("  ℹ A restart-pending gateway picks up the new code as soon as this update exits;")
-        print("    verify afterwards with `hermes gateway status`.")
+        print("    verify afterwards with `hebri gateway status`.")
     stale_or_down = sum(1 for entry in fleet if entry.get("state") in ("stale", "down"))
     if stale_or_down:
         print()
@@ -588,6 +588,6 @@ def print_fleet_version_matrix(fleet: list[dict[str, Any]]) -> bool:
         print()
         print(
             f"✗ Update not complete: {stale_or_down} gateway(s) still running the old code (or stopped).")
-        print("  Run `hermes gateway restart` (or `hermes -p <profile> gateway restart` for a named")
-        print("  profile), then `hermes gateway status` to confirm.")
+        print("  Run `hebri gateway restart` (or `hebri -p <profile> gateway restart` for a named")
+        print("  profile), then `hebri gateway status` to confirm.")
     return stale_or_down > 0

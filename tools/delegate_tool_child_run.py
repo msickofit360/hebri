@@ -487,7 +487,8 @@ def _validate_child_output_schema(
     from tools.delegation_output_schema import build_retry_message, validate_output
     _first_text = result.get("final_response") or ""
     _schema_valid, _schema_errors = validate_output(_first_text, _output_schema)
-    if _schema_valid or not _first_text.strip() or result.get("interrupted", False):
+    if (_schema_valid or not _first_text.strip() or result.get("interrupted", False)
+            or getattr(child, "_delegate_tool_failure", None) is not None):
         return _SchemaOutcome(_output_schema, _schema_valid, _schema_errors, 0)
 
     # Exactly one retry turn, carrying the validation errors verbatim (no
@@ -615,7 +616,8 @@ def _build_result_entry(
     entry["cost_usd"] = round(entry["_child_cost_usd"], 6)
     entry["cost_status"] = _cost_status if isinstance(_cost_status, str) and _cost_status else "unknown"
     if status == "failed":
-        entry["error"] = result.get("error", "Subagent did not produce a response.")
+        from agent.delegation_failure_policy import tool_failure_response
+        entry["error"] = result.get("error") or tool_failure_response(child) or "Subagent did not produce a response."
         # Classified reason from the child loop (e.g. "rate_limit", "billing")
         # lets the parent tell a quota wall from a task error without parsing prose.
         _failure_reason = result.get("failure_reason")

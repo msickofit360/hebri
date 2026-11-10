@@ -324,7 +324,7 @@ fn upgrade_cached_script(kind: ScriptKind, cached: &Path, emit_log: &impl Fn(&st
 /// falling back to the cached script.
 async fn download(kind: ScriptKind, commit_or_ref: &str, dest_path: &Path) -> Result<()> {
     let url = format!(
-        "https://raw.githubusercontent.com/NousResearch/hermes-agent/{}/scripts/{}",
+        "https://raw.githubusercontent.com/satoshilove/hebri/{}/scripts/{}",
         commit_or_ref,
         kind.filename()
     );
@@ -349,7 +349,7 @@ async fn download(kind: ScriptKind, commit_or_ref: &str, dest_path: &Path) -> Re
         .build()
         .context("building download client")?
         .get(&url)
-        .header("User-Agent", "hermes-setup/0.0.1")
+        .header("User-Agent", concat!("hebri-setup/", env!("CARGO_PKG_VERSION")))
         .send()
         .await
         .with_context(|| format!("GET {url}"))?;

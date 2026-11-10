@@ -51,7 +51,7 @@ def _install_signal_forwarders(proc: subprocess.Popen[bytes]) -> dict[int, objec
 
     previous: dict[int, object] = {}
     # SIGUSR1 is the gateway's drain-aware restart request. launchd owns THIS wrapper's PID,
-    # so `hermes update` signals us, not the gateway; an unforwarded SIGUSR1 kills the wrapper
+    # so `hebri update` signals us, not the gateway; an unforwarded SIGUSR1 kills the wrapper
     # (Python's default action), launchd tears the group down with SIGTERM and applies its
     # ~60 s crash back-off per sibling profile (#101426). SIGUSR2 is the gateway's
     # faulthandler stack-dump request (gateway/run_startup.py); unforwarded it terminates
@@ -107,7 +107,7 @@ def _prepare_child_command(command: Sequence[str], environ: Mapping[str, str] | 
 
     launchd stamps ``XPC_SERVICE_NAME=<job label>`` only on this wrapper (its direct child; an
     interactive shell has none, the grandchild sees ``XPC_SERVICE_NAME=0``). Newly generated
-    plists put ``--external-supervisor`` on the inner ``gateway run`` so ``hermes update`` can see
+    plists put ``--external-supervisor`` on the inner ``gateway run`` so ``hebri update`` can see
     the flag on the live process argv.
     """
     argv = [str(part) for part in command]

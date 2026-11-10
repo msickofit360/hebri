@@ -331,7 +331,7 @@ export const zhHant: Translations = {
       "已儲存 — 重新啟動閘道以套用變更。",
     forceReinstall: "強制重新安裝（先刪除既有資料夾）",
     headline:
-      "探索、安裝、啟用並更新 Hebri 外掛（對齊 `hermes plugins` CLI）。",
+      "探索、安裝、啟用並更新 Hebri 外掛（對齊 `hebri plugins` CLI）。",
     identifierLabel: "Git 網址或 owner/repo",
     inactive: "未啟用",
     installBtn: "安裝",

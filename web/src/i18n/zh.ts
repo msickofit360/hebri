@@ -327,7 +327,7 @@ export const zh: Translations = {
     toggleTakesEffectAfterRestart:
       "已保存 — 重启网关以应用更改。",
     forceReinstall: "强制重装（先删除已有目录）",
-    headline: "发现、安装、启用和更新 Hebri 插件（对齐 `hermes plugins` CLI）。",
+    headline: "发现、安装、启用和更新 Hebri 插件（对齐 `hebri plugins` CLI）。",
     identifierLabel: "Git 地址或 owner/repo",
     inactive: "未启用",
     installBtn: "安装",

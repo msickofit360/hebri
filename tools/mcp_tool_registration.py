@@ -34,9 +34,9 @@ _UTILITY_HANDLER_FACTORIES = {
 
 
 def _normalize_server_trust(value: Any) -> str:
-    """Config ``trust`` -> tier. None -> ``full`` (compat default); unrecognized -> ``untrusted`` (fail closed)."""
+    """Only an explicit local ``full`` policy grants unattended tool execution."""
     if value is None:
-        return _core._TRUST_FULL
+        return _core._TRUST_UNTRUSTED
     text = str(value).strip().lower()
     if text in (_core._TRUST_FULL, _core._TRUST_UNTRUSTED):
         return text
@@ -53,8 +53,8 @@ def _annotation_read_only_hint(mcp_tool: Any) -> bool:
 
 
 def _record_tool_trust_metadata(server_name: str, config: dict, tools: List[Any], key=None) -> None:
-    """Capture per-server trust and per-tool readOnlyHint at discovery — the security boundary: the call-time gate
-    classifies from data we control, never re-read server-supplied state. *key* is the connection (default: the
+    """Capture local trust policy and server-supplied hints separately. Hints never grant trust.
+    *key* is the connection (default: the
     registering profile's own); the ``trust`` policy is recorded under it for the profile that owns it — an
     adopting profile records its own policy in ``_record_scope_trust``."""
     with _core._lock:

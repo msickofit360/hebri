@@ -23,7 +23,7 @@ from hermes_cli.pty_session import PtySessionRegistry
 _log = logging.getLogger("hermes_cli.web_server")
 
 
-# /api/pty spawns ``hermes --tui`` behind a pseudo-terminal and forwards bytes +
+# /api/pty spawns ``hebri --tui`` behind a pseudo-terminal and forwards bytes +
 # resize escapes to xterm.js.  POSIX uses pty_bridge (fcntl/termios); native
 # Windows uses win_pty_bridge (pywinpty/ConPTY); same surface, no handler guards.
 try:
@@ -304,7 +304,7 @@ def _resolve_chat_argv(
     resume: Optional[str] = None, sidecar_url: Optional[str] = None, profile: Optional[str] = None,
     active_session_file: Optional[str] = None,
     workspace_cwd: Optional[str] = None) -> tuple[list[str], Optional[str], Optional[dict]]:
-    """Resolve the argv + cwd + env for the chat PTY (what ``hermes --tui`` runs).
+    """Resolve the argv + cwd + env for the chat PTY (what ``hebri --tui`` runs).
 
     Tests monkeypatch this with a tiny fake command.  Env contract: resume goes
     through ``HERMES_TUI_RESUME`` (``ui-tui`` does not parse argv), resolved to
@@ -312,7 +312,7 @@ def _resolve_chat_argv(
     in-memory gateway but is SKIPPED for profile-scoped chats (that gateway runs
     under the dashboard's own profile, so a scoped chat spawns its own);
     ``profile`` scopes the ENTIRE chat by pointing ``HERMES_HOME`` at the profile
-    dir, the same propagation ``hermes -p <name>`` performs. ``workspace_cwd``
+    dir, the same propagation ``hebri -p <name>`` performs. ``workspace_cwd``
     (an already-validated host directory, ``chat_workspaces.resolve_chat_cwd``)
     is the workspace the user picked for a FRESH chat: it becomes ``HERMES_CWD``
     (where a self-spawned gateway starts) and ``HERMES_TUI_CWD`` (what the TUI
@@ -336,6 +336,9 @@ def _resolve_chat_argv(
     env = build_subprocess_env(scrub_secrets=False, inherit_profile_home=True)
     if profile_dir is not None:
         env["HERMES_HOME"] = str(profile_dir)
+        # Keep public Hebri children in the selected Bit, not the launch Bit.
+        from hermes_constants import apply_subprocess_home_env
+        apply_subprocess_home_env(env)
     try:
         from hermes_cli.config import (
             apply_terminal_config_to_env, read_raw_config, terminal_config_owned_env_vars)

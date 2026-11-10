@@ -422,7 +422,7 @@ class CLITuiRuntimeMixin:
             print(
                 "Error: stdin (fd 0) is not available.\n"
                 "This can happen with certain Python installations (e.g. uv-managed cPython on macOS).\n"
-                "Try reinstalling Python via pyenv or Homebrew, then re-run: hermes setup"
+                "Try reinstalling Python via pyenv or Homebrew, then re-run: hebri setup"
             )
             return False
         if sys.platform == "darwin":

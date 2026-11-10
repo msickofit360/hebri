@@ -32,7 +32,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Protocol, Union
 
 # Must precede repo-level imports: standalone invocations (e.g. module reload after
-# `hermes update`) otherwise fail with ModuleNotFoundError for hermes_time et al.
+# `hebri update`) otherwise fail with ModuleNotFoundError for hermes_time et al.
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from hermes_constants import get_hermes_home, hermes_home_key
@@ -125,7 +125,7 @@ def _fallback_chain_phrase(job: Optional[dict] = None) -> str:
     if job is not None and _job_route_pinned(job):
         return (
             "This job is pinned to its own provider/model, so it does not fall back to "
-            f"`fallback_providers`; `hermes cron edit {job.get('id')} --unpin` lets it follow the "
+            f"`fallback_providers`; `hebri cron edit {job.get('id')} --unpin` lets it follow the "
             "main model and its fallback chain."
         )
     try:
@@ -136,7 +136,7 @@ def _fallback_chain_phrase(job: Optional[dict] = None) -> str:
     if chain:
         return "No backup provider succeeded either."
     return (
-        "No backup provider is configured — add one with `hermes fallback add`, "
+        "No backup provider is configured — add one with `hebri fallback add`, "
         "or set a cron-wide default via `cron.model` + `cron.model_provider` in config.yaml."
     )
 
@@ -165,7 +165,7 @@ def _failure_streak_nudge(job: dict) -> str:
     job_ref = job.get("name") or job.get("id") or "this job"
     return (
         f"\nThis job has failed {streak} runs in a row — worth a review. "
-        f"Fix its prompt/config, or pause it with `hermes cron pause {job_ref}` "
+        f"Fix its prompt/config, or pause it with `hebri cron pause {job_ref}` "
         "(resume/remove also available) to stop the noise."
     )
 
@@ -197,7 +197,7 @@ class CronTickYielded(RuntimeError):
     Raised by ``tick()`` BEFORE the tick lock when boot fingerprint ≠ disk, this process does NOT
     own the runtime lock and its live holder reports the disk revision — the stale process must
     stay out of the dispatch race (contention would starve the fresh ticker). Skew ``None`` never
-    yields (fail open). Raised, not returned, so ``record_ticker_error`` sees it and ``hermes cron
+    yields (fail open). Raised, not returned, so ``record_ticker_error`` sees it and ``hebri cron
     status`` isn't green.
     """
 
@@ -216,7 +216,7 @@ _STALE_YIELD_RE = re.compile(r"stale code: booted on (\S+), disk is at (\S+)\)")
 def stale_code_yield_labels(recorded_error: str | None) -> tuple[str, str] | None:
     """``(boot_rev, disk_rev)`` when a persisted ``ticker_last_error`` is a ``CronTickYielded``.
 
-    ``hermes cron status`` runs in another process and only sees the marker text; a yielding
+    ``hebri cron status`` runs in another process and only sees the marker text; a yielding
     ticker still refreshes its heartbeat, so this is the one signal that separates "stale code,
     firing nothing" from a healthy loop (#117275).
     """
@@ -330,7 +330,7 @@ def _summarize_cron_failure_for_delivery(job: dict, error: str | None) -> str:
     message = generic_failure_notice(job_name, job_id, cleaned)
 
     # Import-class failures (#95294 part 3): a long-lived gateway whose checkout was updated
-    # underneath it (interrupted `hermes update`, manual git pull) serves MIXED modules and every
+    # underneath it (interrupted `hebri update`, manual git pull) serves MIXED modules and every
     # agent cron job dies with `cannot import name X`. The error reads like a code bug, so APPEND
     # cause + fix — never replace the raw error, which carries the failing symbol. Fail-safe: skew
     # is None on non-git/no-fingerprint; no_agent jobs excluded (a fresh subprocess resolves
@@ -347,7 +347,7 @@ def _summarize_cron_failure_for_delivery(job: dict, error: str | None) -> str:
             message += (
                 f" Likely cause: the gateway is running stale code (booted "
                 f"on {boot_rev}, disk is at {disk_rev}) — run "
-                "`hermes gateway restart` to fix it."
+                "`hebri gateway restart` to fix it."
             )
 
     return message
@@ -507,7 +507,7 @@ def _resolve_cron_enabled_toolsets(job: dict, cfg: dict) -> list[str]:
     except Exception as exc:
         raise RuntimeError(
             "Cron toolset resolution failed, so this run was refused rather than given every "
-            f"tool. Check `platform_toolsets.cron` in config.yaml (`hermes cron doctor`): {exc}"
+            f"tool. Check `platform_toolsets.cron` in config.yaml (`hebri cron doctor`): {exc}"
         ) from exc
 
 
@@ -697,7 +697,7 @@ def get_running_job_ids() -> "frozenset[str]":
 
 def get_running_job_details() -> list[dict]:
     """Per in-flight job: ``{"job_id", "elapsed_s", "worker_pid"}`` (``worker_pid`` None for in-process
-    runs). The drain wait publishes this so ``hermes update`` can say WHICH job it is waiting on."""
+    runs). The drain wait publishes this so ``hebri update`` can say WHICH job it is waiting on."""
     now = time.time()
     with _running_lock:
         return [
@@ -1245,7 +1245,7 @@ def _interpreter_shutting_down(exc: Optional[BaseException] = None) -> bool:
     futures/asyncio refuse new work, so delivery attempts only pollute errors.log — callers skip
     with a warning. ``exc`` lets an already-raised scheduling error count as a shutdown signal.
 
-    A cron tick can fire while the gateway is tearing down — SIGTERM from ``hermes update`` / ``hermes
+    A cron tick can fire while the gateway is tearing down — SIGTERM from ``hebri update`` / ``hermes
     gateway stop`` / systemd restart, or an OOM-kill. Once finalization starts, ``concurrent.futures``
     refuses new work with ``RuntimeError: cannot schedule new futures after interpreter shutdown`` and
     asyncio's default executor is gone, so *any* attempt to schedule delivery (live-adapter,
@@ -1586,7 +1586,7 @@ class _CronJobConfig:
 def _load_cron_job_config(job: dict, job_id: str, job_name: str) -> _CronJobConfig:
     """Load config.yaml and resolve the run's model: per-job pin > cron.model (fleet default) >
     the main agent model (config ``model:``, then HERMES_MODEL). Re-read every tick (no cache) so
-    ``hermes cron edit --model`` and ``hermes model`` both apply next tick."""
+    ``hebri cron edit --model`` and ``hebri model`` both apply next tick."""
     model = job.get("model") or cron_env_setting("HERMES_MODEL") or ""
     _cron_default_provider = ""
     _cfg: dict = {}
@@ -1624,8 +1624,8 @@ def _load_cron_job_config(job: dict, job_id: str, job_name: str) -> _CronJobConf
             f"HERMES_MODEL={cron_env_setting('HERMES_MODEL')!r}, "
             "config.yaml model.default missing or empty). "
             f"Set a per-job model via "
-            f"`hermes cron edit {job_id} --model <name>` or set a "
-            "default with `hermes model <name>`."
+            f"`hebri cron edit {job_id} --model <name>` or set a "
+            "default with `hebri model <name>`."
         )
 
     with contextlib.suppress(Exception):
@@ -1712,7 +1712,7 @@ def _blocked_config_result(job_id: str, job_name: str, _pf_reason: str) -> tuple
         "(nothing was charged).\n\n"
         f"**Reason:** {_pf_reason}\n\n"
         "Hermes tries again at the next scheduled time and clears this state on the first healthy "
-        "run; this alert is not repeated. Check with `hermes cron doctor`. Set `cron.preflight: "
+        "run; this alert is not repeated. Check with `hebri cron doctor`. Set `cron.preflight: "
         "false` in config.yaml to disable this check."
     )
     return False, blocked_doc, "", f"{marker} {_pf_reason}"
@@ -3861,7 +3861,7 @@ def _worktree_maintenance_repos() -> List[str]:
 
 def _maybe_run_worktree_maintenance() -> None:
     """Throttled worktree prune from the cron tick, on a daemon thread so the tick never waits on
-    git. Same conservative pruner as ``hermes -w`` startup (dirty/unpushed/locked trees untouched).
+    git. Same conservative pruner as ``hebri -w`` startup (dirty/unpushed/locked trees untouched).
     Errors never propagate: GC is hygiene, not scheduling."""
     global _last_worktree_maintenance_at
     now = time.monotonic()
@@ -3943,7 +3943,7 @@ def _maybe_reap_dead_owners() -> None:
     whose owner process is proved gone are released (_owner_is_live), as are rows whose live owner
     holds a claim older than the derived stale bound (the process is not killed). Throttled."""
     # Dead-owner claim reclaim (#86721): execution rows carry their owner pid + process start time, but
-    # recovery previously ran only at scheduler STARTUP. A one-shot `hermes cron run` that claimed a job and
+    # recovery previously ran only at scheduler STARTUP. A one-shot `hebri cron run` that claimed a job and
     # died mid-run (its runner thread lived in the exiting CLI process) left the row 'claimed' forever while
     # the long-lived gateway ticker kept running — blocking every future run of that job. Reap provably-dead
     # owners periodically so stale claims auto-clear without a gateway restart. Throttled so idle 60s ticks

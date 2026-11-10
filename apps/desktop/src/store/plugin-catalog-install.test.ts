@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { PLUGIN_CATALOG_URL, type PluginCatalogLookup } from '@/lib/plugin-catalog'
+import { bundledPluginCatalog, type PluginCatalogLookup } from '@/lib/plugin-catalog'
 
 import { $agentPlugins } from './agent-plugins'
 import { $notifications } from './notifications'
@@ -58,22 +58,18 @@ describe('requestPluginCatalogInstallFromDeepLink', () => {
     expect(toasts[0]?.message).toContain(fragment)
   })
 
-  it('resolves against the live catalog feed by default and rejects unknown names', async () => {
-    const feed = JSON.stringify([
-      { name: 'weather', repo: 'https://github.com/x/weather', sha: 'a'.repeat(40), subdir: '' }
-    ])
-
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(feed, { status: 200 }))
-
-    await requestPluginCatalogInstallFromDeepLink('weather-evil')
-
-    expect(fetchSpy).toHaveBeenCalledWith(PLUGIN_CATALOG_URL, expect.anything())
+  it('uses the shipped catalog offline and rejects unknown names', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'))
+    await requestPluginCatalogInstallFromDeepLink('not-a-listed-plugin')
     expect($pluginInstallRequest.get()).toBeNull()
-    expect($notifications.get()[0]?.message).toContain('\u201Cweather-evil\u201D is not in the Hebri plugin catalog')
-
-    await requestPluginCatalogInstallFromDeepLink('weather')
-
-    expect($pluginInstallRequest.get()).toMatchObject({ catalogName: 'weather', repo: 'https://github.com/x/weather' })
+    const entry = bundledPluginCatalog[0]!
+    await requestPluginCatalogInstallFromDeepLink(entry.name)
+    expect($pluginInstallRequest.get()).toMatchObject({
+      catalogName: entry.name,
+      repo: entry.subdir ? `${entry.repo}#${entry.subdir}` : entry.repo,
+      sha: entry.sha
+    })
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 })
 

@@ -6,7 +6,7 @@ import type * as ReactRouterDom from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type * as HermesApi from '@/hermes'
-import { CATALOG_ORIGIN } from '@/lib/plugin-catalog'
+const CATALOG_ORIGIN = 'https://synapseklabs.org'
 import { queryClient } from '@/lib/query-client'
 import type * as HubActions from '@/store/hub-actions'
 

@@ -151,7 +151,7 @@ def _record_update_step(step: str, ok: bool, detail: str = "") -> None:
 
 
 # A fetch whose transport dead-stalls (HTTP/2 to GitHub on some networks, a black-holed proxy)
-# otherwise leaves `hermes update` on "Fetching updates..." forever (#93759, #95777). Five
+# otherwise leaves `hebri update` on "Fetching updates..." forever (#93759, #95777). Five
 # minutes is generous for a scoped single-branch fetch and still ends in a real error.
 NETWORK_GIT_TIMEOUT_SECONDS = 300
 
@@ -342,7 +342,7 @@ def _refuse_update_for_contended_shims(exc: BaseException) -> None:
     """
     print("✗ Cannot continue the update: live Hebri launcher(s) could not be")
     print("  moved aside:")
-    for name in getattr(exc, "failed_shims", []) or ["hermes.exe"]:
+    for name in getattr(exc, "failed_shims", []) or ["hebri.exe"]:
         print(f"    {name}")
     print("  Another process is holding this install's venv — typically Hebri")
     print("  Desktop, a gateway, or another hermes REPL — and mutating the venv")
@@ -413,7 +413,7 @@ def _write_lazy_refresh_incomplete_marker() -> None:
 
 def _format_concurrent_instances_message(matches: list[tuple[int, str]], scripts_dir: Path) -> str:
     """Explanation + remediation hint for the Windows concurrent-hermes.exe gate."""
-    shim = scripts_dir / "hermes.exe"
+    shim = scripts_dir / "hebri.exe"
     lines = [
         "✗ Another hermes.exe is running:",
         *(f"    PID {pid}  {name}" for pid, name in matches),
@@ -422,7 +422,7 @@ def _format_concurrent_instances_message(matches: list[tuple[int, str]], scripts
         "  Windows blocks REPLACE on a running executable.",
         "",
         "  Close Hebri Desktop, exit any open `hebri` REPLs, and",
-        "  stop the gateway (`hermes gateway stop`) before retrying.",
+        "  stop the gateway (`hebri gateway stop`) before retrying.",
         ""]
     if matches:
         pid_args = " ".join(f"/PID {pid}" for pid, _ in matches)
@@ -432,7 +432,7 @@ def _format_concurrent_instances_message(matches: list[tuple[int, str]], scripts
             f"      taskkill {pid_args} /F",
             ""]
     lines += [
-        "  Override with `hermes update --force` if you've already",
+        "  Override with `hebri update --force` if you've already",
         "  confirmed those processes will not write to the venv."]
     return "\n".join(lines)
 
@@ -511,7 +511,7 @@ def _run_logged_subprocess(cmd, *, cwd=None, env=None):
 
 
 def _cmd_update_check(branch: str = "main", *, branch_explicit: bool = False):
-    """``hermes update --check``: fetch and report without installing. ``branch_explicit`` is
+    """``hebri update --check``: fetch and report without installing. ``branch_explicit`` is
     True iff --branch was passed (Docker installs print a notice instead of dropping the flag)."""
     # Same marker-first admission gate as the apply path, so --check never reports git
     # state for an install whose real update mechanism is an image pull.
@@ -739,7 +739,7 @@ def _repair_current_checkout(
     else:
         if runtime_repaired is not None:
             # A successful SQLite repair swaps in a venv built from uv.lock alone, so core
-            # imports pass while lazily-installed backends and ``hermes tools`` dependencies
+            # imports pass while lazily-installed backends and ``hebri tools`` dependencies
             # are gone (#112571). Restore the pre-cutover snapshots exactly as the pull path
             # and the unhealthy-venv repair do; the healthy core set needs no reinstall.
             repair_prefix, repair_env = _pip_install_prefix(repair_uv)
@@ -856,7 +856,7 @@ def _rollback_if_pulled_syntax_error(git_cmd, pre_pull_sha) -> None:
         rollback_result = _git_run(git_cmd, ["reset", "--hard", pre_pull_sha])
         if rollback_result.returncode == 0:
             print("  ✓ Rollback complete — your install is unchanged.")
-            print("  Try ``hermes update`` again later once a fix lands.")
+            print("  Try ``hebri update`` again later once a fix lands.")
         else:
             print("  ✗ Rollback failed. Recover manually with:")
             print(f"    cd {_m().PROJECT_ROOT} && git reset --hard {pre_pull_sha}")
@@ -878,7 +878,7 @@ def _pull_updates(
     # Pre-pull SHA for auto-rollback (stray conflict markers once bricked every updater).
     # Capture the pre-pull SHA so we can auto-roll-back if the new code has a syntax error in a
     # critical-path file (PR #28452 incident: orphan merge-conflict markers in hermes_cli/config.py bricked
-    # every user who ran ``hermes update`` for the 7 minutes between the bad commit and the fix landing).
+    # every user who ran ``hebri update`` for the 7 minutes between the bad commit and the fix landing).
     pre_pull_sha = _capture_head_sha(git_cmd, _m().PROJECT_ROOT)
     # Git moves the tree file by file and HEAD last: if this process dies in between, the next launch
     # of any entry point finds this marker and puts the old tree back (_early_recovery). The target is
@@ -1053,7 +1053,7 @@ def _prepare_checkout_for_update(
 
 @dataclass
 class _UpdateOptions:
-    """Resolved ``hermes update`` inputs (flags, config, pre-update snapshots)."""
+    """Resolved ``hebri update`` inputs (flags, config, pre-update snapshots)."""
 
     active_lazy_features: object
     active_tool_dependencies: object
@@ -1199,7 +1199,7 @@ def _verify_head_after_pull(
     # Verify HEAD actually moved (issue #79678). ``merge --ff-only`` succeeding only means the merge
     # completed, not that the update applied: a checkout that is pinned to a raw SHA (detached HEAD) can
     # report "N new commit(s)" against origin yet still sit on the old commit afterward (the branch-switch
-    # step re-detaches to the SHA). Before this guard, ``hermes update`` printed "✓ Code updated!" and
+    # step re-detaches to the SHA). Before this guard, ``hebri update`` printed "✓ Code updated!" and
     # reinstalled deps + rebuilt the desktop app against the stale tree — no error, no warning, ``hermes
     # doctor`` healthy. Compare pre-pull and post-pull HEAD; if they match, surface the no-op instead of
     # claiming success.
@@ -1212,7 +1212,7 @@ def _verify_head_after_pull(
             f"origin/{branch} advanced but the working tree stayed put.")
         print(
             "  Reattach to the branch and retry: "
-            f"git -C {_m().PROJECT_ROOT} checkout {branch} && hermes update")
+            f"git -C {_m().PROJECT_ROOT} checkout {branch} && hebri update")
         _m()._resume_windows_gateways_after_update(_windows_gateway_resume)
         sys.exit(1)
 
@@ -1226,7 +1226,7 @@ def _verify_head_after_pull(
             f"'{post_pull_branch}' — not claiming success.")
         print(
             "  Switch to the target branch and retry: "
-            f"git -C {_m().PROJECT_ROOT} checkout {branch} && hermes update")
+            f"git -C {_m().PROJECT_ROOT} checkout {branch} && hebri update")
         _m()._resume_windows_gateways_after_update(_windows_gateway_resume)
         sys.exit(1)
     return post_pull_sha
@@ -1257,9 +1257,9 @@ def _handle_update_called_process_error(
             _print_called_process_error_tail(e)
             print()
             print("  Hebri may not start until the dependencies are installed. Fix the error above")
-            print("  (usually network or disk space), then run `hermes update` again.")
+            print("  (usually network or disk space), then run `hebri update` again.")
             if _m()._is_windows():
-                print("  If `hermes update` itself will not start, retry through the venv interpreter:")
+                print("  If `hebri update` itself will not start, retry through the venv interpreter:")
                 print(
                     '    venv\\Scripts\\python.exe -c '
                     '"from hermes_cli.main import main; main()" update --yes')
@@ -1418,7 +1418,7 @@ def _sibling_snapshots_module():
 
 
 def _hand_off_post_swap(args, **payload_kwargs) -> None:
-    """Re-execute ``hermes update --post-swap`` on the pulled tree and exit with its code.
+    """Re-execute ``hebri update --post-swap`` on the pulled tree and exit with its code.
 
     The parent detaches from the receipt and its Windows resume hook — the child owns both —
     and only relays the exit code (``hermes_cli/update_handoff.py``).
@@ -1610,7 +1610,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
         import atexit as _atexit
         _atexit.register(_m()._resume_windows_gateways_after_update, _windows_gateway_resume)
 
-    # Any venv python still running (typically the Desktop `hermes serve` backend) keeps .pyd
+    # Any venv python still running (typically the Desktop `hebri serve` backend) keeps .pyd
     # locked and would corrupt the sync; refuse rather than race (the app respawns a killed
     # backend). NOT bypassed by --force (desktop updater, shim guard only); --force-venv is.
     if _m()._is_windows() and not getattr(args, "force_venv", False):

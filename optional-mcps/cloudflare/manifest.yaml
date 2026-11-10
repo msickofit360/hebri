@@ -135,7 +135,7 @@ post_install: |
   tool_search — you'd be stacking two tool-discovery layers.
 
   Cloudflare also runs product-specific MCP servers (same OAuth flow, add
-  manually via `hermes mcp add <name> --url <url>` if you want a narrower
+  manually via `hebri mcp add <name> --url <url>` if you want a narrower
   surface): docs search (https://docs.mcp.cloudflare.com/mcp, no auth),
   Workers observability (https://observability.mcp.cloudflare.com/mcp),
   Browser Rendering (https://browser.mcp.cloudflare.com/mcp), Radar
@@ -145,4 +145,4 @@ post_install: |
   source URL above.
 
   Re-run the tool checklist any time with:
-    hermes mcp configure cloudflare
+    hebri mcp configure cloudflare

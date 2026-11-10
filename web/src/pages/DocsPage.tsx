@@ -6,7 +6,7 @@ import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { PluginSlot } from "@/plugins";
 
-export const HEBRI_DOCS_URL = "https://github.com/satoshilove/hebri#readme";
+export const HEBRI_DOCS_URL = "https://github.com/Synapsek-Labs/hebri#readme";
 
 const DOC_LINKS = [
   {
@@ -17,13 +17,13 @@ const DOC_LINKS = [
   },
   {
     description: "Review the supported versions, reporting process, and security policy.",
-    href: "https://github.com/satoshilove/hebri/blob/main/SECURITY.md",
+    href: "https://github.com/Synapsek-Labs/hebri/blob/main/SECURITY.md",
     icon: ShieldCheck,
     label: "Security"
   },
   {
     description: "See the production checklist for Synapsek account login and Stripe billing.",
-    href: "https://github.com/satoshilove/hebri/blob/main/docs/SYNAPSEK_ACCOUNT_AND_BILLING_INTEGRATION.md",
+    href: "https://github.com/Synapsek-Labs/hebri/blob/main/docs/SYNAPSEK_ACCOUNT_AND_BILLING_INTEGRATION.md",
     icon: CreditCard,
     label: "Accounts and billing"
   }

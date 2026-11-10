@@ -123,7 +123,7 @@ def load_user_credentials(email: Optional[str] = None) -> Optional[Any]:
     except ImportError:
         logger.warning(
             "[google_chat_user_oauth] google-auth not installed; user-OAuth "
-            "attachment delivery is disabled. Run `hermes setup` to install Google Chat support."
+            "attachment delivery is disabled. Run `hebri setup` to install Google Chat support."
         )
         return None
     try:
@@ -250,11 +250,11 @@ def install_deps() -> bool:
         return True
     except FeatureUnavailable as exc:
         print(f"ERROR: Failed to install dependencies: {exc.reason}")
-        print("Run `hermes setup` to repair the managed installation, then retry.")
+        print("Run `hebri setup` to repair the managed installation, then retry.")
         return False
     except Exception as exc:
         print(f"ERROR: Failed to install dependencies: {exc}")
-        print("Run `hermes setup` to repair the managed installation, then retry.")
+        print("Run `hebri setup` to repair the managed installation, then retry.")
         return False
 
 

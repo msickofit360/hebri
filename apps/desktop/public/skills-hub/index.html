@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Synapsek Skills Hub</title>
+<link rel="stylesheet" href="./hub.css">
+</head>
+<body>
+<div id="banner">Picker mode — installing into the host agent. Nothing is downloaded until you click.</div>
+<header>
+  <span class="home">Hebri</span>
+  <h1>Synapsek Skills Hub</h1>
+  <div class="sub" id="sub">Loading catalog…</div>
+</header>
+
+<div class="controls">
+  <input id="q" aria-label="Search skills" placeholder="Search skills by name, description or identifier…" autocomplete="off">
+  <select id="src" aria-label="Source"><option value="">All sources</option></select>
+  <select id="trust" aria-label="Trust level"><option value="">All trust</option>
+    <option value="builtin">builtin</option>
+    <option value="trusted">trusted</option>
+    <option value="community">community</option></select>
+</div>
+
+<p class="notice">Source labels are not a security review. Review a skill before installing it. Installs belong to the selected Hebri Bit.</p>
+<div role="status" aria-live="polite" class="stat" id="stat"></div>
+<div id="grid"></div>
+<button class="more" id="more" hidden>Show more</button>
+
+<footer class="notice"><a href="./source.txt">Source and license</a></footer>
+<script src="./catalog.js" defer></script>
+<script src="./hub.js" defer></script>
+</body>
+</html>

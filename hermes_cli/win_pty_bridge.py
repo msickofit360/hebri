@@ -1,4 +1,4 @@
-"""Windows ConPTY bridge for the `hermes dashboard` chat tab."""
+"""Windows ConPTY bridge for the `hebri dashboard` chat tab."""
 
 from __future__ import annotations
 
@@ -67,6 +67,8 @@ class WinPtyBridge:
             build_subprocess_env(scrub_secrets=False, inherit_profile_home=False)
             if env is None else dict(env))
         spawn_env["TERM"] = spawn_env.get("TERM") or "xterm-256color"
+        # Match the POSIX bridge: Ink must know xterm.js is its host on Windows too.
+        spawn_env["HERMES_PTY_HOST"] = "dashboard"
         # pywinpty mirrors ptyprocess: dimensions=(rows, cols).
         return cls(PtyProcess.spawn(list(argv), cwd=cwd, env=spawn_env, dimensions=(rows, cols)))  # type: ignore[union-attr]
 

@@ -2,8 +2,8 @@
 
 Curated, Nous-approved Hermes plugins. Each YAML file in this directory
 (except `removed.yaml`) is one catalog entry, discoverable via
-`hermes plugins catalog` / `hermes plugins search` and installable with
-`hermes plugins install <name>`.
+`hebri plugins catalog` / `hebri plugins search` and installable with
+`hebri plugins install <name>`.
 
 ## Admission policy
 
@@ -21,7 +21,7 @@ meaningful:
    remote `plugin.js` loaders). The exact SHA pin *is* the trust model; a
    self-updater lets an installed copy move to a commit nobody reviewed.
    Updates reach users only through a SHA-bump PR here plus
-   `hermes plugins update <name>`. Keep the updater in the standalone
+   `hebri plugins update <name>`. Keep the updater in the standalone
    distribution if you want one; strip it from the catalog build.
 4. **SHA bumps are new PRs.** Updating an entry's pin is a new PR whose diff
    (old SHA → new SHA) is re-reviewed like any other change — reviewers are
@@ -39,7 +39,7 @@ meaningful:
    (tools, hooks, middleware, env vars) must match what the plugin actually
    registers at the pinned commit. Validation fails the entry otherwise —
    undeclared capability creep is treated as a security issue.
-7. **The install scanner runs at admission.** `hermes plugins validate` includes
+7. **The install scanner runs at admission.** `hebri plugins validate` includes
    the `security scan` check: `dangerous` fails the entry; `caution` findings
    appear as warnings in the CI log and the reviewer reads them before merging.
    In exchange, installs at the pinned SHA accept `caution` without a prompt
@@ -50,7 +50,7 @@ meaningful:
    no prototype patching (`X.prototype.y =`, `Object.defineProperty(...prototype`),
    no `eval`/`new Function`, no `import()` of anything but `@hermes/plugin-sdk`
    / `react` (app bundle chunks, blob or http URLs included), no script-tag
-   injection, no reaching into the app's internal stores. `hermes plugins
+   injection, no reaching into the app's internal stores. `hebri plugins
    validate` refuses these at admission (`desktop surface` check); a plugin
    that needs a capability the SDK lacks asks for an SDK hook instead of
    patching around it.

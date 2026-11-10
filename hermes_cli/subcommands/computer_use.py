@@ -1,4 +1,4 @@
-"""``hermes computer-use`` subcommand parser."""
+"""``hebri computer-use`` subcommand parser."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ def _cu_status(args) -> int:
     override = _os.environ.get("HERMES_CUA_DRIVER_CMD", "").strip()
     if not path:
         print("cua-driver: not installed")
-        print("  Run: hermes computer-use install")
+        print("  Run: hebri computer-use install")
         return 1
     version = ""
     try:
@@ -40,7 +40,7 @@ def _cu_status(args) -> int:
     from hermes_cli.tools_config import _cua_version_summary
     version = _cua_version_summary(version)
     # Name the override here too. Without it the operator is told to repair an
-    # install that `hermes computer-use install` will (correctly) refuse to touch,
+    # install that `hebri computer-use install` will (correctly) refuse to touch,
     # with nothing pointing at the env var that actually selected the binary.
     origin = " [custom binary from HERMES_CUA_DRIVER_CMD]" if override else ""
     print(f"cua-driver: installed at {path}{origin}" + (f" ({version})" if version else ""))
@@ -50,9 +50,9 @@ def _cu_status(args) -> int:
         if override:
             print(
                 "    Update the binary selected by HERMES_CUA_DRIVER_CMD, or unset "
-                "the override and run: hermes computer-use install --upgrade")
+                "the override and run: hebri computer-use install --upgrade")
         else:
-            print("    Run: hermes computer-use install")
+            print("    Run: hebri computer-use install")
         return 1
     rc = 0
     if sys.platform == "linux":  # hand-written daemon units: dead `serve` is invisible to the binary contract (#114748)
@@ -68,14 +68,14 @@ def _cu_status(args) -> int:
         if st and st.get("update_available"):
             latest = st.get("latest_version") or "?"
             print(f"  ⬆ Update available: cua-driver {latest}.")
-            print("    Run: hermes computer-use install --upgrade")
+            print("    Run: hebri computer-use install --upgrade")
         elif st:
             print("  ✓ Up to date.")
         else:
             # Older driver (no check-update verb) or offline.
-            print("  Refresh to latest: hermes computer-use install --upgrade")
+            print("  Refresh to latest: hebri computer-use install --upgrade")
     except Exception:
-        print("  Refresh to latest: hermes computer-use install --upgrade")
+        print("  Refresh to latest: hebri computer-use install --upgrade")
     return rc
 
 
@@ -98,7 +98,7 @@ def _cu_perms_status(args) -> None:
         print(f"Computer Use is not supported on {st['platform']}.")
         sys.exit(1)
     if not st["installed"]:
-        print("cua-driver: not installed. Run: hermes computer-use install")
+        print("cua-driver: not installed. Run: hebri computer-use install")
         sys.exit(1)
     glyph = lambda v: "✅" if v is True else ("❌" if v is False else "•")  # noqa: E731
     print(f"cua-driver: {st['version'] or 'installed'} ({st['platform']})")
@@ -106,7 +106,7 @@ def _cu_perms_status(args) -> None:
         print(f"  {glyph(st['accessibility'])} Accessibility")
         print(f"  {glyph(st['screen_recording'])} Screen Recording")
         if not st["ready"]:
-            print("  Grant: hermes computer-use permissions grant")
+            print("  Grant: hebri computer-use permissions grant")
             if hint := stale_tcc_grant_hint(*(f for f in TCC_FIELDS if st[f] is False)):
                 print(f"  {hint}")
     else:  # no TCC model — readiness is driver health
@@ -131,13 +131,13 @@ def build_computer_use_parser(subparsers) -> None:
         description="Install or check the cua-driver binary used by the\n"
             "`computer_use` toolset. Supported on macOS, Windows, and\n"
             "Linux.\n\n"
-            "Use `hermes computer-use install` to fetch and run the\n"
+            "Use `hebri computer-use install` to fetch and run the\n"
             "upstream cua-driver installer. This is equivalent to the\n"
-            "post-setup hook that `hermes tools` runs when you first\n"
+            "post-setup hook that `hebri tools` runs when you first\n"
             "enable the Computer Use toolset, and is a stable target\n"
             "for re-running the install if it didn't fire (e.g. when\n"
             "toggling the toolset on a returning-user setup).\n\n"
-            "Use `hermes computer-use doctor` to run cua-driver's\n"
+            "Use `hebri computer-use doctor` to run cua-driver's\n"
             "`health_report` MCP tool and surface its check matrix\n"
             "(TCC, bundle identity, version, platform support, ...)\n"
             "in human-readable form.")

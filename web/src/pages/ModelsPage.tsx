@@ -42,6 +42,7 @@ import { useI18n } from "@/i18n";
 import { PluginSlot } from "@/plugins";
 import { ModelPickerDialog } from "@/components/ModelPickerDialog";
 import { ModelReloadConfirm } from "@/components/ModelReloadConfirm";
+import { SynapsekAccount } from "@/components/SynapsekAccount";
 import { errorMessage } from "@/lib/api-error";
 
 const PERIODS = [
@@ -1243,6 +1244,7 @@ export default function ModelsPage() {
   return (
     <div className="flex min-w-0 max-w-full flex-col gap-6">
       <PluginSlot name="models:top" />
+      <SynapsekAccount onChanged={onAssigned} />
 
       <div className="grid min-w-0 gap-6 lg:grid-cols-2">
         <ModelSettingsPanel

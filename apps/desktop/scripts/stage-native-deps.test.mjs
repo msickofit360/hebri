@@ -386,7 +386,7 @@ test('validation rejects a staged binary with the wrong platform magic', () => {
 // ─── stageGetWindowsInto tests ──────────────────────────────────────
 
 /** Create a minimal fake get-windows source tree in a temp dir. */
-function makeFakeGetWindows(srcRoot, { version = '9.3.0', bindings = [] } = {}) {
+function makeFakeGetWindows(srcRoot, { version = '10.0.0', bindings = [] } = {}) {
   fs.mkdirSync(join(srcRoot, 'lib'), { recursive: true })
   fs.writeFileSync(join(srcRoot, 'package.json'), JSON.stringify({ name: 'get-windows', version, main: 'index.js' }))
   fs.writeFileSync(join(srcRoot, 'index.js'), 'export {};')
@@ -605,7 +605,7 @@ test('staging refuses a get-windows version the lib/windows.js rewrite was not v
 
     assert.throws(
       () => stageGetWindowsInto(srcRoot, destRoot, { platform: 'darwin' }),
-      /verified against 9\.3\.0/
+      /rewrite was verified against/
     )
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true })
@@ -684,11 +684,29 @@ test('a half-installed get-windows dir is found and named in a repair hint', () 
       console.warn = origWarn
     }
     assert.equal(warnings.length, 1)
-    assert.match(warnings[0], /hermes desktop --force-build/)
+    assert.match(warnings[0], /hebri desktop --force-build/)
     assert.ok(warnings[0].includes(join(tmp, 'node_modules', 'get-windows')))
 
     fs.rmSync(join(tmp, 'node_modules'), { recursive: true, force: true })
     assert.equal(findHalfInstalledGetWindowsDir(app), null)
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true })
+  }
+})
+
+
+test('staged Windows API preserves empty-result contracts without a native binding', async () => {
+  const tmp = fs.mkdtempSync(join(os.tmpdir(), 'hebri-stage-api-'))
+  try {
+    const srcRoot = join(tmp, 'source')
+    const destRoot = join(tmp, 'staged')
+    makeFakeGetWindows(srcRoot)
+    stageGetWindowsInto(srcRoot, destRoot, { platform: 'win32', arch: 'arm64' })
+    const api = await import(pathToFileURL(join(destRoot, 'lib', 'windows.js')).href)
+    assert.equal(await api.activeWindow(), undefined)
+    assert.equal(api.activeWindowSync(), undefined)
+    assert.deepEqual(await api.openWindows(), [])
+    assert.deepEqual(api.openWindowsSync(), [])
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true })
   }

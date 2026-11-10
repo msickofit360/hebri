@@ -14,6 +14,10 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
+_VALIDATOR_UNAVAILABLE = (
+    "Output contract validation is unavailable. Install jsonschema in the agent's "
+    "Python environment before requesting output_schema."
+)
 
 
 def coerce_output_schema(raw: Any) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
@@ -22,7 +26,7 @@ def coerce_output_schema(raw: Any) -> Tuple[Optional[Dict[str, Any]], Optional[s
     if raw is None:
         return None, None
     if isinstance(raw, str):
-        # Models sometimes double-encode the schema as a JSON string.
+        # Model-facing schemas use JSON text; retain object support for older callers.
         try:
             raw = json.loads(raw)
         except (ValueError, TypeError):
@@ -35,8 +39,7 @@ def coerce_output_schema(raw: Any) -> Tuple[Optional[Dict[str, Any]], Optional[s
         from jsonschema.validators import validator_for  # type: ignore[import-untyped]
         validator_for(raw).check_schema(raw)
     except ImportError:
-        # Degrade to accepting the dict as-is so delegation still works without jsonschema.
-        logger.debug("jsonschema unavailable; skipping output_schema meta-validation")
+        return None, _VALIDATOR_UNAVAILABLE
     except Exception as exc:
         return None, f"output_schema is not a valid JSON Schema: {exc}"
     return raw, None
@@ -96,8 +99,7 @@ def validate_output(text: str, schema: Dict[str, Any]) -> Tuple[bool, List[str]]
     try:
         from jsonschema.validators import validator_for  # type: ignore[import-untyped]
     except ImportError:
-        logger.debug("jsonschema unavailable; accepting parsed JSON without validation")
-        return True, []
+        return False, [_VALIDATOR_UNAVAILABLE]
     validator = validator_for(schema)(schema)
     errors = sorted(validator.iter_errors(parsed), key=lambda e: list(e.absolute_path))
     rendered = [  # bound error volume for the retry prompt

@@ -5,7 +5,7 @@ JSON-RPC), and starts the ACP agent server.
 
 Usage::
 
-    python -m acp_adapter.entry   # or: hermes acp / hermes-acp
+    python -m acp_adapter.entry   # or: hebri acp / hermes-acp
 """
 
 # IMPORTANT: hermes_bootstrap must be the very first import — UTF-8 stdio
@@ -13,15 +13,15 @@ Usage::
 try:
     import hermes_bootstrap  # noqa: F401
 except ModuleNotFoundError:
-    # Partial ``hermes update`` (git-reset landed, ``uv pip install -e .`` did not):
+    # Partial ``hebri update`` (git-reset landed, ``uv pip install -e .`` did not):
     # UTF-8 stdio setup is skipped on Windows; POSIX is unaffected.
     pass
 else:
     # Stop a ``utils/``/``proxy/``/``ui/`` package in the launch cwd from shadowing Hermes modules.
     hermes_bootstrap.harden_import_path()
 
-# `hermes-acp` runs without hermes_cli.main: repair a `hermes update` killed mid-pull here, before
-# importing anything else from the checkout (a no-op under `hermes acp`, which already did).
+# `hermes-acp` runs without hermes_cli.main: repair a `hebri update` killed mid-pull here, before
+# importing anything else from the checkout (a no-op under `hebri acp`, which already did).
 from hermes_cli import _early_recovery
 
 if _early_recovery.restore_interrupted_pull():

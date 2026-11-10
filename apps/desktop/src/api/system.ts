@@ -91,7 +91,7 @@ export function getMemoryProviderOAuthStatus(
 }
 
 // ---------------------------------------------------------------------------
-// Memory data + curator (parity with `hermes memory` / `hermes curator`).
+// Memory data + curator (parity with `hebri memory` / `hebri curator`).
 // ---------------------------------------------------------------------------
 
 export function getMemoryStatus(): Promise<MemoryStatusResponse> {
@@ -237,8 +237,8 @@ export function getGhAuthStatus(refresh = false): Promise<{ available: boolean; 
 }
 
 // ---------------------------------------------------------------------------
-// Maintenance operations (parity with `hermes doctor` / `hermes security
-// audit` / `hermes backup` / `hermes debug share` and the dashboard System
+// Maintenance operations (parity with `hebri doctor` / `hebri security
+// audit` / `hebri backup` / `hebri debug share` and the dashboard System
 // page). All except debug share are spawn-based background actions tailed via
 // getActionStatus().
 //

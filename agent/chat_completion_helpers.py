@@ -1855,7 +1855,7 @@ def _log_fallback_activated(agent, reason, old_model, old_provider, fb_model, fb
         return
     from hermes_constants import get_hermes_home, profile_name_for_home
     profile = profile_name_for_home(get_hermes_home()) or "default"
-    remedy = "hermes model" if profile == "default" else f"hermes -p {profile} model"
+    remedy = "hebri model" if profile == "default" else f"hebri -p {profile} model"
     logger.warning(
         "Profile %s: %s via %s refused for billing/credits — using fallback %s via %s. "
         "Top up credits, or run `%s` to pick a model this account can use.",
@@ -2278,7 +2278,7 @@ def handle_max_iterations(agent, messages: list, api_call_count: int) -> str:
     if getattr(agent, "suppress_status_output", False):
         # Strict machine-readable mode (-Q, oneshot): keep diagnostics off stdout. quiet_mode is
         # NOT the gate — the interactive CLI runs quiet_mode=True by default and must see this.
-        # Strict machine-readable mode (hermes chat -Q, oneshot, background review): keep diagnostics out of
+        # Strict machine-readable mode (hebri chat -Q, oneshot, background review): keep diagnostics out of
         # stdout so wrappers receive only the final assistant content (#93220 class).
         logger.warning(warning)
     else:

@@ -5,6 +5,7 @@ import { AccountError } from './synapsek-account'
 
 interface ManagedAccount {
   status(): Promise<{ state: string; account?: { userId: string } }>
+  connectorRequest?(body: unknown, expectedUserId?: string): Promise<any>
   managedRequest(
     action: 'models' | 'completion',
     body?: unknown,
@@ -44,8 +45,9 @@ export async function startSynapsekInferenceBridge(account: ManagedAccount) {
 
     const models = req.method === 'GET' && req.url === '/v1/models'
     const completion = req.method === 'POST' && req.url === '/v1/chat/completions'
+    const connector = req.method === 'POST' && req.url === '/v1/connectors'
 
-    if (!models && !completion) {
+    if (!models && !completion && !connector) {
       fail(404, 'not_found')
 
       return
@@ -62,7 +64,7 @@ export async function startSynapsekInferenceBridge(account: ManagedAccount) {
     try {
       let body: any
 
-      if (completion) {
+      if (completion || connector) {
         if (!String(req.headers['content-type']).startsWith('application/json')) {
           fail(415, 'json_required')
 
@@ -75,7 +77,7 @@ export async function startSynapsekInferenceBridge(account: ManagedAccount) {
         for await (const chunk of req) {
           size += chunk.length
 
-          if (size > 512_000) {
+          if (size > (connector ? 24_000 : 512_000)) {
             fail(413, 'request_too_large')
 
             return
@@ -105,6 +107,11 @@ export async function startSynapsekInferenceBridge(account: ManagedAccount) {
         throw new AccountError('restart_after_account_switch')
       }
 
+      if (connector) {
+        if (!account.connectorRequest) throw new AccountError('connector_service_unavailable')
+        res.end(JSON.stringify(await account.connectorRequest(body, owner)))
+        return
+      }
       const result = await account.managedRequest(models ? 'models' : 'completion', body, randomUUID(), owner)
 
       if (!models && body?.stream === true) {

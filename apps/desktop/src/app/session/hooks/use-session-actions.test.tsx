@@ -973,6 +973,7 @@ describe('createBackendSessionForSend profile routing', () => {
 // (b) arm $resumeFailedSessionId so use-route-resume can retry. A resume that
 // succeeds must NOT leave the flag armed.
 function ResumeHarness({
+  navigate = vi.fn(),
   onStateUpdate,
   onViewSync,
   onReady,
@@ -982,6 +983,7 @@ function ResumeHarness({
   selectedStoredSessionId = null,
   sessionStateByRuntimeIdRef
 }: {
+  navigate?: (to: string, options?: { replace?: boolean }) => void
   getRouteToken?: () => string
   onStateUpdate?: (sessionId: string, state: ClientSessionState) => void
   onViewSync?: (sessionId: string, state: ClientSessionState) => void
@@ -1009,7 +1011,7 @@ function ResumeHarness({
     ensureSessionState: () => ({}) as ClientSessionState,
     getRouteToken,
     getRoutedStoredSessionId: () => null,
-    navigate: vi.fn() as never,
+    navigate: navigate as never,
     requestGateway,
     resetViewSync: vi.fn(),
     runtimeIdByStoredSessionIdRef: runtimeMapRef,
@@ -2565,6 +2567,46 @@ describe('resumeSession warm-cache mapping integrity', () => {
     vi.mocked(requestGatewayForProfile).mockReset()
     setConnection(null)
     vi.restoreAllMocks()
+  })
+
+  it('publishes the resumed chat route for both cold and warm navigation', async () => {
+    const navigate = vi.fn()
+    const runtimeMap = { current: new Map<string, string>() }
+    const stateMap = { current: new Map<string, ClientSessionState>() }
+    setSessions([storedSession({ id: 'stored-route' })])
+    vi.mocked(getLatestSessionMessages).mockResolvedValue({ messages: [], session_id: 'stored-route' })
+
+    const requestGateway = vi.fn(async (method: string) => {
+      if (method === 'session.resume') {
+        return { session_id: 'rt-route', resumed: 'stored-route', messages: [], info: {} } as never
+      }
+
+      return { running: false, info: {} } as never
+    })
+
+    let resume!: Parameters<Parameters<typeof ResumeHarness>[0]['onReady']>[0]
+    render(
+      <ResumeHarness
+        navigate={navigate}
+        onReady={ready => (resume = ready)}
+        requestGateway={requestGateway}
+        runtimeIdByStoredSessionIdRef={runtimeMap}
+        sessionStateByRuntimeIdRef={stateMap}
+      />
+    )
+
+    await act(async () => {
+      await resume('stored-route')
+    })
+    expect(navigate).toHaveBeenLastCalledWith(sessionRoute('stored-route'), { replace: false })
+    runtimeMap.current.set('stored-route', 'rt-route')
+    expect(stateMap.current.get('rt-route')?.storedSessionId).toBe('stored-route')
+    await act(async () => {
+      await resume('stored-route', true)
+    })
+    expect(requestGateway).toHaveBeenCalledWith('session.activate', expect.anything())
+    expect(navigate).toHaveBeenLastCalledWith(sessionRoute('stored-route'), { replace: true })
+    expect(navigate).toHaveBeenCalledTimes(2)
   })
 
   it('does not reclaim the foreground when route intent changes during a gateway dial', async () => {

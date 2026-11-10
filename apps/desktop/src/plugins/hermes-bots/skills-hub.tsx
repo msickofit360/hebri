@@ -13,15 +13,10 @@ import { useBots } from './i18n'
 import { requestForBot } from './routing'
 import type { RosterRow } from './types'
 
-// ── skills hub section: the REAL hub page (docs) embedded as a picker ──────
-// https://synapseklabs.org/docs/skills?embed=picker hides the
-// docs chrome and adds "+ Add to this Agent" per card, posting
-// {type: 'hermes-skill-pick', ...} to us (hermes-agent#86243). We validate
-// the origin, install via skills.manage, and bubble onInstalled so the
-// checklist above gains the row. Search-box fallback kept for offline use.
-
-export const HUB_ORIGIN = 'https://synapseklabs.org'
-const HUB_PICKER_URL = HUB_ORIGIN + '/docs/skills?embed=picker'
+// The full catalog ships in the desktop package. The picker has an opaque
+// sandbox origin and no network access; only its exact contentWindow may pick.
+export const HUB_ORIGIN = 'null'
+const HUB_PICKER_URL = new URL('./skills-hub/index.html?embed=picker', document.baseURI).href
 /** One `skills.manage action=search` hit. */
 interface HubSkillResult {
   description?: string
@@ -66,7 +61,7 @@ export function HubSkillsSection({ bot, onInstalled }: HubSkillsSectionProps) {
 
       const data = event.data
 
-      if (!data || data.type !== 'hermes-skill-pick' || !data.name) {
+      if (!data || data.type !== 'hebri-skill-pick' || !data.name) {
         return
       }
 
@@ -74,7 +69,8 @@ export function HubSkillsSection({ bot, onInstalled }: HubSkillsSectionProps) {
 
       // Skill identifiers are slugs / owner-name paths — keep anything
       // else out of skills.manage.
-      if (!/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(target)) {
+      if (target.length > 512 || !/^@?[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(target) ||
+        target.split('/').some(part => !part || part === '.' || part === '..')) {
         return
       }
 
@@ -184,7 +180,7 @@ export function HubSkillsSection({ bot, onInstalled }: HubSkillsSectionProps) {
           >
             <iframe
               ref={frameRef}
-              sandbox="allow-scripts allow-same-origin"
+              sandbox="allow-scripts"
               src={HUB_PICKER_URL}
               style={{
                 width: '133.34%',

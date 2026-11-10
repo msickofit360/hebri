@@ -34,9 +34,9 @@ LAZY_REFRESH_REPAIR_PACKAGES: dict[str, str] = {
     "rich": "rich", "cryptography": "cryptography", "jwt": "PyJWT",
 }
 
-# ``hermes update`` renames the live ``hermes*.exe`` shims aside (``hermes.exe.old.<unix-ms>``) so
+# ``hebri update`` renames the live ``hermes*.exe`` shims aside (``hermes.exe.old.<unix-ms>``) so
 # uv can write replacements. Putting them BACK is the safety-critical direction: losing that rename
-# leaves no ``hermes`` on PATH, and the command that would repair it IS ``hermes update``. The
+# leaves no ``hermes`` on PATH, and the command that would repair it IS ``hebri update``. The
 # updater, the early-recovery installer and the startup orphan sweep all restore through this one
 # stdlib-only helper so the retry ladder and the recovery wording cannot drift apart again.
 # --- Windows entry-point shim quarantine ----------------------------------- They used to be separate
@@ -98,7 +98,7 @@ _UPDATE_RETRY_RECOVERED = False
 
 
 def _should_skip_external_secret_sources() -> bool:
-    """True inside any ``hermes update`` process (and its import probes).
+    """True inside any ``hebri update`` process (and its import probes).
 
     Every dotenv load in the process — ``hermes_cli.main``, ``run_agent``, ``cli`` — consults
     this, so the updater never resolves external secret sources: on Windows they map
@@ -212,10 +212,10 @@ def _marker_owner_is_live(marker: Path) -> bool:
     return False
 
 
-# ``hermes update`` writes this into the git dir right before git moves the checkout and removes it
+# ``hebri update`` writes this into the git dir right before git moves the checkout and removes it
 # once git has exited (a kill is the only exit that keeps it). Git rewrites the tree file by file and
 # moves HEAD last, so an update killed in between leaves HEAD on the old commit with a prefix of the
-# files already new; that mixed tree fails at import in every entry point, ``hermes update`` included.
+# files already new; that mixed tree fails at import in every entry point, ``hebri update`` included.
 INTERRUPTED_PULL_MARKER = "hermes-update-pull"
 # A fast-forward takes seconds; past this a "live" owner pid is a recycled one.
 _INTERRUPTED_PULL_MAX_AGE_SECONDS = 10 * 60
@@ -426,7 +426,7 @@ def _release_dead_index_lock(git_dir: Path) -> bool:
 
 
 def restore_interrupted_pull(project_root: Path | None = None) -> bool:
-    """Put back the files a killed ``hermes update`` had half-moved to the new commit.
+    """Put back the files a killed ``hebri update`` had half-moved to the new commit.
 
     Returns True when the tree changed under this process: modules it already imported may be the
     half-written ones, so the caller must relaunch (``relaunch_after_restore``).
@@ -434,7 +434,7 @@ def restore_interrupted_pull(project_root: Path | None = None) -> bool:
     Fast path (no marker) is one or two ``stat`` calls. Acts only when the marker's owner is gone,
     HEAD is still the pre-pull commit and no merge/rebase is in progress; then every path git wrote
     (the target's content, or torn on the way there) returns to HEAD (the commit the venv was built
-    for), so the install is whole again and ``hermes update`` redoes the update from the start. Local
+    for), so the install is whole again and ``hebri update`` redoes the update from the start. Local
     edits are never touched; the updater's autostash (if any) stays in ``git stash list``. Concurrent
     launches take turns (``_restore_claim``); a launch that waited out another's restore relaunches.
 
@@ -451,14 +451,14 @@ def restore_interrupted_pull(project_root: Path | None = None) -> bool:
         with _restore_claim(marker.parent) as claimed:
             if not claimed:
                 print("⚠ Another Hermes launch is still repairing the checkout after an interrupted "
-                      "`hermes update`; if this one fails, launch again in a moment.", file=sys.stderr)
+                      "`hebri update`; if this one fails, launch again in a moment.", file=sys.stderr)
                 return False
             if not marker.is_file():
                 return True  # another launch finished while this one started: rerun from its tree
             return _restore_holding_claim(root, marker)
     except (OSError, subprocess.SubprocessError, ValueError) as exc:
         # Never block launch: the import that follows surfaces any real breakage.
-        print(f"⚠ Could not check for an interrupted `hermes update`: {exc}", file=sys.stderr)
+        print(f"⚠ Could not check for an interrupted `hebri update`: {exc}", file=sys.stderr)
     return False
 
 
@@ -492,13 +492,13 @@ def _restore_holding_claim(root: Path, marker: Path) -> bool:
                 and merge_head.read_text(encoding="utf-8").strip() == target):
             # The killed updater's own merge: its conflict markers may sit in startup modules.
             _merge_advice_shown = True
-            print(f"⚠ A killed `hermes update` left its merge unfinished. Run `git -C {root} merge --abort`, "
+            print(f"⚠ A killed `hebri update` left its merge unfinished. Run `git -C {root} merge --abort`, "
                   "then launch again." + (f" Your local changes are in its stash ({stash})." if stash else ""),
                   file=sys.stderr)
         return False
     # A killed claim holder's own git child can still be writing; scanning under it reads half a tree.
     if not _release_dead_index_lock(git_dir):
-        print("⚠ A running git holds the index after an interrupted `hermes update`; the next launch "
+        print("⚠ A running git holds the index after an interrupted `hebri update`; the next launch "
               "finishes the restore.", file=sys.stderr)
         return False
     written = _paths_git_wrote(git, root, pre, target)
@@ -508,7 +508,7 @@ def _restore_holding_claim(root: Path, marker: Path) -> bool:
         return False
     restore, added, new_dirs = written
     if restore or added:
-        print("⚠ A previous `hermes update` was killed while git was writing the new code — "
+        print("⚠ A previous `hebri update` was killed while git was writing the new code — "
               f"restoring the checkout to {pre[:10]}...", file=sys.stderr)
         failed = None
         if restore:
@@ -534,7 +534,7 @@ def _restore_holding_claim(root: Path, marker: Path) -> bool:
     marker.unlink()
     if not restore and not added:
         return False  # the killed git never reached the tree: nothing to put back
-    print("  ✓ Checkout restored; `hermes update` updates it again.", file=sys.stderr)
+    print("  ✓ Checkout restored; `hebri update` updates it again.", file=sys.stderr)
     if stash:
         print(f"  Your local changes are still in the update's stash ({stash}).", file=sys.stderr)
     return True
@@ -672,7 +672,7 @@ def _run_installer(tool: str, cmd: list[str], root: Path, env: dict | None = Non
 def _run_repair_install(specs: list[str], project_root: Path) -> bool:
     """``uv pip`` (or stdlib ``pip``) force-reinstall of the given specs. Never raises.
 
-    Streams nothing to stdout (``hermes acp`` speaks JSON-RPC on stdout). uv is preferred when the
+    Streams nothing to stdout (``hebri acp`` speaks JSON-RPC on stdout). uv is preferred when the
     base interpreter is externally managed; without uv, pip runs with the PEP 668 override.
     """
     externally_managed = _base_interpreter_is_externally_managed()
@@ -707,7 +707,7 @@ def recover_if_needed(project_root: Path | None = None, argv: list[str] | None =
     """Repair wiped core packages so ``hermes_cli.main`` can import at all.
 
     Fast path (no marker present) is two ``lstat`` calls. Only acts when a recovery marker from a
-    prior ``hermes update`` exists AND an import probe confirms a core package is actually broken.
+    prior ``hebri update`` exists AND an import probe confirms a core package is actually broken.
     Never raises: on any failure the import of main.py proceeds and surfaces the real error.
     """
     global _UPDATE_RETRY_RECOVERED
@@ -730,7 +730,7 @@ def recover_if_needed(project_root: Path | None = None, argv: list[str] | None =
         # WHOLE dependency set is replaced while nothing pins venv .pyd files yet (deferring to
         # main()'s post-import recovery re-locks it on Windows). A live marker owner is another
         # updater inside the marker-to-install window — never race it. A dead owner MUST be
-        # recovered even when this launch is itself `hermes update`: CLI and Desktop retries keep
+        # recovered even when this launch is itself `hebri update`: CLI and Desktop retries keep
         # that argv, and skipping solely on argv recreates the self-lock loop.
         # Bounded retries: a persistently failing install must not hammer every launch. The budget
         # is shared with main.py's post-import recovery, which past it prints the manual command
@@ -813,7 +813,7 @@ def _complete_pending_core_install(root: Path, core_marker: Path) -> bool:
     Never raises: any failure leaves the marker for the post-import path and returns ``False``.
     Returns ``True`` only after the install succeeds.
 
-    ``recover_if_needed`` invokes this when ``.update-incomplete`` exists — a prior ``hermes update`` (or
+    ``recover_if_needed`` invokes this when ``.update-incomplete`` exists — a prior ``hebri update`` (or
     the self-lock preflight, #83569) left the dependency sync deliberately unfinished. Completing it here
     matters on Windows: the deferral exists precisely because the process that wrote the marker had a native
     venv extension mapped; this process, running before ``hermes_cli.main``'s third-party imports, maps
@@ -831,7 +831,7 @@ def _complete_pending_core_install(root: Path, core_marker: Path) -> bool:
         if not _claim_recovery_lock(root):
             return False
         try:
-            print("⚠ A previous `hermes update` was interrupted mid-install — "
+            print("⚠ A previous `hebri update` was interrupted mid-install — "
                   "finishing dependency installation now (before any native "
                   "extensions load)...", file=sys.stderr)
             ir.run_core_install(root)

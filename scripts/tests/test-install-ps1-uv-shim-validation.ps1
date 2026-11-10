@@ -1,4 +1,4 @@
-# Behavioral tests for install.ps1 managed-uv acceptance (issue #110350).
+﻿# Behavioral tests for install.ps1 managed-uv acceptance (issue #110350).
 #
 # `& uv.exe --version` never throws on a nonzero exit, so Install-Uv used to
 # trust any file at $HermesHome\bin\uv.exe -- including the Chocolatey ShimGen
@@ -116,8 +116,8 @@ $script:FakePathUv = $null
 $script:InfoLog = @()
 $env:USERPROFILE = $testRoot   # no ~\.local\bin\uv.exe candidate
 
-function Invoke-FakeUvInstaller { $script:InstallerCalls++ }
-function Get-PowerShellHostExe { 'Invoke-FakeUvInstaller' }
+function Get-WindowsArch { 'x64' }
+function Get-HebriVerifiedDownload { $script:InstallerCalls++; throw 'network unavailable in test' }
 function Get-Command {
     [CmdletBinding()]
     param([Parameter(Position = 0)][string]$Name, [object]$CommandType)
@@ -153,7 +153,7 @@ Write-Host ''
 Write-Host '-- broken uv pre-placed at the managed location (re-run recovery) --'
 $ok = Invoke-InstallUvScenario -PreplacedManaged $strayShim
 Assert-Equal $false $ok 'stage fails honestly when nothing valid can be installed'
-Assert-Equal 2 $script:InstallerCalls 'broken copy is replaced: both installer rungs run'
+Assert-Equal $true ($script:InstallerCalls -gt 0) 'a broken managed copy triggers a verified download attempt'
 Assert-Equal $false (Test-Path $managedUv) 'nothing broken is left at the managed location'
 
 $ok = Invoke-InstallUvScenario -PreplacedManaged $strayShim -PathUv $chocoShim

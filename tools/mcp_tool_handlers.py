@@ -4,6 +4,7 @@ ladder: trust gating, circuit breaker, auth (401) refresh, session-expired recon
 import logging
 import asyncio
 import contextvars
+import copy
 import inspect
 import json
 import time
@@ -29,7 +30,7 @@ _MISSING = object()
 declaration.on_change = invalidate_check_fn_cache
 
 _NEEDS_REAUTH_MSG = (
-    "MCP server '{s}' requires re-authentication. Run `hermes mcp login {s}` (or delete the tokens file under "
+    "MCP server '{s}' requires re-authentication. Run `hebri mcp login {s}` (or delete the tokens file under "
     "~/.hermes/mcp-tokens/ and restart). Do NOT retry this tool — ask the user to re-authenticate.")
 _STDIO_NO_RESPAWN_MSG = (
     "MCP server '{s}' stdio subprocess had exited (this is not a timeout — the call never reached the server). A "
@@ -49,28 +50,31 @@ _SESSION_OUTCOME_UNCERTAIN_MSG = (
 
 
 def _tool_is_read_only(server_name: str, tool_name: str) -> bool:
-    """True only when discovery captured ``readOnlyHint=True`` for the tool. Missing or malformed
-    metadata fails safe to False (treated as write-capable). readOnlyHint is a property of the
-    connection's tools, so it lives under the connection key."""
-    from tools.mcp_tool_scope import _resolve_server_key
-    return _core._tool_read_only_hints.get(_resolve_server_key(server_name), {}).get(tool_name) is True
+    """Only trust hints for replay when the calling profile explicitly trusts the server.
+
+    An untrusted server can claim that any operation is read-only. That claim must
+    neither suppress confirmation nor cause an ambiguous operation to be replayed.
+    """
+    from tools.mcp_tool_scope import _resolve_server_key, _server_key
+    return (_core._server_trust_levels.get(_server_key(server_name)) == _core._TRUST_FULL
+            and _core._tool_read_only_hints.get(_resolve_server_key(server_name), {}).get(tool_name) is True)
 
 
-def _trust_gate_check(server_name: str, tool_name: str) -> Optional[str]:
-    """Approval gate for write-capable tools on ``trust: untrusted`` servers. None to proceed,
+def _trust_gate_check(server_name: str, tool_name: str, args: dict) -> Optional[str]:
+    """Approval gate for all tools unless this profile explicitly grants full trust. None to proceed,
     else a ``tool_error``. Fail-closed: approval-system errors block."""
     from tools.mcp_tool_scope import _server_key
     # Trust is the calling profile's own policy (an adopter of a shared connection keeps its own tier).
-    trust = _core._server_trust_levels.get(_server_key(server_name), _core._TRUST_FULL)
-    if trust != _core._TRUST_UNTRUSTED or _tool_is_read_only(server_name, tool_name):
+    trust = _core._server_trust_levels.get(_server_key(server_name), _core._TRUST_UNTRUSTED)
+    if trust == _core._TRUST_FULL:
         return None
     try:  # lazy: tools.approval routes the prompt to whichever surface owns the session
         from tools.approval_prompt import request_elicitation_consent
         answer = request_elicitation_consent(
-            f"MCP tool '{tool_name}' on UNTRUSTED server '{server_name}' wants to run. This tool is write-capable "
-            f"(no readOnlyHint=true annotation) and may modify external state.",
-            f"Server '{server_name}' is configured 'trust: untrusted'. "
-            f"Approve to run '{tool_name}' once, or deny to block it.",
+            f"MCP server: {server_name}\nTool: {tool_name}\n"
+            f"Arguments (untrusted data):\n{json.dumps(args, ensure_ascii=True, sort_keys=True, indent=2)}",
+            "This external tool can access data or change the connected service. "
+            "Its own read-only label is not a security guarantee. Approve this exact call once, or deny it.",
             surface=f"mcp-trust/{server_name}", title=f"MCP server '{server_name}' is asking")
     except Exception as exc:
         logger.error("MCP trust gate: approval check failed for %s.%s: %s", server_name, tool_name, exc, exc_info=True)
@@ -80,7 +84,7 @@ def _trust_gate_check(server_name: str, tool_name: str) -> Optional[str]:
         return None
     logger.info("MCP trust gate: user %s '%s' on untrusted server '%s'",
                 "cancelled" if answer == "cancel" else "denied", tool_name, server_name)
-    return tool_error(f"The user did not approve running write-capable MCP tool '{tool_name}' on untrusted server "
+    return tool_error(f"The user did not approve running MCP tool '{tool_name}' on untrusted server "
                       f"'{server_name}'. The command was NOT run. Do not retry without explicit user direction.")
 
 
@@ -188,12 +192,18 @@ def _retry_once(server_name: str, retry_call, op_description: str, what: str):
     return _record_call_outcome(server_name, result)
 
 
-def _handle_auth_error_and_retry(server_name: str, exc: BaseException, retry_call, op_description: str):
+def _handle_auth_error_and_retry(server_name: str, exc: BaseException, retry_call, op_description: str,
+                                 *, call_may_have_side_effects: bool = False):
     """OAuth recovery + one retry; None when *exc* is not an auth error. ``handle_401`` decides
     viability; if viable, signal a reconnect (fresh credentials), wait ready, retry once. Any
     failure returns the structured ``needs_reauth`` error so the model stops refreshing."""
     if not _is_auth_error(exc):
         return None
+    if call_may_have_side_effects:
+        return tool_error(
+            f"MCP call on '{server_name}' failed with an authentication error after dispatch. "
+            "Its outcome is unknown; it was not replayed. Check the service before retrying and reconnect if needed.",
+            outcome_uncertain=True, needs_reauth=True, server=server_name)
     from tools.mcp_oauth_manager import get_manager
     try:
         recovered = _loop._run_on_mcp_loop(lambda: get_manager().handle_401(server_name, None), timeout=10)
@@ -557,15 +567,18 @@ def _make_tool_handler(server_name: str, tool_name: str, tool_timeout: float):
     op = f"tools/call {tool_name}"
 
     def _handler(args: dict, **kwargs) -> str:
-        # Security boundary: untrusted-server write tools need approval before ANY transport work (incl. lazy spawn).
-        error = _trust_gate_check(server_name, tool_name) or _check_circuit_breaker(server_name)
+        # Freeze the reviewed arguments before waiting for a human; another caller
+        # must not mutate the request after it was displayed.
+        args = copy.deepcopy(args)
+        # Approval precedes transport acquisition, including lazy process spawning.
+        error = _trust_gate_check(server_name, tool_name, args) or _check_circuit_breaker(server_name)
         if error is not None:
             return error
         server, error = _acquire_call_server(server_name, tool_timeout)
         if server is None:
             return error
-        # Only a tool annotated readOnlyHint=True is replayed after session expiry; a 401 is always
-        # pre-dispatch so the auth recoverer keeps its retry for every tool.
+        # Only an explicitly trusted tool with readOnlyHint=True can be replayed.
+        # An error returned after dispatch does not prove a write never happened.
         read_only = _tool_is_read_only(server_name, tool_name)
 
         async def _call():
@@ -583,9 +596,10 @@ def _make_tool_handler(server_name: str, tool_name: str, tool_timeout: float):
             _core._bump_server_error(server_name)
             logger.error("MCP tool %s/%s call failed: %s", server_name, tool_name, exc)
         session_expired = partial(_handle_session_expired_and_retry, call_may_have_side_effects=not read_only)
+        auth_failed = partial(_handle_auth_error_and_retry, call_may_have_side_effects=not read_only)
         return _dispatch(
             server_name, server, op, _call, tool_timeout,
-            (_handle_stdio_child_exited_and_retry, _handle_auth_error_and_retry, session_expired),
+            (_handle_stdio_child_exited_and_retry, auth_failed, session_expired),
             _on_failure, record_outcome=True)
     return _handler
 
@@ -596,6 +610,10 @@ def _make_utility_handler(op: str, log_label: str, rpc, render, required: Option
     payload, ``required`` validated before any transport work."""
     def _factory(server_name: str, tool_timeout: float):
         def _handler(args: dict, **kwargs) -> str:
+            args = copy.deepcopy(args)
+            error = _trust_gate_check(server_name, op, args)
+            if error is not None:
+                return error
             from tools import mcp_tool_discovery as _discovery  # lazy: import cycle
             server = _discovery._get_connected_server_for_call(server_name)
             if not server or not server.session:

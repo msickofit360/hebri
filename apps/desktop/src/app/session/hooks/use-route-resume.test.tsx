@@ -14,6 +14,7 @@ import { useRouteResume } from './use-route-resume'
 vi.mock('@/store/session-states', () => ({ markSelectionRestore: vi.fn() }))
 
 interface HarnessProps {
+  startupNavigationReady?: boolean
   activeSessionId: null | string
   activeSessionIdRef: MutableRefObject<null | string>
   creatingSessionRef: MutableRefObject<boolean>
@@ -47,6 +48,40 @@ describe('useRouteResume', () => {
   afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
+  })
+
+  it('waits for startup navigation before a fresh draft can replace a restored tab', () => {
+    vi.mocked(markSelectionRestore).mockClear()
+
+    const props = {
+      activeSessionId: null,
+      activeSessionIdRef: { current: null },
+      creatingSessionRef: { current: false },
+      currentView: 'chat',
+      freshDraftReady: false,
+      gatewayState: 'open',
+      resumeSession: vi.fn(async () => undefined),
+      runtimeIdByStoredSessionIdRef: { current: new Map<string, string>() },
+      selectedStoredSessionId: null,
+      selectedStoredSessionIdRef: { current: null },
+      startFreshSessionDraft: vi.fn()
+    }
+
+    const { rerender } = render(
+      <RouteResumeHarness {...props} locationPathname="/" routedSessionId={null} startupNavigationReady={false} />
+    )
+
+    expect(props.startFreshSessionDraft).not.toHaveBeenCalled()
+    rerender(
+      <RouteResumeHarness {...props} locationPathname="/primary" routedSessionId="primary" startupNavigationReady />
+    )
+    expect(props.resumeSession).toHaveBeenCalledWith('primary', true)
+    expect(markSelectionRestore).toHaveBeenCalledTimes(1)
+    // A later explicit New Chat gesture still takes the foreground.
+    rerender(
+      <RouteResumeHarness {...props} locationPathname="/" routedSessionId={null} startupNavigationReady />
+    )
+    expect(props.startFreshSessionDraft).toHaveBeenCalledTimes(1)
   })
 
   it('does not re-resume the old session during a /:sid -> /new transition', () => {
@@ -192,6 +227,71 @@ describe('useRouteResume', () => {
 
     expect(resumeSession).toHaveBeenCalledTimes(1)
     expect(resumeSession).toHaveBeenCalledWith('session-1', true)
+  })
+
+  it.each([false, true])('preserves an awaited selection and subsequent navigation (from draft=%s)', fromDraft => {
+    const resumeSession = vi.fn(async () => undefined)
+    const activeSessionIdRef: MutableRefObject<null | string> = { current: fromDraft ? null : 'runtime-1' }
+    const selectedStoredSessionIdRef: MutableRefObject<null | string> = { current: fromDraft ? null : 'session-1' }
+
+    const props = {
+      activeSessionId: fromDraft ? null : 'runtime-1',
+      activeSessionIdRef,
+      creatingSessionRef: { current: false },
+      currentView: 'chat',
+      freshDraftReady: fromDraft,
+      gatewayState: 'open',
+      locationPathname: fromDraft ? '/' : '/session-1',
+      resumeSession,
+      routedSessionId: fromDraft ? null : 'session-1',
+      runtimeIdByStoredSessionIdRef: { current: new Map([['session-1', 'runtime-1']]) },
+      selectedStoredSessionId: fromDraft ? null : 'session-1',
+      selectedStoredSessionIdRef,
+      startFreshSessionDraft: vi.fn()
+    }
+
+    const { rerender } = render(<RouteResumeHarness {...props} />)
+
+    // resumeSession selects its target synchronously, then awaits metadata
+    // before publishing the loaded view and route. The old URL is not new intent.
+    selectedStoredSessionIdRef.current = 'session-2'
+    activeSessionIdRef.current = null
+    rerender(
+      <RouteResumeHarness
+        {...props}
+        activeSessionId={null}
+        freshDraftReady={false}
+        selectedStoredSessionId="session-2"
+      />
+    )
+    expect(resumeSession).not.toHaveBeenCalled()
+    expect(props.startFreshSessionDraft).not.toHaveBeenCalled()
+
+    activeSessionIdRef.current = 'runtime-2'
+    props.runtimeIdByStoredSessionIdRef.current.set('session-2', 'runtime-2')
+    rerender(
+      <RouteResumeHarness
+        {...props}
+        activeSessionId="runtime-2"
+        locationPathname="/session-2"
+        routedSessionId="session-2"
+        selectedStoredSessionId="session-2"
+      />
+    )
+    expect(resumeSession).not.toHaveBeenCalled()
+
+    // Back navigation is an actual URL change and must still load session-1.
+    rerender(
+      <RouteResumeHarness
+        {...props}
+        activeSessionId="runtime-2"
+        freshDraftReady={false}
+        locationPathname="/session-1"
+        routedSessionId="session-1"
+        selectedStoredSessionId="session-2"
+      />
+    )
+    expect(resumeSession).toHaveBeenCalledExactlyOnceWith('session-1', true)
   })
 
   it('resumes when pathname changes to a routed session', () => {

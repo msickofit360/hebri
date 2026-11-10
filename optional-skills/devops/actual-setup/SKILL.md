@@ -56,12 +56,12 @@ a human in a browser.
    ```
 3. Select provider + model:
    ```bash
-   hermes config set model.provider actual
-   hermes config set model.default "MODEL_ID_FROM_DISCOVERY"
+   hebri config set model.provider actual
+   hebri config set model.default "MODEL_ID_FROM_DISCOVERY"
    ```
 4. Verify end-to-end:
    ```bash
-   hermes chat -Q -q "Reply with exactly: ACTUAL_OK" --provider actual -m MODEL_ID
+   hebri chat -Q -q "Reply with exactly: ACTUAL_OK" --provider actual -m MODEL_ID
    ```
 
 ### Local mode
@@ -79,12 +79,12 @@ a human in a browser.
    built-in provider into local no-auth mode automatically — no key needed:
    append `ACTUAL_BASE_URL=http://127.0.0.1:8080` to `~/.hermes/.env`, then:
    ```bash
-   hermes config set model.provider actual
-   hermes config set model.default "INSTALLED_MODEL_NAME"
+   hebri config set model.provider actual
+   hebri config set model.default "INSTALLED_MODEL_NAME"
    ```
 4. Verify (reduced toolset — see context-window pitfall below):
    ```bash
-   hermes chat -Q -q "Reply with exactly: LOCAL_OK" --provider actual -m INSTALLED_NAME -t file,web
+   hebri chat -Q -q "Reply with exactly: LOCAL_OK" --provider actual -m INSTALLED_NAME -t file,web
    ```
 
 ## Quick Reference
@@ -136,11 +136,11 @@ a human in a browser.
 
 ```bash
 # Relay:
-hermes chat -Q -q "Reply with exactly: ACTUAL_OK" --provider actual -m MODEL
+hebri chat -Q -q "Reply with exactly: ACTUAL_OK" --provider actual -m MODEL
 # Local (small model — reduced toolset):
-hermes chat -Q -q "Reply with exactly: LOCAL_OK" --provider actual -m MODEL -t file,web
+hebri chat -Q -q "Reply with exactly: LOCAL_OK" --provider actual -m MODEL -t file,web
 # Provider status (local no-auth shows key_source=local-offline):
-hermes status
+hebri status
 ```
 
 For other OpenAI-compatible clients (e.g. OpenCode), see

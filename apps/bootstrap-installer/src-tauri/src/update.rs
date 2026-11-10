@@ -4,11 +4,11 @@
 //! `AppMode` in lib.rs). The desktop app hands off to us — it exits, then we:
 //!
 //!   1. wait for the old Hermes desktop process to fully exit (so both the
-//!      venv shim and packaged app.asar are free; otherwise `hermes update`
+//!      venv shim and packaged app.asar are free; otherwise `hebri update`
 //!      or repair bootstrap can race locked files),
-//!   2. run `hermes update --yes --gateway` (Python/repo update; this does NOT
+//!   2. run `hebri update --yes --gateway` (Python/repo update; this does NOT
 //!      rebuild apps/desktop by design — see cmd_update in hermes_cli/main.py),
-//!   3. run `hermes desktop --build-only` (the rebuild step update skips),
+//!   3. run `hebri desktop --build-only` (the rebuild step update skips),
 //!   4. launch the freshly-built desktop (reuses bootstrap::launch logic).
 //!
 //! We reuse the `BootstrapEvent` channel + the existing progress UI by
@@ -17,8 +17,8 @@
 //! bootstrap, broken into the real operations run_update performs so the user
 //! sees discrete steps (with the live log underneath) instead of one bar.
 //!
-//! Cross-platform note: `hermes update` already handles macOS/Linux (git/pip).
-//! The only OS-specific bits here are the venv shim path (resolve_hermes) and
+//! Cross-platform note: `hebri update` already handles macOS/Linux (git/pip).
+//! The only OS-specific bits here are the venv shim path (resolve_hebri) and
 //! the no-window creation flag — both already cfg-gated. Keep new logic
 //! OS-agnostic so the mac/linux port stays "fill in the paths".
 
@@ -37,13 +37,13 @@ use tokio::process::Command;
 use crate::events::{BootstrapEvent, LogStream, StageInfo, StageState};
 use crate::powershell::{pump_child, DRAIN_GRACE};
 
-/// `hermes update` exit code meaning "another hermes process is holding the
+/// `hebri update` exit code meaning "another hermes process is holding the
 /// venv shim open / dirty precondition" — see _cmd_update_impl in
 /// hermes_cli/main.py (sys.exit(2)). We surface a targeted message for this.
 const UPDATE_EXIT_CONCURRENT: i32 = 2;
 
 /// How long to wait for the old desktop process to release files under the
-/// install tree before giving up and letting `hermes update`'s own guard decide.
+/// install tree before giving up and letting `hebri update`'s own guard decide.
 const DESKTOP_EXIT_WAIT: Duration = Duration::from_secs(20);
 const DESKTOP_EXIT_POLL: Duration = Duration::from_millis(500);
 
@@ -108,11 +108,11 @@ pub async fn start_update(app: AppHandle) -> Result<(), String> {
 /// so the desktop's launch gate can detect a stale marker (dead PID / past a
 /// hard ceiling) and self-heal rather than wait forever.
 ///
-/// The marker is also the cross-process update lock: `hermes update` claims
+/// The marker is also the cross-process update lock: `hebri update` claims
 /// the same file (see `hermes_cli/update_lock.py`) so a dashboard-spawned
 /// update and this updater can't mutate one checkout at the same time.
 /// `acquire` therefore REFUSES when a live foreign owner holds it rather than
-/// overwriting — the pre-fix clobber is what let a dashboard `hermes update`
+/// overwriting — the pre-fix clobber is what let a dashboard `hebri update`
 /// keep running while install-mode bootstrap rewrote the tree underneath it.
 struct UpdateMarkerGuard {
     path: PathBuf,
@@ -140,7 +140,7 @@ struct MarkerOwner {
 ///
 /// Self-PID is returned so `acquire` can adopt the desktop's pre-written claim
 /// without refreshing its acquisition time (#74761). A foreign live pid (e.g.
-/// a dashboard-spawned `hermes update`) still blocks.
+/// a dashboard-spawned `hebri update`) still blocks.
 fn live_marker_owner(path: &Path) -> Option<MarkerOwner> {
     let raw = std::fs::read_to_string(path).ok()?;
     let mut lines = raw.lines();
@@ -163,7 +163,7 @@ fn live_marker_owner(path: &Path) -> Option<MarkerOwner> {
 /// helper folds in age and liveness policy (and, since the #74761
 /// adoption work, self-ownership handling has changed shape more than
 /// once). The exit-2 self-heal below needs exactly one raw fact — does
-/// the marker name our PID — because a `hermes update` child that
+/// the marker name our PID — because a `hebri update` child that
 /// refuses over OUR marker is a handoff-recognition failure in a stale
 /// checkout, not a real concurrent update.
 fn marker_owned_by_self(path: &Path) -> bool {
@@ -284,7 +284,7 @@ impl Drop for UpdateMarkerGuard {
 
 async fn run_update(app: AppHandle) -> Result<()> {
     let hermes_home = crate::paths::hermes_home();
-    let install_root = hermes_home.join("hermes-agent");
+    let install_root = hermes_home.join("hebri-agent");
 
     // Mutual exclusion (#50238): publish an "update in progress" marker for the
     // entire duration of this update. A desktop instance the user relaunches
@@ -295,7 +295,7 @@ async fn run_update(app: AppHandle) -> Result<()> {
     //
     // The same marker is the cross-process update lock (hermes_cli/
     // update_lock.py claims it too), so a live foreign owner means another
-    // updater — most often a dashboard-spawned `hermes update` — is already
+    // updater — most often a dashboard-spawned `hebri update` — is already
     // mutating this checkout. Refuse instead of running a second one over it.
     let _update_marker = match UpdateMarkerGuard::acquire(
         crate::paths::update_in_progress_marker(),
@@ -335,9 +335,9 @@ async fn run_update(app: AppHandle) -> Result<()> {
         None
     };
 
-    let hermes = resolve_hermes(&install_root).ok_or_else(|| {
+    let hermes = resolve_hebri(&install_root).ok_or_else(|| {
         let msg = format!(
-            "Could not find the legacy hermes CLI under {}. Is Hebri installed? \
+            "Could not find the Hebri CLI under {}. Is Hebri installed? \
              Re-run the installer to repair the install.",
             install_root.display()
         );
@@ -362,7 +362,7 @@ async fn run_update(app: AppHandle) -> Result<()> {
 
     // ---- stage 1: wait for the old desktop to die ------------------------
     // The desktop exec'd us then called app.exit(), but process teardown is
-    // async on Windows. If it still holds the venv shim, `hermes update`
+    // async on Windows. If it still holds the venv shim, `hebri update`
     // aborts with exit 2. If it still holds the packaged app.asar,
     // install.ps1's repair/re-clone path cannot move/remove the install tree.
     // Give both handles a bounded window to clear. Surfaced as its own stage
@@ -379,11 +379,11 @@ async fn run_update(app: AppHandle) -> Result<()> {
         None,
     );
 
-    // ---- stage 2: hermes update -----------------------------------------
-    // Pass --branch so `hermes update` targets the branch this installer was
+    // ---- stage 2: hebri update -----------------------------------------
+    // Pass --branch so `hebri update` targets the branch this installer was
     // built/pinned against (BUILD_PIN_BRANCH), NOT its built-in default of
     // `main`. The install was a detached-HEAD checkout of a specific commit;
-    // without --branch, `hermes update` switches the checkout to `main` (a
+    // without --branch, `hebri update` switches the checkout to `main` (a
     // divergent branch that may not even have the desktop CLI command), then
     // reports "already up to date" against the wrong branch. The desktop
     // detected the update against this same branch, so we must update against
@@ -397,11 +397,11 @@ async fn run_update(app: AppHandle) -> Result<()> {
     let child_env = update_child_env(&install_root);
     let mut update_args: Vec<String> =
         vec!["update".into(), "--yes".into(), "--gateway".into()];
-    // --force skips `hermes update`'s Windows running-exe guard (which would
+    // --force skips `hebri update`'s Windows running-exe guard (which would
     // `sys.exit(2)` and dead-end the handoff). By contract the desktop has
     // already exited and waited for the install locks to clear before launching
     // us, and wait_for_install_locks_free below force-kills any straggler — so by the
-    // time `hermes update` runs there is no legitimate hermes.exe to protect,
+    // time `hebri update` runs there is no legitimate hermes.exe to protect,
     // and the guard would only produce a false "Hermes is still running" stop.
     //
     // NOTE: --force does NOT bypass the venv-python holder guard (that needs
@@ -427,7 +427,7 @@ async fn run_update(app: AppHandle) -> Result<()> {
     )
     .await?;
 
-    // Retry-once for the update-boundary crash. `hermes update` lazily imports
+    // Retry-once for the update-boundary crash. `hebri update` lazily imports
     // the FRESHLY PULLED modules, but the dependency-install step still runs the
     // already-in-memory pre-pull code for one invocation. A release that changed
     // an updater-path contract across that boundary (e.g. #39780's `_UvResult`,
@@ -435,7 +435,7 @@ async fn run_update(app: AppHandle) -> Result<()> {
     // `list2cmdline` with `TypeError: sequence item 1: expected str instance,
     // bool found`, fixed in #39820) therefore kills the FIRST update on the
     // parked population — even though the fix is already on disk by then. A
-    // second `hermes update` runs clean because the now-current module is loaded
+    // second `hebri update` runs clean because the now-current module is loaded
     // from the start. Rather than make the parked user click Update twice (and
     // stare at a scary crash first), retry once automatically. Skip the retry
     // for the concurrent-instance guard (exit 2) — that's a "close Hermes" state
@@ -519,7 +519,7 @@ async fn run_update(app: AppHandle) -> Result<()> {
         }
         other => {
             let msg = format!(
-                "hermes update failed (exit {:?}). See {} for details.",
+                "hebri update failed (exit {:?}). See {} for details.",
                 other,
                 crate::paths::hermes_home()
                     .join("logs")
@@ -544,8 +544,8 @@ async fn run_update(app: AppHandle) -> Result<()> {
         }
     }
 
-    // ---- stage 3: hermes desktop --build-only ----------------------------
-    // `hermes update` deliberately does NOT build apps/desktop (it installs
+    // ---- stage 3: hebri desktop --build-only ----------------------------
+    // `hebri update` deliberately does NOT build apps/desktop (it installs
     // repo-root deps with --workspaces=false). This is the rebuild it skips.
     emit_stage(&app, "rebuild", StageState::Running, None, None);
     let started = Instant::now();
@@ -566,7 +566,7 @@ async fn run_update(app: AppHandle) -> Result<()> {
     // (the content-hash stamp makes it a near-no-op when the first actually
     // succeeded). Without this the updater bails here and never reaches the
     // relaunch below — the app updates but doesn't restart. Matches the
-    // retry-once `hermes update` already does above, and `hermes update`'s own
+    // retry-once `hebri update` already does above, and `hebri update`'s own
     // desktop rebuild in cmd_update.
     if rebuild_needs_retry(rebuild.exit_code) {
         emit_log(
@@ -737,7 +737,10 @@ pub(crate) async fn wait_for_install_locks_free(install_root: &Path, app: &AppHa
                 ),
             );
             let shim = venv_hermes(install_root);
-            let shim_pids = backend_shim_pids(&shim);
+            let mut shim_pids = backend_shim_pids(&shim);
+            shim_pids.extend(backend_shim_pids(&venv_hebri(install_root)));
+            shim_pids.sort_unstable();
+            shim_pids.dedup();
             if shim_pids.is_empty() {
                 emit_log(
                     app,
@@ -786,7 +789,7 @@ pub(crate) async fn wait_for_install_locks_free(install_root: &Path, app: &AppHa
 }
 
 fn install_lock_probe_paths(install_root: &Path) -> Vec<PathBuf> {
-    let mut paths = vec![venv_hermes(install_root)];
+    let mut paths = vec![venv_hebri(install_root), venv_hermes(install_root)];
     paths.extend(desktop_app_payload_paths(install_root));
     paths
 }
@@ -934,7 +937,7 @@ fn rebuild_needs_retry(exit_code: Option<i32>) -> bool {
 /// is a handful of lines printed right before `sys.exit(2)`.
 const STDOUT_TAIL_LINES: usize = 40;
 
-/// User-facing message for an exit-2 refusal from `hermes update`.
+/// User-facing message for an exit-2 refusal from `hebri update`.
 ///
 /// Exit 2 has several causes (another update holds the marker, a live
 /// hermes.exe or venv holder, a self-mapped `.pyd` after the code swap), and
@@ -986,7 +989,7 @@ async fn run_streamed(
         .map_err(|e| anyhow!("spawning {} {:?}: {e}", program.display(), args))?;
 
     // Same non-UTF-8-safe decode path as powershell::run_script (#67193), and
-    // the same rule about pipe EOF: `hermes update` is precisely the shape that
+    // the same rule about pipe EOF: `hebri update` is precisely the shape that
     // leaves resident descendants holding an inherited stdout handle, and every
     // stage this drives sits downstream of the read.
     let stage_owned = stage.map(|s| s.to_string());
@@ -1038,15 +1041,18 @@ fn venv_hermes(install_root: &Path) -> PathBuf {
     }
 }
 
-/// Resolve the hermes CLI to drive. Prefer the venv shim in the install we
-/// just updated; fall back to `hermes` on PATH.
-fn resolve_hermes(install_root: &Path) -> Option<PathBuf> {
-    let shim = venv_hermes(install_root);
+fn venv_hebri(install_root: &Path) -> PathBuf {
+    venv_hermes(install_root).with_file_name(if cfg!(target_os = "windows") { "hebri.exe" } else { "hebri" })
+}
+
+/// Resolve Hebri in the updated install, then on PATH. Never select a foreign Hermes installation.
+fn resolve_hebri(install_root: &Path) -> Option<PathBuf> {
+    let shim = venv_hebri(install_root);
     if shim.exists() {
         return Some(shim);
     }
     // PATH fallback. which-style probe via env, kept dependency-free.
-    let exe = if cfg!(target_os = "windows") { "hermes.exe" } else { "hermes" };
+    let exe = if cfg!(target_os = "windows") { "hebri.exe" } else { "hebri" };
     if let Ok(path) = std::env::var("PATH") {
         let sep = if cfg!(target_os = "windows") { ';' } else { ':' };
         for dir in path.split(sep) {
@@ -1065,7 +1071,8 @@ fn update_child_env(install_root: &Path) -> Vec<(String, OsString)> {
         "HERMES_HOME".to_string(),
         hermes_home.as_os_str().to_os_string(),
     )];
-    // `hermes update` is a Python CLI writing to a pipe here, so CPython
+    envs.push(("HEBRI_HOME".to_string(), hermes_home.as_os_str().to_os_string()));
+    // `hebri update` is a Python CLI writing to a pipe here, so CPython
     // block-buffers its stdout: nothing reaches run_streamed (and the live
     // log UI) until 8 KB accumulate or the process exits. Long quiet steps —
     // the pre-update backup can zip multi-GB archives for minutes — render as
@@ -1073,7 +1080,7 @@ fn update_child_env(install_root: &Path) -> Vec<(String, OsString)> {
     // output instead.
     envs.push(("PYTHONUNBUFFERED".to_string(), OsString::from("1")));
     // We hold the update-in-progress marker for this whole run, and the
-    // `hermes update` child claims that SAME lock (hermes_cli/update_lock.py).
+    // `hebri update` child claims that SAME lock (hermes_cli/update_lock.py).
     // Name our pid so the child recognizes the live holder as its own
     // orchestrator and runs under our claim — without this every GUI update
     // refuses its parent's marker with exit 2 ("Hermes is still running")
@@ -1387,11 +1394,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn venv_hermes_is_under_install_root() {
+    fn venv_shims_stay_under_owned_install_root() {
         let root = Path::new("/x/hermes-agent");
-        let shim = venv_hermes(root);
+        let shim = venv_hebri(root);
         assert!(shim.starts_with(root));
+        assert!(venv_hermes(root).starts_with(root));
         assert!(shim.to_string_lossy().contains("venv"));
+        assert_eq!(shim.file_name().unwrap(), if cfg!(windows) { "hebri.exe" } else { "hebri" });
+        let installed = unique_tmp_dir("owned-hebri-shim");
+        let public_shim = venv_hebri(&installed);
+        std::fs::create_dir_all(public_shim.parent().unwrap()).unwrap();
+        std::fs::write(&public_shim, b"fixture").unwrap();
+        std::fs::write(venv_hermes(&installed), b"legacy fixture").unwrap();
+        assert_eq!(resolve_hebri(&installed), Some(public_shim));
+        assert_eq!(installed.canonicalize().unwrap().parent(), Some(std::env::temp_dir().canonicalize().unwrap().as_path()));
+        std::fs::remove_dir_all(installed).unwrap();
     }
 
     #[test]
@@ -1402,6 +1419,9 @@ mod tests {
     #[test]
     fn update_child_env_forces_unbuffered_python() {
         let envs = update_child_env(Path::new("/x/hermes-agent"));
+        let internal_home = envs.iter().find(|(k, _)| k == "HERMES_HOME").unwrap();
+        let public_home = envs.iter().find(|(k, _)| k == "HEBRI_HOME").unwrap();
+        assert_eq!(public_home.1, internal_home.1, "public Hebri and internal core must share the owned home");
         assert!(
             envs.iter()
                 .any(|(k, v)| k == "PYTHONUNBUFFERED" && v.to_str() == Some("1")),
@@ -1415,7 +1435,7 @@ mod tests {
         assert!(
             envs.iter().any(|(k, v)| k == "HERMES_UPDATE_HANDOFF_PID"
                 && v.to_str() == Some(std::process::id().to_string().as_str())),
-            "the hermes update child claims the same marker we hold; without our pid \
+            "the hebri update child claims the same marker we hold; without our pid \
              it refuses its own parent's lock and every GUI update dead-ends on exit 2"
         );
     }
@@ -1476,12 +1496,12 @@ mod tests {
             "→ Fetching updates...\n\
              ✓ Updated to 6b2c23ae42\n\
              ✗ Another Hebri update is already running (started 3m 42s ago, process 65285).\n\
-             \n  Wait for it to finish, then run `hermes update` again.\n",
+             \n  Wait for it to finish, then run `hebri update` again.\n",
         );
         assert_eq!(
             concurrent_update_message(&tail),
             "✗ Another Hebri update is already running (started 3m 42s ago, process 65285).\n\
-             \n  Wait for it to finish, then run `hermes update` again."
+             \n  Wait for it to finish, then run `hebri update` again."
         );
     }
 
@@ -1569,7 +1589,7 @@ mod tests {
 
         // A live *foreign* updater holds it. We must NOT clobber the marker and
         // run concurrently over the same checkout — that race is what let a
-        // dashboard `hermes update` and install-mode bootstrap mutate one tree
+        // dashboard `hebri update` and install-mode bootstrap mutate one tree
         // at once. Own-pid markers are adoptable (#74761), so the foreign pid
         // must be a real sibling process.
         let mut foreign = spawn_foreign_holder();
@@ -1637,7 +1657,7 @@ mod tests {
 
     // ---- exit-2 self-marker heal (#75788) --------------------------------
     // The deadlock: the updater holds the marker with its own PID; a stale
-    // checkout's `hermes update` reads it as a live foreign update and exits
+    // checkout's `hebri update` reads it as a live foreign update and exits
     // 2; the generic retry deliberately skips exit 2 — so the refusal loops
     // forever. These tests pin the heal decision's full contract. On
     // merge-base product code (no heal) the decision function does not exist

@@ -229,7 +229,7 @@ export const kanbanIt: KanbanMessages = {
   noProject: 'Nessun progetto (ambienti temporanei)',
   projectHintPre:
     'Le nuove attività vengono eseguite nel repository del progetto, in un albero di lavoro per attività; ogni attività può comunque scegliere un’altra area di lavoro alla creazione. Gestisci i progetti con ',
-  projectHintCmd: 'hermes project',
+  projectHintCmd: 'hebri project',
   createBoard: 'Crea bacheca',
   orchestratorProfile: 'Profilo del coordinatore',
   defaultAssignee: 'Assegnatario predefinito',

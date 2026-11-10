@@ -64,3 +64,10 @@ if (body.startsWith('#!')) {
 }
 
 console.log(`built ${out}`)
+
+// CLI and browser account access share Desktop's pure PKCE controller, without Electron.
+await build({
+  entryPoints: [resolve(root, '../scripts/synapsek-account-client.ts')],
+  bundle: true, platform: 'node', format: 'esm', target: 'node22',
+  outfile: resolve(root, 'dist/account-client.js'), logLevel: 'info'
+})

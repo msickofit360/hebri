@@ -338,7 +338,7 @@ def _append_skipped_tool_results(
         if hook_error_type is not None:
             _ToolCallRef(name, {}, effective_task_id, (hook_id or _pairing_tool_call_id)(tc), []).emit_post(
                 agent, result,
-                status="cancelled", error_type=hook_error_type, error_message="Tool execution skipped due to user interrupt",
+                status="cancelled", error_type=hook_error_type, error_message=result,
             )
         if flush_stage is not None:
             flushed = _flush_session_db_after_tool_progress(agent, messages, stage=f"{flush_stage} {name}")
@@ -529,7 +529,7 @@ class _ConcurrentToolAuthorizationGate:
             # (#65673). Auth failures park here too rather than returning. Returning ends the run task, and
             # with it the only listener on ``_reconnect_event`` — so a 401 on the very first connect left
             # the server unrevivable for the life of the process, even after the user re-authenticated with
-            # ``hermes mcp login``. Parking keeps the task alive so the 300s self-probe (and an explicit
+            # ``hebri mcp login``. Parking keeps the task alive so the 300s self-probe (and an explicit
             # /mcp refresh) can pick up fresh tokens.
             logger.warning(
                 "authorization gate lock not acquired after %.1fs "
@@ -1112,6 +1112,9 @@ def _commit_tool_result(
     messages.append(tool_message)
     if not _flush_session_db_after_tool_progress(agent, messages, stage=f"tool result {function_name}"):
         return None
+
+    from agent.delegation_failure_policy import record_tool_failure
+    record_tool_failure(agent, function_name, function_result, is_error=is_error)
 
     if not blocked:
         # ``tool.completed`` projects AFTER the canonical append + flush so resume can
@@ -1803,6 +1806,15 @@ def _execute_tool_calls_sequential(agent, assistant_message, messages: list, eff
     for i, tool_call in enumerate(tool_calls, 1):
         if getattr(agent, "_incremental_persistence_failed", False):
             return
+        if getattr(agent, "_delegate_tool_failure", None) is not None:
+            if not _append_skipped_tool_results(
+                agent, messages, tool_calls[i - 1:], effective_task_id,
+                content="[Tool execution skipped — {name} was not started because this task stops on tool errors]",
+                hook_error_type="task_stop_on_tool_error",
+                flush_stage="skipped after tool failure",
+            ):
+                return
+            break
         # Check interrupt BEFORE each tool so a "stop" during the previous one skips the rest.
         if agent._interrupt_requested:
             if not _skip_remaining_sequential(

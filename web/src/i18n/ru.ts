@@ -332,7 +332,7 @@ export const ru: Translations = {
       "Сохранено — перезапустите шлюз, чтобы применить изменение.",
     forceReinstall: "Принудительная переустановка (сначала удалить существующую папку)",
     headline:
-      "Поиск, установка, включение и обновление плагинов Hebri (аналог `hermes plugins`).",
+      "Поиск, установка, включение и обновление плагинов Hebri (аналог `hebri plugins`).",
     identifierLabel: "Git URL или owner/repo",
     inactive: "неактивно",
     installBtn: "Установить",

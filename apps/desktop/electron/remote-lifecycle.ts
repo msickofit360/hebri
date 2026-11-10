@@ -199,8 +199,8 @@ async function locateHermes(ssh, remoteHermesPath) {
 
     const err: any = new Error(
       `The Hebri path you set is not an executable on the remote host: "${remoteHermesPath}". ` +
-        'Check the path (it must be the full path to the `hermes` binary on the remote, e.g. ' +
-        '~/hermes-agent/.venv/bin/hermes), or clear it to auto-detect.'
+        'Check the path (it must be the full path to the `hebri` binary on the remote, e.g. ' +
+        '~/.hebri/hebri-agent/venv/bin/hebri), or clear it to auto-detect.'
     )
 
     err.kind = 'hermes-not-found'
@@ -210,7 +210,7 @@ async function locateHermes(ssh, remoteHermesPath) {
   const candidates: string[] = []
 
   try {
-    const found = (await ssh.exec(`bash -lc ${shq('command -v hermes')}`)).trim()
+    const found = (await ssh.exec(`bash -lc ${shq('command -v hebri')}`)).trim()
 
     if (found) {
       candidates.push(found.split('\n').pop().trim())
@@ -221,9 +221,9 @@ async function locateHermes(ssh, remoteHermesPath) {
 
   // Fallback candidates when the login-shell probe misses: the installer's
   // command locations (scripts/install.sh) — per-user, root/FHS, legacy venv.
-  candidates.push('~/.local/bin/hermes')
-  candidates.push('/usr/local/bin/hermes')
-  candidates.push('~/.hermes/hermes-agent/venv/bin/hermes')
+  candidates.push('~/.local/bin/hebri')
+  candidates.push('/usr/local/bin/hebri')
+  candidates.push('~/.hebri/hebri-agent/venv/bin/hebri')
 
   for (const candidate of candidates) {
     if (!candidate) {
@@ -236,7 +236,7 @@ async function locateHermes(ssh, remoteHermesPath) {
   }
 
   const err: any = new Error(
-    'Hebri is not installed on the remote host (could not find a `hebri` or legacy `hermes` executable). ' +
+    'Hebri is not installed on the remote host (could not find a `hebri` executable). ' +
       'Install it on the remote with:  curl -fsSL https://raw.githubusercontent.com/satoshilove/hebri/main/scripts/install.sh | sh  ' +
       '— or set the Hebri path explicitly in the SSH connection settings.'
   )
@@ -282,7 +282,7 @@ async function probeRemotePlatform(ssh) {
 // state store; best-effort.
 async function probeRemoteHermesHome(ssh) {
   try {
-    const out = (await ssh.exec('echo "${HERMES_HOME:-$HOME/.hebri}"')).trim().split('\n').pop()
+    const out = (await ssh.exec('echo "${HEBRI_HOME:-$HOME/.hebri}"')).trim().split('\n').pop()
 
     return out || '~/.hebri'
   } catch (cause) {
@@ -666,7 +666,7 @@ async function pidIsOurDashboard(
     `hermes_home=os.path.expanduser(${shq(hermesHome)}) if ${shq(hermesHome)} else ""\n` +
     'expected_entries={expected}\n' +
     'if hermes_home:\n' +
-    ' expected_entries.add(os.path.join(hermes_home,"hermes-agent","venv","bin","hermes"))\n' +
+    ' expected_entries.add(os.path.join(hermes_home,"hermes-agent","venv","bin","hermes"))\n expected_entries.add(os.path.join(hermes_home,"hebri-agent","venv","bin","hebri"))\n' +
     `expected_token=os.path.expanduser(${shq(ownershipId ? spawnTokenPath(ownershipId, spawnNonce) : '')})\n` +
     `expected_profile=${shq(profile)}\n` +
     `nonce=${shq(spawnNonce)}\n` +
@@ -863,7 +863,7 @@ pid=${pid}
 expected_creation=${py(lock.creationTime)}
 expected_path=os.path.expanduser(${py(lock.hermesPath)})
 hermes_home=os.path.expanduser(${py(lock.hermesHome)})
-expected_entries={expected_path,os.path.join(hermes_home,"hermes-agent","venv","bin","hermes")}
+expected_entries={expected_path,os.path.join(hermes_home,"hermes-agent","venv","bin","hermes"),os.path.join(hermes_home,"hebri-agent","venv","bin","hebri")}
 expected_token=os.path.expanduser(${py(expectedToken)})
 expected_profile=${py(lock.profile)}
 nonce=${py(lock.spawnNonce)}
@@ -1486,7 +1486,7 @@ async function connect(deps) {
   const hermesVersion = await probeHermesVersion(ssh, hermesPath)
 
   if (hermesVersion) {
-    log(`remote hermes version: ${hermesVersion}`)
+    log(`remote hebri version: ${hermesVersion}`)
   }
 
   const reuseToken = deps.reuseToken || ''

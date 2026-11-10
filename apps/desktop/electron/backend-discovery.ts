@@ -1,6 +1,6 @@
 // Host-level backend discovery — the Desktop half of multiplex-only.
 //
-// Exactly ONE `hermes serve` runs per HOST and multiplexes every profile, so
+// Exactly ONE `hebri serve` runs per HOST and multiplexes every profile, so
 // Desktop must ATTACH to a backend that is already listening and spawn only
 // when the host has none. A backend registered by another profile is still THE
 // backend: refusing it is what produced a second process per profile.

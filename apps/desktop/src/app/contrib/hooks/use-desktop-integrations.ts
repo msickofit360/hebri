@@ -1,5 +1,5 @@
 import { useStore } from '@nanostores/react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { resumeAccountConnect } from '@/app/capabilities/connectors/data/deep-link'
 import { closeActiveTab } from '@/app/chat/close-tab'
@@ -10,6 +10,7 @@ import { $diskPluginsScanPending } from '@/contrib/runtime-loader'
 import { resolveDeepLinkAction } from '@/lib/deeplink-routes'
 import { pathFromHermesDeepLink, resolveHermesOpenPath } from '@/lib/hermes-open-target'
 import { storedSessionIdForNotification } from '@/lib/session-ids'
+import { $botChatScopes } from '@/store/bot-chat-scopes'
 import { announceNewSessionDraftKey } from '@/store/composer'
 import { requestMcpInstallFromDeepLink } from '@/store/mcp-deeplink-install'
 import { startMcpHealthChecker, stopMcpHealthChecker } from '@/store/mcp-health'
@@ -26,12 +27,14 @@ import {
   $selectedStoredSessionId,
   getRememberedRoute,
   getRememberedSessionId,
+  knownSessionProfile,
   resolveComposerSessionKey,
   sessionBelongsToProfile,
+  sessionMatchesStoredId,
   setRememberedRoute,
   setRememberedSessionId
 } from '@/store/session'
-import { $botChatScopes, $sessionTiles, storedSessionIdForRuntimeId } from '@/store/session-states'
+import { $sessionTiles, storedSessionIdForRuntimeId } from '@/store/session-states'
 import { onSessionsChanged } from '@/store/session-sync'
 import { openUpdatesWindow, startUpdatePoller, stopUpdatePoller } from '@/store/updates'
 import { isBrowserWindow, isHudWindow, isSecondaryWindow } from '@/store/windows'
@@ -39,8 +42,6 @@ import type { SessionInfo } from '@/types/hermes'
 
 import { requestComposerFocus, requestComposerInsert } from '../../chat/composer/focus'
 import { appViewForPath, isOverlayView, NEW_CHAT_ROUTE, routeSessionId, sessionRoute } from '../../routes'
-
-type RememberedSession = Pick<SessionInfo, '_lineage_root_id' | 'id' | 'profile'>
 
 interface DesktopIntegrationsParams {
   activeProfile: string
@@ -55,7 +56,7 @@ interface DesktopIntegrationsParams {
   resumeExhaustedSessionId: null | string
   routedSessionId: null | string
   runtimeIdByStoredSessionId: { readonly current: Map<string, string> }
-  sessions: readonly RememberedSession[]
+  sessions: readonly SessionInfo[]
 }
 
 /**
@@ -76,7 +77,8 @@ export function useDesktopIntegrations({
   routedSessionId,
   runtimeIdByStoredSessionId,
   sessions
-}: DesktopIntegrationsParams): void {
+}: DesktopIntegrationsParams): boolean {
+  const [startupNavigationReady, setStartupNavigationReady] = useState(false)
   // Update polling — populates $desktopVersion/$updateStatus, which feed the
   // statusbar version pill and the update toasts. Also honors the main
   // process's "open updates" menu request.
@@ -115,9 +117,29 @@ export function useDesktopIntegrations({
   // This ref is a one-time lifecycle latch, not a mirror of reactive atom state.
   // eslint-disable-next-line no-restricted-syntax
   useEffect(() => {
-    if (!profileReady || isHudWindow() || isBrowserWindow()) {
+    if (!profileReady) {
       return
     }
+
+    if (isHudWindow() || isBrowserWindow()) {
+      setStartupNavigationReady(true)
+
+      return
+    }
+
+    // A list/config refresh can land between navigate() and the router commit.
+    // Keep the placeholder from becoming ready or overwriting the saved route.
+    if (restoredRef.current && !startupNavigationReady && locationPathname === NEW_CHAT_ROUTE) {
+      return
+    }
+
+    // Sidebar visibility is not ownership. A hidden chat opened by id has a
+    // persisted owner hint even when it never appears in the visible list.
+    // An available row remains authoritative over an older hint.
+    const belongsToActiveProfile = (id: string) =>
+      sessions.some(session => sessionMatchesStoredId(session, id))
+        ? sessionBelongsToProfile(sessions, id, activeProfile)
+        : knownSessionProfile(sessions, id) === (activeProfile.trim() || 'default')
 
     if (!restoredRef.current) {
       // Only cold-start navigation at the default route is replaceable; a deep
@@ -133,6 +155,7 @@ export function useDesktopIntegrations({
 
         if (!resumeLastSession) {
           restoredRef.current = true
+          setStartupNavigationReady(true)
 
           return
         }
@@ -148,7 +171,12 @@ export function useDesktopIntegrations({
         // refresh completes. Keep the restore latch open until ownership can be
         // decided; treating an unloaded list as authoritative would erase valid
         // remembered navigation permanently.
-        if (sessions.length === 0 && !restorableNonSessionRoute && (routeSession || last)) {
+        if (
+          sessions.length === 0 &&
+          !restorableNonSessionRoute &&
+          (routeSession || last) &&
+          ![routeSession, last].some(id => id && belongsToActiveProfile(id))
+        ) {
           return
         }
 
@@ -166,7 +194,7 @@ export function useDesktopIntegrations({
           route &&
           route !== NEW_CHAT_ROUTE &&
           !isOverlayView(appViewForPath(route)) &&
-          (!routeSession || sessionBelongsToProfile(sessions, routeSession, activeProfile))
+          (!routeSession || belongsToActiveProfile(routeSession))
         ) {
           // The user may have started typing on the fresh chat while the
           // backend was still coming up; the composer moves that draft onto
@@ -183,7 +211,7 @@ export function useDesktopIntegrations({
           setRememberedRoute(null, activeProfile)
         }
 
-        if (last && sessionBelongsToProfile(sessions, last, activeProfile)) {
+        if (last && belongsToActiveProfile(last)) {
           announceNewSessionDraftKey(resolveComposerSessionKey(last, sessions))
           navigate(sessionRoute(last), { replace: true })
 
@@ -202,12 +230,17 @@ export function useDesktopIntegrations({
     // non-overlay route (a page like /skills, or a session route) per profile.
     // Session-shaped routes require an explicit matching owner; unresolved and
     // wrong-profile rows must not replace known-safe navigation.
-    if (routedSessionId && sessionBelongsToProfile(sessions, routedSessionId, activeProfile)) {
+    if (routedSessionId && belongsToActiveProfile(routedSessionId)) {
       setRememberedSessionId(routedSessionId, activeProfile)
       setRememberedRoute(locationPathname, activeProfile)
     } else if (!routedSessionId && !isOverlayView(appViewForPath(locationPathname))) {
       setRememberedRoute(locationPathname, activeProfile)
     }
+
+    // The initial blank URL is a placeholder until restore has resolved. Let
+    // the route hook initialize the primary only after the destination lands;
+    // otherwise its fresh-draft action fronts main over the persisted tile.
+    setStartupNavigationReady(true)
   }, [
     activeProfile,
     diskPluginsScanPending,
@@ -216,7 +249,8 @@ export function useDesktopIntegrations({
     profileReady,
     resumeLastSession,
     routedSessionId,
-    sessions
+    sessions,
+    startupNavigationReady
   ])
 
   useEffect(() => {
@@ -436,4 +470,6 @@ export function useDesktopIntegrations({
 
     return onSessionsChanged(() => void refreshSessions())
   }, [refreshSessions])
+
+  return startupNavigationReady
 }

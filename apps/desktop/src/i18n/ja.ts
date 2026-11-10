@@ -60,7 +60,7 @@ export const ja = defineLocale({
     connect: '接続',
     connecting: '接続中',
     continue: '続ける',
-    bots: 'ボット',
+    bots: 'Bits',
     copied: 'コピーしました',
     copy: 'コピー',
     copyFailed: 'コピーに失敗しました',
@@ -351,7 +351,7 @@ export const ja = defineLocale({
       appearanceTypography: 'フォントと表示倍率',
       appearanceWindowLayout: 'ウィンドウとレイアウト',
       appearanceChatDisplay: 'チャット表示',
-      appearancePet: 'ペット',
+      appearancePet: 'Hebits',
       appearanceGeneral: '一般',
       modelMain: 'メインモデル',
       modelAuxiliary: '補助モデル',
@@ -702,7 +702,7 @@ export const ja = defineLocale({
       removeTheme: 'テーマを削除',
       importedBadge: 'インポート済み',
       pet: {
-        title: 'ペット',
+        title: 'Hebits',
         intro:
           'アプリ上に浮かぶ petdex のアニメーションマスコットを採用しましょう。ツール実行中は走り、成功すると喜び、エラーでしょんぼりと、Hebri の状態に反応します。',
         restartHint:
@@ -981,7 +981,7 @@ export const ja = defineLocale({
       versionUnavailable: 'バージョンを取得できません',
       bundleOutOfSync: 'アプリのビルドが古くなっています',
       bundleOutOfSyncDesc:
-        'Hebri ランタイムは更新されましたが、デスクトップアプリ自体は古いビルドのままです。アプリを更新するまで、新しいインターフェース機能(Bot Mode など)は表示されません。下の更新を実行してアプリを再ビルドしてください。それでもこの警告が消えない場合は、最新のデスクトップインストーラーから再インストールしてください。',
+        'Hebri ランタイムは更新されましたが、デスクトップアプリ自体は古いビルドのままです。アプリを更新するまで、新しいインターフェース機能(Bits など)は表示されません。下の更新を実行してアプリを再ビルドしてください。それでもこの警告が消えない場合は、最新のデスクトップインストーラーから再インストールしてください。',
       bundleOutOfSyncAction: 'インストーラーを入手',
       bundleSwapPending: '再起動して更新を完了',
       bundleSwapPendingDesc:
@@ -1663,7 +1663,7 @@ export const ja = defineLocale({
     edit: '編集',
     archive: 'アーカイブ',
     skillArchivedTitle: 'スキルをアーカイブしました',
-    skillArchivedMessage: 'hermes curator restore で復元できます。',
+    skillArchivedMessage: 'hebri curator restore で復元できます。',
     officialCatalog: 'インストール可能',
     officialPill: '公式'
   },
@@ -1741,7 +1741,7 @@ export const ja = defineLocale({
     changeTheme: 'テーマを変更',
     changeColorMode: 'カラーモードを変更…',
     pets: {
-      title: 'ペット',
+      title: 'Hebits',
       placeholder: 'ペットを検索…',
       loading: 'petdex ギャラリーを読み込み中…',
       error: 'petdex ギャラリーに接続できません。',
@@ -1829,7 +1829,7 @@ export const ja = defineLocale({
     noSessions: 'セッションはまだありません。',
     gatewayRunning: 'メッセージングゲートウェイが実行中',
     gatewayStopped: 'メッセージングゲートウェイが停止中',
-    hermesActiveSessions: (version, count) => `Hebri ${version} · アクティブセッション ${count}`,
+    hermesActiveSessions: (version, count) => `Hebri バックエンド ${version} · アクティブセッション ${count}`,
     restartGateway: 'ゲートウェイを再起動',
     openBrowser: 'ブラウザを開く',
     gatewayRestartFailed: 'ゲートウェイの再起動に失敗しました。',
@@ -2939,6 +2939,14 @@ export const ja = defineLocale({
   },
 
   updates: {
+    releaseInstalled: '更新をインストールしました',
+    quitToInstall: '終了してインストール',
+    releaseReady: 'ダウンロード完了',
+    releaseReadyBody:
+      '作業を保存し、Hebriを完全に終了して更新をインストールしてから、再度開いてください。実行中のアプリはまだ変更されていません。 Windows では表示されるインストーラーの案内に従い、完了してから再度開いてください。',
+    releaseVerifying: 'ダウンロードを検証中…',
+    releaseDownloadBody: 'Hebriの更新をダウンロードしています。作業は開いたままです。',
+    releaseDownloadFooter: 'インストールの準備が整う前にダウンロードを検証します。',
     stages: {
       idle: '準備中…',
       prepare: '準備中…',
@@ -3971,7 +3979,7 @@ export const ja = defineLocale({
     resumeStrandedBody:
       'このセッションへの接続に失敗し、自動再試行も停止しました。ゲートウェイが実行中か確認してから、もう一度お試しください。',
     poolSlotTimeoutBody:
-      'すべてのローカルプロファイルバックエンドスロットが使用中です。「設定」→「詳細設定」で「Warm Bot Backends」を増やすか、アイドル状態のバックエンドが解放された後に再試行してください。',
+      'すべてのローカルプロファイルバックエンドスロットが使用中です。「設定」→「詳細設定」で「Warm Bit Backends」を増やすか、アイドル状態のバックエンドが解放された後に再試行してください。',
     poolSlotTimeoutOpenSettings: '詳細設定を開く',
     resumeRetry: '再試行',
     nothingToBranch: 'ブランチするものがありません',
@@ -4022,7 +4030,7 @@ export const ja = defineLocale({
       success: platform => `${platform} に引き継ぎました。いつでもここで再開できます。`,
       systemNote: platform => `↻ ${platform} に引き継ぎました — いつでもここで再開できます。`,
       failed: error => `引き継ぎに失敗しました: ${error}`,
-      timedOut: 'ゲートウェイの待機がタイムアウトしました。`hermes gateway` は起動していますか？'
+      timedOut: 'ゲートウェイの待機がタイムアウトしました。`hebri gateway` は起動していますか？'
     }
   },
 

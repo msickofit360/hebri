@@ -78,7 +78,7 @@ export const ar = defineLocale({
     connect: 'اتصال',
     connecting: 'جار الاتصال',
     continue: 'متابعة',
-    bots: 'الروبوتات',
+    bots: 'Bits',
     copied: 'تم النسخ',
     copy: 'نسخ',
     copyFailed: 'فشل النسخ',
@@ -382,7 +382,7 @@ export const ar = defineLocale({
       appearanceTypography: 'الخطوط والتحجيم',
       appearanceWindowLayout: 'النافذة والتخطيط',
       appearanceChatDisplay: 'عرض المحادثة',
-      appearancePet: 'الحيوان الأليف',
+      appearancePet: 'Hebits',
       appearanceGeneral: 'عام',
       modelMain: 'النموذج الرئيسي',
       modelAuxiliary: 'النماذج المساعدة',
@@ -697,7 +697,7 @@ export const ar = defineLocale({
       removeTheme: 'إزالة الثيم',
       importedBadge: 'مستورد',
       pet: {
-        title: 'حيوان أليف',
+        title: 'Hebits',
         intro:
           'تبنَّ تعويذة petdex متحركة تطفو فوق التطبيق وتتفاعل مع ما يفعله Hebri — تجري أثناء تنفيذ الأدوات، وتحتفل عند النجاح، وتعبس عند الأخطاء.',
         restartHint:
@@ -866,7 +866,7 @@ export const ar = defineLocale({
       versionUnavailable: 'الإصدار غير متاح',
       bundleOutOfSync: 'إصدار التطبيق قديم',
       bundleOutOfSyncDesc:
-        'تم تحديث وقت تشغيل Hebri، لكن تطبيق سطح المكتب نفسه لا يزال إصدارًا قديمًا — لن تظهر ميزات الواجهة الجديدة (مثل Bot Mode) حتى يتم تحديث التطبيق. شغّل التحديث أدناه لإعادة بناء التطبيق. إذا لم يختفِ هذا التحذير، فأعد التثبيت من أحدث مثبّت لسطح المكتب.',
+        'تم تحديث وقت تشغيل Hebri، لكن تطبيق سطح المكتب نفسه لا يزال إصدارًا قديمًا — لن تظهر ميزات الواجهة الجديدة (مثل Bits) حتى يتم تحديث التطبيق. شغّل التحديث أدناه لإعادة بناء التطبيق. إذا لم يختفِ هذا التحذير، فأعد التثبيت من أحدث مثبّت لسطح المكتب.',
       bundleOutOfSyncAction: 'الحصول على المثبّت',
       bundleSwapPending: 'أعد التشغيل لإكمال التحديث',
       bundleSwapPendingDesc:
@@ -1350,7 +1350,7 @@ export const ar = defineLocale({
     changeTheme: 'تغيير الثيم',
     changeColorMode: 'تغيير نمط الألوان',
     pets: {
-      title: 'الحيوانات الأليفة',
+      title: 'Hebits',
       placeholder: 'البحث في الحيوانات الأليفة...',
       loading: 'جار تحميل معرض petdex...',
       error: 'تعذّر الوصول إلى معرض petdex.',
@@ -1466,7 +1466,7 @@ export const ar = defineLocale({
     noSessions: 'لا توجد جلسات',
     gatewayRunning: 'البوابة تعمل',
     gatewayStopped: 'البوابة متوقفة',
-    hermesActiveSessions: (version, count) => `Hebri ${version} لديه ${count} جلسة نشطة`,
+    hermesActiveSessions: (version, count) => `محرك Hebri ${version} لديه ${count} جلسة نشطة`,
     restartGateway: 'إعادة تشغيل البوابة',
     openBrowser: 'فتح المتصفح',
     gatewayRestartFailed: 'فشل إعادة تشغيل البوابة.',
@@ -2531,6 +2531,14 @@ export const ar = defineLocale({
     }
   },
   updates: {
+    releaseInstalled: 'تم تثبيت التحديث',
+    quitToInstall: 'الخروج والتثبيت',
+    releaseReady: 'اكتمل التنزيل',
+    releaseReadyBody:
+      'احفظ عملك وأغلق Hebri بالكامل لتثبيت التحديث، ثم افتحه مجددًا. لم يتغير التطبيق قيد التشغيل بعد. في Windows، اتبع برنامج التثبيت الظاهر وانتظر اكتماله قبل إعادة الفتح.',
+    releaseVerifying: 'جارٍ التحقق من التنزيل…',
+    releaseDownloadBody: 'جارٍ تنزيل تحديث Hebri. سيبقى عملك الحالي مفتوحًا.',
+    releaseDownloadFooter: 'سيتم التحقق من التنزيل قبل أن يصبح جاهزًا للتثبيت.',
     stages: {
       idle: 'جار التحضير...',
       prepare: 'جار التحضير...',
@@ -3450,7 +3458,7 @@ export const ar = defineLocale({
     resumeStrandedBody:
       'فشل الاتصال بهذه الجلسة وتوقفت إعادة المحاولة التلقائية. تأكد من تشغيل البوابة، ثم حاول مجددا.',
     poolSlotTimeoutBody:
-      'جميع خانات الواجهات الخلفية المحلية للملفات الشخصية مشغولة. زد عدد Warm Bot Backends من الإعدادات ← متقدم، أو أعد المحاولة بعد إزالة واجهة خلفية خاملة.',
+      'جميع خانات الواجهات الخلفية المحلية للملفات الشخصية مشغولة. زد عدد Warm Bit Backends من الإعدادات ← متقدم، أو أعد المحاولة بعد إزالة واجهة خلفية خاملة.',
     poolSlotTimeoutOpenSettings: 'فتح الإعدادات المتقدمة',
     resumeRetry: 'إعادة المحاولة',
     nothingToBranch: 'لا يوجد ما يمكن تفريعه',
@@ -3500,7 +3508,7 @@ export const ar = defineLocale({
       success: platform => `تم التسليم إلى ${platform}. استأنف هنا في أي وقت.`,
       systemNote: platform => `↻ تم التسليم إلى ${platform} — استأنف هنا في أي وقت.`,
       failed: error => `فشل التسليم: ${error}`,
-      timedOut: 'انتهت المهلة في انتظار البوابة. هل `hermes gateway` قيد التشغيل؟'
+      timedOut: 'انتهت المهلة في انتظار البوابة. هل `hebri gateway` قيد التشغيل؟'
     }
   },
   errors: {

@@ -10,6 +10,72 @@
  * private host, and that lookup would leak the hostname off-box.
  */
 import {
+  SiAlgolia,
+  SiAlgoliaHex,
+  SiBox,
+  SiBoxHex,
+  SiBuildkite,
+  SiBuildkiteHex,
+  SiCalendly,
+  SiCalendlyHex,
+  SiCircleci,
+  SiCircleciHex,
+  SiClickup,
+  SiClickupHex,
+  SiCloudflare,
+  SiCloudflareHex,
+  SiCloudinary,
+  SiCloudinaryHex,
+  SiDropbox,
+  SiDropboxHex,
+  SiFacebook,
+  SiFacebookHex,
+  SiGoogleads,
+  SiGoogleadsHex,
+  SiGrafana,
+  SiGrafanaHex,
+  SiHubspot,
+  SiHubspotHex,
+  SiInstagram,
+  SiInstagramHex,
+  SiMailchimp,
+  SiMailchimpHex,
+  SiMake,
+  SiMakeHex,
+  SiMetabase,
+  SiMetabaseHex,
+  SiMiro,
+  SiMiroHex,
+  SiMixpanel,
+  SiMixpanelHex,
+  SiPosthog,
+  SiPosthogHex,
+  SiPostman,
+  SiPostmanHex,
+  SiPrisma,
+  SiPrismaHex,
+  SiQuickbooks,
+  SiQuickbooksHex,
+  SiRailway,
+  SiRailwayHex,
+  SiShopify,
+  SiShopifyHex,
+  SiSnowflake,
+  SiSnowflakeHex,
+  SiStrava,
+  SiStravaHex,
+  SiTrello,
+  SiTrelloHex,
+  SiWhatsapp,
+  SiWhatsappHex,
+  SiWordpress,
+  SiWordpressHex,
+  SiX,
+  SiXHex,
+  SiXero,
+  SiXeroHex,
+  SiZendesk,
+  SiZendeskHex,
   SiAirtable,
   SiAsana,
   SiAtlassian,
@@ -44,8 +110,16 @@ import {
   SiYoutube,
   SiZapier
 } from '@icons-pack/react-simple-icons'
-import { IconBrandSlack } from '@tabler/icons-react'
 import type { ComponentType, SVGProps } from 'react'
+import slackLogo from '@/assets/connectors/slack.png'
+
+function SlackLogo(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...props} viewBox="0 0 256 256">
+      <image href={slackLogo} width="256" height="256" />
+    </svg>
+  )
+}
 
 export interface McpBrand {
   Icon: ComponentType<SVGProps<SVGSVGElement>>
@@ -57,6 +131,39 @@ export interface McpBrand {
 }
 
 export const MCP_BRAND_ICONS: Record<string, McpBrand> = {
+  algolia: { Icon: SiAlgolia, color: SiAlgoliaHex },
+  box: { Icon: SiBox, color: SiBoxHex },
+  buildkite: { Icon: SiBuildkite, color: SiBuildkiteHex },
+  calendly: { Icon: SiCalendly, color: SiCalendlyHex },
+  circleci: { Icon: SiCircleci, color: SiCircleciHex },
+  clickup: { Icon: SiClickup, color: SiClickupHex },
+  cloudflare: { Icon: SiCloudflare, color: SiCloudflareHex },
+  cloudinary: { Icon: SiCloudinary, color: SiCloudinaryHex },
+  dropbox: { Icon: SiDropbox, color: SiDropboxHex },
+  'facebook-pages': { Icon: SiFacebook, color: SiFacebookHex },
+  'google-ads': { Icon: SiGoogleads, color: SiGoogleadsHex },
+  grafana: { Icon: SiGrafana, color: SiGrafanaHex },
+  hubspot: { Icon: SiHubspot, color: SiHubspotHex },
+  'instagram-business': { Icon: SiInstagram, color: SiInstagramHex },
+  mailchimp: { Icon: SiMailchimp, color: SiMailchimpHex },
+  make: { Icon: SiMake, color: SiMakeHex },
+  metabase: { Icon: SiMetabase, color: SiMetabaseHex },
+  miro: { Icon: SiMiro, color: SiMiroHex },
+  mixpanel: { Icon: SiMixpanel, color: SiMixpanelHex },
+  posthog: { Icon: SiPosthog, color: SiPosthogHex, monochrome: true },
+  postman: { Icon: SiPostman, color: SiPostmanHex },
+  quickbooks: { Icon: SiQuickbooks, color: SiQuickbooksHex },
+  railway: { Icon: SiRailway, color: SiRailwayHex, monochrome: true },
+  shopify: { Icon: SiShopify, color: SiShopifyHex },
+  snowflake: { Icon: SiSnowflake, color: SiSnowflakeHex },
+  strava: { Icon: SiStrava, color: SiStravaHex },
+  trello: { Icon: SiTrello, color: SiTrelloHex },
+  'whatsapp-business': { Icon: SiWhatsapp, color: SiWhatsappHex },
+  'wordpress-com': { Icon: SiWordpress, color: SiWordpressHex },
+  x: { Icon: SiX, color: SiXHex, monochrome: true },
+  xero: { Icon: SiXero, color: SiXeroHex },
+  zendesk: { Icon: SiZendesk, color: SiZendeskHex },
+  'prisma-postgres': { Icon: SiPrisma, color: SiPrismaHex, monochrome: true },
   airtable: { Icon: SiAirtable, color: '#18BFFF' },
   asana: { Icon: SiAsana, color: '#F06A6A' },
   atlassian: { Icon: SiAtlassian, color: '#0052CC' },
@@ -85,10 +192,8 @@ export const MCP_BRAND_ICONS: Record<string, McpBrand> = {
   postgres: { Icon: SiPostgresql, color: '#4169E1' },
   postgresql: { Icon: SiPostgresql, color: '#4169E1' },
   sentry: { Icon: SiSentry, color: '#362D59' },
-  // simple-icons dropped Slack's mark on a trademark request and the site's
-  // favicon is a flat purple square that reads as a blank disc at chip size.
-  // Tabler's outline pinwheel is the one recognisable Slack we can ship.
-  slack: { Icon: IconBrandSlack as ComponentType<SVGProps<SVGSVGElement>>, color: '#4A154B' },
+  // Slack's published full-colour mark is bundled; see assets/connectors/README.md.
+  slack: { Icon: SlackLogo, color: '#4A154B' },
   spotify: { Icon: SiSpotify, color: '#1DB954' },
   square: { Icon: SiSquare, color: '#3E4348', monochrome: true },
   stripe: { Icon: SiStripe, color: '#635BFF' },
@@ -119,11 +224,19 @@ export const brandFor = (name: string): McpBrand | null => {
     return null
   }
 
+  const aliases: Record<string, string> = {
+    facebook: 'facebookpages',
+    instagram: 'instagrambusiness',
+    instagramprofessional: 'instagrambusiness',
+    whatsapp: 'whatsappbusiness',
+    wordpress: 'wordpresscom',
+    twitter: 'x',
+    googlespreadsheets: 'googlesheets'
+  }
   const entries = Object.entries(MCP_BRAND_ICONS)
-
-  return (
-    entries.find(([key]) => squash(key) === target)?.[1] ??
-    entries.find(([key]) => target.includes(squash(key)))?.[1] ??
-    null
-  )
+  const exact = (key: string) => entries.find(([name]) => squash(name) === key)?.[1]
+  // Only known transport decorations may be stripped. Substring matching labels
+  // "Dropbox" as Box and nearly everything containing x as X.
+  const normalized = target.replace(/^mcp/, '').replace(/(?:mcpserver|mcp|official|connector|server)$/, '')
+  return exact(aliases[target] ?? target) ?? exact(aliases[normalized] ?? normalized) ?? null
 }

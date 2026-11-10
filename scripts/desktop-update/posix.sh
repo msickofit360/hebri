@@ -1,7 +1,7 @@
 #!/bin/bash
 # posix.sh -- repo-owned macOS/Linux Desktop update hand-off.
 #
-# The whole job: wait for the Desktop to exit, run `hermes update`, tell the
+# The whole job: wait for the Desktop to exit, run `hebri update`, tell the
 # shim how it went, reopen the app. The Desktop spawns this detached and
 # quits; because it lives in the checkout, every update refreshes the code
 # that drives the next one. Replaces the in-app updater
@@ -242,7 +242,7 @@ start_ui() {
   # HTTP 200).  The Python wrapper immediately execs the real process, so $!
   # remains the PID that stop_ui can terminate.
   # TERM/HUP stay IGNORED in the server (SIG_IGN survives execv): a stray
-  # teardown TERM killed the shim ~1s into `hermes update` (2026-08-14 16:44,
+  # teardown TERM killed the shim ~1s into `hebri update` (2026-08-14 16:44,
   # window showed ERR_CONNECTION_REFUSED for the whole run; upstream #66753).
   # stop_ui ends the server with SIGKILL instead — it is stateless HTTP.
   "$py" -c 'import os, signal, sys; os.setsid(); signal.signal(signal.SIGTERM, signal.SIG_IGN); signal.signal(signal.SIGHUP, signal.SIG_IGN); os.execv(sys.argv[1], sys.argv[1:])' \
@@ -490,7 +490,7 @@ trap finish EXIT
 # (hermes_cli/macos_tcc_anchor.ensure_tcc_anchor, which re-anchors whenever
 # `venv/bin/python` is a uv-managed symlink): this heal is gated on the
 # interpreter FAILING its boot probe, so a healthy anchored install is never
-# touched; and when it does restore symlinks, the very `hermes update` run it
+# touched; and when it does restore symlinks, the very `hebri update` run it
 # unblocks re-installs a boot-gated healthy anchor — a one-shot convergence,
 # not a loop.
 
@@ -644,7 +644,7 @@ fi
 # Electron's macOS quit teardown sends SIGTERM to its still-parented updater
 # child on this machine. `detached + unref` gives the child a process group but
 # does not re-parent it before `before-quit` runs, so the hand-off consistently
-# died two seconds after starting `hermes update`. Re-exec through a one-shot
+# died two seconds after starting `hebri update`. Re-exec through a one-shot
 # setsid child and let this direct Electron child exit first. The real
 # orchestrator is then owned by launchd (PPID 1) and is outside Electron's quit
 # teardown, while retaining the same marker/result protocol.
@@ -670,7 +670,7 @@ fi
 
 # Electron terminates the entire detached updater process group during quit,
 # including the loopback status server.  Arm TERM immunity before `start_ui`
-# so the shim server and the later `hermes update` subprocess both inherit
+# so the shim server and the later `hebri update` subprocess both inherit
 # SIG_IGN.  The orchestrator restores its normal TERM handler after the update
 # command has returned; the already-running server keeps the inherited setting
 # until normal cleanup closes it.
@@ -679,7 +679,7 @@ log "hand-off start: root=$INSTALL_ROOT branch=$BRANCH desktopPid=$DESKTOP_PID p
 rm -f "$RESULT" 2>/dev/null || true
 
 # Marker claim: same cross-process lock contract as windows.ps1 /
-# update_lock.py (the `hermes update` child adopts it via process ancestry).
+# update_lock.py (the `hebri update` child adopts it via process ancestry).
 # The Desktop supplies one acquisition time for the whole ownership chain.
 NOW="$(date +%s)"
 STARTED_AT="${HERMES_UPDATE_STARTED_AT:-$NOW}"
@@ -734,7 +734,7 @@ if [ "${UPDATE_INVOKE[0]}" != "$HERMES_BIN" ]; then
   log "venv/bin/python3 still unbootable; invoking the update via ${UPDATE_INVOKE[*]}"
 fi
 
-# Run FROM the install root: `hermes update` resolves the tree it mutates
+# Run FROM the install root: `hebri update` resolves the tree it mutates
 # from the working directory, and we inherit the Desktop's cwd (which can be
 # an unrelated repo — updating THAT instead of the install is the failure
 # the sandbox repro caught). FAIL CLOSED: set -u without set -e means a
@@ -769,7 +769,7 @@ log "running: ${UPDATE_INVOKE[*]} update --yes $GATEWAY_FLAG $KEEP_STASH --branc
 publish_stage "Updating code and dependencies"
 OUT="$("${UPDATE_INVOKE[@]}" update --yes $GATEWAY_FLAG $KEEP_STASH --branch "$BRANCH" 2>&1)"; CODE=$?
 printf '%s\n' "$OUT" >> "$LOG" 2>/dev/null
-log "hermes update exit code: $CODE"
+log "hebri update exit code: $CODE"
 
 if [ "$CODE" -ne 0 ] && [ "$CODE" -ne 2 ]; then
   # Retry once: update-boundary class (fresh code on disk, stale in memory).
@@ -782,7 +782,7 @@ if [ "$CODE" -ne 0 ] && [ "$CODE" -ne 2 ]; then
   # dedicated exit code (8) so callers can distinguish "skipped" from a
   # real failure.
   if printf '%s' "$OUT" | grep -q "CODE UPDATE SKIPPED"; then
-    log "hermes update skipped (checkout parked on a non-target branch); not retrying"
+    log "hebri update skipped (checkout parked on a non-target branch); not retrying"
     FINAL_CODE=8
     FINAL_MSG="Update skipped: the git checkout is on a branch that isn't fully merged into $BRANCH. Switch to the target branch and update again (see the terminal output for the exact commands)."
     exit 8
@@ -795,21 +795,21 @@ if [ "$CODE" -ne 0 ] && [ "$CODE" -ne 2 ]; then
 fi
 trap 'on_signal TERM' TERM
 
-# Truthful completion: `hermes update` calls a GUI build failure non-fatal
+# Truthful completion: `hebri update` calls a GUI build failure non-fatal
 # (exit 0). For a Desktop-driven update that would relaunch the OLD build
 # and call it success -- retry the build once, propagate honestly.
 if [ "$CODE" -eq 0 ] && printf '%s' "$OUT" | grep -q "Desktop build failed"; then
-  log "desktop build failed inside hermes update; retrying build"
+  log "desktop build failed inside hebri update; retrying build"
   publish_stage "Rebuilding Desktop"
   "${UPDATE_INVOKE[@]}" desktop --force-build --build-only >> "$LOG" 2>&1 || {
-    FINAL_CODE=6 FINAL_MSG="Code and dependencies updated, but the Desktop app rebuild failed - you are running the previous build. Run hermes desktop --force-build from a terminal to retry."
+    FINAL_CODE=6 FINAL_MSG="Code and dependencies updated, but the Desktop app rebuild failed - you are running the previous build. Run hebri desktop --force-build from a terminal to retry."
     exit 6
   }
 fi
 
 if [ "$CODE" -eq 0 ]; then FINAL_CODE=0 FINAL_MSG="Update complete."
 else
-  FINAL_CODE="$CODE" FINAL_MSG="Update failed (exit $CODE). Run hermes debug share in a terminal to send a report."
+  FINAL_CODE="$CODE" FINAL_MSG="Update failed (exit $CODE). Run hebri debug share in a terminal to send a report."
   # The bricked-venv class is fixable and must not read as a generic exit 1:
   # a dead interpreter with a failed/impossible heal means retrying can never
   # succeed — tell the user what is actually wrong (#95759).

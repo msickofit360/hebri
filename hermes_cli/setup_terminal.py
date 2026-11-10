@@ -140,7 +140,7 @@ def _report_binary(found: str | None, missing: str, install_hint: str, found_pre
 def _setup_backend_local(config: dict) -> None:
     _setup.print_success("Terminal backend: Local")
     _setup.print_info("Commands run directly on this machine.")
-    # Gateway cwd defaults to home; sudo stays off. Both configurable via `hermes setup terminal`.
+    # Gateway cwd defaults to home; sudo stays off. Both configurable via `hebri setup terminal`.
     config["terminal"].setdefault("cwd", str(Path.home()))
 
 
@@ -151,7 +151,7 @@ def _setup_backend_docker(config: dict) -> None:
                    "Install Docker: https://docs.docker.com/get-docker/ "
                    "or Podman: https://podman.io/docs/installation",
                    f"{docker_runtime_name(docker_exe)} found: " if docker_exe else "")
-    # Image and resource limits use defaults; tune via `hermes setup terminal`.
+    # Image and resource limits use defaults; tune via `hebri setup terminal`.
     config["terminal"].setdefault("docker_image", _SANDBOX_IMAGE)
     _setup._info(None, "Docker sandboxes can be protected with the egress credential firewall.",
                  "It routes sandbox traffic through iron-proxy so containers receive "
@@ -163,9 +163,9 @@ def _setup_backend_docker(config: dict) -> None:
         proxy_cfg.setdefault("enforce_on_docker", True)
         _setup.print_success("Egress firewall enabled in config")
         _setup.print_info(
-            "Run `hermes egress setup` then `hermes egress start` to mint tokens and launch the proxy.")
+            "Run `hebri egress setup` then `hebri egress start` to mint tokens and launch the proxy.")
     else:
-        _setup.print_info("Skipping egress firewall. You can enable it later with `hermes egress setup`.")
+        _setup.print_info("Skipping egress firewall. You can enable it later with `hebri egress setup`.")
 
 
 def _setup_backend_singularity(config: dict) -> None:

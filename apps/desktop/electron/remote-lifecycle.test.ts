@@ -73,7 +73,7 @@ function ownedLock(over: any = {}) {
     pid: 333,
     port: 40000,
     profile: '',
-    hermesPath: '~/.local/bin/hermes',
+    hermesPath: '~/.local/bin/hebri',
     hermesHome: '~/.hebri',
     logPath: spawnLogPath(OWNERSHIP_ID, SPAWN_NONCE),
     tokenFingerprint: fingerprintToken('stored-token'),
@@ -145,7 +145,7 @@ test('POSIX relaunch gate refuses live and uncertain install markers without exe
           return 'Linux\nx86_64\n'
         }
 
-        if (command.includes('HERMES_HOME')) {
+        if (command.includes('HEBRI_HOME')) {
           return '/home/alice/.hermes\n'
         }
 
@@ -197,7 +197,7 @@ test('POSIX relaunch gate rechecks after token upload immediately before process
         return 'Linux\nx86_64\n'
       }
 
-      if (command.includes('HERMES_HOME')) {
+      if (command.includes('HEBRI_HOME')) {
         return '/home/alice/.hermes\n'
       }
 
@@ -240,7 +240,7 @@ test('POSIX relaunch gate rechecks after token upload immediately before process
 
 test('readRemoteInstallId reads the backend identity without spawning a dashboard or minting one', async () => {
   const ssh = fakeSsh([
-    [/HERMES_HOME/, '/Users/zillajr/.hermes\n'],
+    [/HEBRI_HOME/, '/Users/zillajr/.hermes\n'],
     [/cat .*install_id/, '0f8a1c2b3d4e5f60718293a4b5c6d7e8\n']
   ])
 
@@ -256,7 +256,7 @@ test('readRemoteInstallId reports the INSTALL root id for a profile-pinned home'
   // The whole point of the id: two ssh connections to one machine — one pinned at a profile,
   // one at the root — must report the SAME backend so their roster rows collapse.
   const pinned = fakeSsh([
-    [/HERMES_HOME/, '/Users/zillajr/.hermes/profiles/dixie\n'],
+    [/HEBRI_HOME/, '/Users/zillajr/.hermes/profiles/dixie\n'],
     [/cat .*install_id/, '0f8a1c2b3d4e5f60718293a4b5c6d7e8\n']
   ])
 
@@ -274,7 +274,7 @@ test('readRemoteInstallId reports the INSTALL root id for a profile-pinned home'
 test('readRemoteInstallId reports no id rather than a bad one', async () => {
   for (const payload of ['', 'not-an-id\n', 'ABCDEF\n', '0f8a1c2b3d4e5f60718293a4b5c6d7e8extra\n']) {
     const ssh = fakeSsh([
-      [/HERMES_HOME/, '/Users/zillajr/.hermes\n'],
+      [/HEBRI_HOME/, '/Users/zillajr/.hermes\n'],
       [/cat .*install_id/, payload]
     ])
 
@@ -286,7 +286,7 @@ test('readRemoteInstallId reports no id rather than a bad one', async () => {
 
 test('listRemoteHermesProfiles inventories Mini-style profile dirs without spawning a dashboard', async () => {
   const ssh = fakeSsh([
-    [/HERMES_HOME/, '/Users/zillajr/.hermes\n'],
+    [/HEBRI_HOME/, '/Users/zillajr/.hermes\n'],
     [/ls -1/, 'bob\ndixie\ngoose\nrambo\nbob.rollback-old\n']
   ])
 
@@ -297,8 +297,8 @@ test('listRemoteHermesProfiles inventories Mini-style profile dirs without spawn
   )
 })
 
-test('listRemoteHermesProfiles rejects a hostile HERMES_HOME', async () => {
-  const ssh = fakeSsh([[/HERMES_HOME/, '/tmp/x; echo pwned\n']])
+test('listRemoteHermesProfiles rejects a hostile HEBRI_HOME', async () => {
+  const ssh = fakeSsh([[/HEBRI_HOME/, '/tmp/x; echo pwned\n']])
 
   await assert.rejects(
     () => listRemoteHermesProfiles(ssh),
@@ -323,8 +323,8 @@ test('locateHermes throws (no silent fallback) when an EXPLICIT path is not exec
   // command -v WOULD find a different install, but an explicit path must not
   // silently fall back to it — that is the "connected to the wrong hermes" bug.
   const ssh = fakeSsh([
-    [/command -v hermes/, '/home/u/.local/bin/hermes\n'],
-    [/\[ -x .*\.local\/bin\/hermes/, 'OK']
+    [/command -v hebri/, '/home/u/.local/bin/hebri\n'],
+    [/\[ -x .*\.local\/bin\/hebri/, 'OK']
   ])
 
   await assert.rejects(
@@ -340,11 +340,11 @@ test('locateHermes throws (no silent fallback) when an EXPLICIT path is not exec
 
 test('locateHermes falls back to the login-shell command -v probe', async () => {
   const ssh = fakeSsh([
-    [/command -v hermes/, '/home/u/.local/bin/hermes\n'],
-    [/\[ -x .*\.local\/bin\/hermes/, 'OK']
+    [/command -v hebri/, '/home/u/.local/bin/hebri\n'],
+    [/\[ -x .*\.local\/bin\/hebri/, 'OK']
   ])
 
-  assert.equal(await locateHermes(ssh, ''), '/home/u/.local/bin/hermes')
+  assert.equal(await locateHermes(ssh, ''), '/home/u/.local/bin/hebri')
 })
 
 test('locateHermes preserves an installer wrapper instead of resolving its interpreter', async () => {
@@ -354,14 +354,14 @@ test('locateHermes preserves an installer wrapper instead of resolving its inter
   // `<python> serve --help` failed outright (#74411). The wrapper itself is
   // executable and forwards args correctly — return it untouched.
   const ssh = fakeSsh([
-    [/command -v hermes/, '/home/u/.local/bin/hermes\n'],
-    [/\[ -x .*\.local\/bin\/hermes/, 'OK'],
+    [/command -v hebri/, '/home/u/.local/bin/hebri\n'],
+    [/\[ -x .*\.local\/bin\/hebri/, 'OK'],
     // If the removed python3 wrapper-parser were ever reintroduced, this rule
     // would reward it with an interpreter path and the assertions below fail.
     [/python3 -c/, '/home/u/.hermes/hermes-agent/venv/bin/python\n']
   ])
 
-  assert.equal(await locateHermes(ssh, ''), '/home/u/.local/bin/hermes')
+  assert.equal(await locateHermes(ssh, ''), '/home/u/.local/bin/hebri')
   assert.ok(
     !ssh.calls.some(cmd => cmd.includes('python3 -c')),
     'locateHermes must not shell out to a python3 parser to rewrite the launcher'
@@ -371,29 +371,29 @@ test('locateHermes preserves an installer wrapper instead of resolving its inter
 test('locateHermes returns an explicit remoteHermesPath unchanged', async () => {
   // The override half of #74411: an explicit remoteHermesPath pointing at a
   // wrapper was also canonicalized to its interpreter, so overriding to
-  // ~/.local/bin/hermes changed nothing for affected users.
+  // ~/.local/bin/hebri changed nothing for affected users.
   const ssh = fakeSsh([
-    [/\[ -x .*\.local\/bin\/hermes/, 'OK'],
+    [/\[ -x .*\.local\/bin\/hebri/, 'OK'],
     [/python3 -c/, '/home/u/.hermes/hermes-agent/venv/bin/python\n']
   ])
 
-  assert.equal(await locateHermes(ssh, '~/.local/bin/hermes'), '~/.local/bin/hermes')
+  assert.equal(await locateHermes(ssh, '~/.local/bin/hebri'), '~/.local/bin/hebri')
   assert.ok(!ssh.calls.some(cmd => cmd.includes('python3 -c')), 'an explicit remoteHermesPath must never be rewritten')
 })
 
-test('locateHermes falls back to ~/.local/bin/hermes when the login-shell probe misses', async () => {
+test('locateHermes falls back to ~/.local/bin/hebri when the login-shell probe misses', async () => {
   // ~/.local/bin is the non-root installer's command location (scripts/install.sh).
   const ssh = fakeSsh([
-    [/command -v hermes/, ''],
-    [/\[ -x .*\.local\/bin\/hermes/, 'OK']
+    [/command -v hebri/, ''],
+    [/\[ -x .*\.local\/bin\/hebri/, 'OK']
   ])
 
-  assert.equal(await locateHermes(ssh, ''), '~/.local/bin/hermes')
+  assert.equal(await locateHermes(ssh, ''), '~/.local/bin/hebri')
 })
 
 test('locateHermes tries the conventional venv path last', async () => {
-  const ssh = fakeSsh([[/\[ -x .*venv\/bin\/hermes/, 'OK']])
-  assert.equal(await locateHermes(ssh, ''), '~/.hermes/hermes-agent/venv/bin/hermes')
+  const ssh = fakeSsh([[/\[ -x .*venv\/bin\/hebri/, 'OK']])
+  assert.equal(await locateHermes(ssh, ''), '~/.hebri/hebri-agent/venv/bin/hebri')
 })
 
 test('locateHermes throws a hermes-not-found error with an install hint', async () => {
@@ -411,7 +411,7 @@ test('locateHermes throws a hermes-not-found error with an install hint', async 
 
 test('locateHermes uses a login shell for the command -v probe', async () => {
   const ssh = fakeSsh([
-    [/command -v hermes/, '/x/hermes'],
+    [/command -v hebri/, '/x/hermes'],
     [/\[ -x/, 'OK']
   ])
 
@@ -613,7 +613,7 @@ test('pidIsOurDashboard accepts the venv entrypoint an installer wrapper execs i
   ])
 
   assert.equal(
-    await pidIsOurDashboard(ssh, 5, SPAWN_NONCE, '~/.local/bin/hermes', '/Users/cd9c/.hermes', OWNERSHIP_ID, 'ops'),
+    await pidIsOurDashboard(ssh, 5, SPAWN_NONCE, '~/.local/bin/hebri', '/Users/cd9c/.hermes', OWNERSHIP_ID, 'ops'),
     true
   )
   assert.match(ownershipProbe, /hermes-agent.*venv.*bin.*hermes/)
@@ -1161,7 +1161,7 @@ test('connect() fresh spawn writes hermesHome + protocolVersion into the lockfil
     [/uname/, 'Linux\nx86_64'],
     [/\[ -x/, 'OK'],
     [/cat .*lock\.json/, ''], // no lockfile
-    [/HERMES_HOME/, '/home/alice/.hermes\n'],
+    [/HEBRI_HOME/, '/home/alice/.hermes\n'],
     [/grep -q ssh-session-token-file/, 'YES\n'],
     [/python3 -c/, ''],
     [/printf '%s\\n'/, ''],

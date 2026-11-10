@@ -74,17 +74,31 @@ class PortalConnectorClient:
         endpoint_resolver: Callable[[], str] | None = None,
         header_provider: Callable[[str], dict[str, str]] | None = None,
     ) -> None:
+        self._synapsek = transport is None and endpoint_resolver is None and header_provider is None
         self._transport = transport or _default_transport()
         self._endpoint_resolver = endpoint_resolver or _default_endpoint_resolver
         self._header_provider = header_provider or _default_header_provider
 
     def origin(self) -> str:
+        if self._synapsek:
+            return "https://synapseklabs.org"
         return self._endpoint_resolver().rstrip("/")
 
     def require_authentication(self) -> None:
+        if self._synapsek:
+            self.catalog()
+            return
         self._authorized_headers(self.origin())
 
+    def cache_identity(self) -> str | None:
+        if self._synapsek:
+            from tools.connectors.gateway.synapsek import command
+            return command({"action": "catalog"})["bitId"]
+        return None
+
     def authorization_token(self) -> str | None:
+        if self._synapsek:
+            return None  # Account/OAuth credentials never leave the native broker.
         authorization = self._authorized_headers(self.origin()).get("Authorization")
         if not isinstance(authorization, str):
             return None
@@ -150,6 +164,13 @@ class PortalConnectorClient:
         *,
         headers: dict[str, str] | None = None,
     ) -> tuple[Any, int]:
+        if self._synapsek:
+            import json
+            from tools.connectors.gateway.synapsek import portal_request
+            response = requests.Response()
+            response.status_code = 200
+            response._content = json.dumps(portal_request(method, path)).encode("utf-8")
+            return response, 200
         url = f"{self.origin()}{path}"
         headers = self._authorized_headers(url, headers)
         try:

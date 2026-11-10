@@ -58,7 +58,7 @@ else
 fi
 PYTHON_VERSION="3.11"
 PYTHON_SUPPORTED_RANGE=">=3.11,<3.14"  # pyproject requires-python; keep in sync
-NODE_VERSION="26"
+NODE_VERSION="22"
 
 # FHS-style root install layout (set by resolve_install_layout when applicable):
 #   code at /usr/local/lib/hebri-agent, command at /usr/local/bin/hebri,
@@ -183,7 +183,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --skip-computer-use  Skip the cua-driver (Computer Use) install"
             echo "  --no-skills    Start with a blank slate — seed no bundled skills, and"
             echo "                   write \$HERMES_HOME/.no-bundled-skills so future"
-            echo "                   'hermes update' runs never inject bundled skills either"
+            echo "                   'hebri update' runs never inject bundled skills either"
             echo "  --branch NAME  Git branch to install (default: main)"
             echo "  --commit SHA   Pin checkout to a specific commit after clone/update"
             echo "                   (ignored when it would roll an existing install back)"
@@ -261,7 +261,7 @@ json_escape() {
 
 # npm rewrites tracked package-lock.json files non-deterministically during
 # `npm install` / `npm run pack`. On a managed install those diffs are never
-# intentional, but they leave the checkout dirty — which forces `hermes update`
+# intentional, but they leave the checkout dirty — which forces `hebri update`
 # to autostash on every run and makes branch switches fragile. Restore them so
 # a fresh install ends with a clean tree. Best-effort; only touches lockfiles.
 restore_dirty_lockfiles() {
@@ -592,6 +592,21 @@ detect_os() {
 # Dependency checks
 # ============================================================================
 
+# Check a release-pinned digest before executing or extracting a download.
+verify_download_sha256() {
+    local actual
+    if command -v sha256sum >/dev/null 2>&1; then
+        actual="$(sha256sum "$1")" || return 1
+    else
+        actual="$(shasum -a 256 "$1")" || return 1
+    fi
+    actual="${actual%% *}"
+    if [ "$actual" != "$2" ]; then
+        log_error "Download integrity check failed: $1. The file was not executed."
+        return 1
+    fi
+}
+
 install_uv() {
     if [ "$DISTRO" = "termux" ]; then
         log_info "Termux detected — using Python's stdlib venv + pip instead of uv"
@@ -602,7 +617,7 @@ install_uv() {
     # Hermes owns its own uv at $HERMES_HOME/bin/uv.  Always install there —
     # no PATH probing, no conda guards, no multi-location resolution chains.
     # The runtime update path (hermes_cli/managed_uv.py) looks in the same
-    # place, so install.sh and `hermes update` stay in sync.
+    # place, so install.sh and `hebri update` stay in sync.
     local _managed_uv="$HERMES_HOME/bin/uv"
 
     if [ -x "$_managed_uv" ]; then
@@ -621,7 +636,7 @@ install_uv() {
     local _uv_install_log _uv_installer
     _uv_install_log="$(mktemp 2>/dev/null || echo "${TMPDIR:-$HERMES_HOME}/hermes-uv-install.$$.log")"
     _uv_installer="$(mktemp 2>/dev/null || echo "${TMPDIR:-$HERMES_HOME}/hermes-uv-installer.$$.sh")"
-    if ! curl -LsSf https://astral.sh/uv/install.sh -o "$_uv_installer" 2>"$_uv_install_log"; then
+    if ! curl --connect-timeout 30 --max-time 600 -LsSf https://github.com/astral-sh/uv/releases/download/0.13.6/uv-installer.sh -o "$_uv_installer" 2>"$_uv_install_log"; then
         log_error "Failed to download uv installer from https://astral.sh/uv/install.sh"
         log_info "curl output:"
         sed 's/^/    /' "$_uv_install_log" >&2
@@ -629,9 +644,13 @@ install_uv() {
         rm -f "$_uv_install_log" "$_uv_installer"
         exit 1
     fi
+    if ! verify_download_sha256 "$_uv_installer" 'f7a56e7afaec49a3bcbc3ac3cdbe917e7c6ce30e0d815308a12e531aa5ef23b7'; then
+        rm -f "$_uv_installer"
+        return 1
+    fi
     # UV_UNMANAGED_INSTALL tells the astral installer to place the binary
     # directly into $HERMES_HOME/bin instead of ~/.local/bin.
-    if UV_UNMANAGED_INSTALL="$HERMES_HOME/bin" sh "$_uv_installer" >>"$_uv_install_log" 2>&1; then
+    if run_with_timeout 600 env UV_UNMANAGED_INSTALL="$HERMES_HOME/bin" sh "$_uv_installer" >>"$_uv_install_log" 2>&1; then
         rm -f "$_uv_installer"
         if [ -x "$_managed_uv" ]; then
             UV_CMD="$_managed_uv"
@@ -1092,43 +1111,48 @@ install_node_line() {
     local node_os="$2"
     local node_arch="$3"
 
-    # Resolve the latest v${node_line}.x.x tarball name from the index page
-    local index_url="https://nodejs.org/dist/latest-v${node_line}.x/"
-    local tarball_name=""
-    # `tar xf` shells out to xz for .tar.xz; minimal Debian/DietPi/WSL images ship tar without it
-    # and the extract dies mid-way ("xz: Cannot exec"). Only pick .tar.xz when xz is present (#11197).
-    if command -v xz >/dev/null 2>&1; then
-        tarball_name=$(curl -fsSL "$index_url" \
-            | grep -oE "node-v${node_line}\.[0-9]+\.[0-9]+-${node_os}-${node_arch}\.tar\.xz" \
-            | head -1)
-    else
-        log_info "xz not found — using the .tar.gz Node.js archive"
-    fi
-
-    # Fallback to .tar.gz if .tar.xz not available (or xz is missing)
-    if [ -z "$tarball_name" ]; then
-        tarball_name=$(curl -fsSL "$index_url" \
-            | grep -oE "node-v${node_line}\.[0-9]+\.[0-9]+-${node_os}-${node_arch}\.tar\.gz" \
-            | head -1)
-    fi
-
-    if [ -z "$tarball_name" ]; then
-        log_warn "Could not find Node.js $node_line binary for $node_os-$node_arch"
-        return 1
-    fi
+    # One reviewed Node release across desktop/server platforms.
+    local index_url="https://nodejs.org/dist/v22.23.4/"
+    local extension=gz
+    command -v xz >/dev/null 2>&1 && extension=xz
+    local tarball_name="node-v22.23.4-${node_os}-${node_arch}.tar.${extension}"
+    local expected_hash
+    case "$tarball_name" in
+        node-v22.23.4-darwin-arm64.tar.gz) expected_hash='c9e1dbc748b33ed2d14f42445191ecaf14c56259c7a9a26d0042c49ec2b66428' ;;
+        node-v22.23.4-darwin-arm64.tar.xz) expected_hash='037650d0839f457747396f052073fb48333d31bf5abd3c98b74da20d89ebb1ad' ;;
+        node-v22.23.4-darwin-x64.tar.gz) expected_hash='efcc2b0db6f94bf53eddb038fe2b370277a042bd29e4f19b8f8e23598795b819' ;;
+        node-v22.23.4-darwin-x64.tar.xz) expected_hash='f42abca7aaac61efc57d49fb42ea84fc53bbeba9a749cb03a291ce6e4e7a69c1' ;;
+        node-v22.23.4-linux-arm64.tar.gz) expected_hash='f7a1e486dbc8b286847815b477d4fb5e9fb963ed4489c3e1588853d685f589f9' ;;
+        node-v22.23.4-linux-arm64.tar.xz) expected_hash='6287aa46b6c375d816e63ae66d024fbbfd70404825aabdfdf898a970871d2f4b' ;;
+        node-v22.23.4-linux-armv7l.tar.gz) expected_hash='4318e0c68f62e18583dae85eb645f55c7f2b8a2e8d1fffe91a2e8abd046880ab' ;;
+        node-v22.23.4-linux-armv7l.tar.xz) expected_hash='c9057c6a3b8fbb9651ed115c1e96d4a7281b7b9c9ca89fa05865c98ed7ffd437' ;;
+        node-v22.23.4-linux-ppc64le.tar.gz) expected_hash='6684903ee2795aafe639dc07203e8a51ed20ae161cf21b6da7c213c8abfed442' ;;
+        node-v22.23.4-linux-ppc64le.tar.xz) expected_hash='e4732f45e0cad787d6ba70c4eb6db45dbdb3f286f67dee429dbc6b4ff36eac43' ;;
+        node-v22.23.4-linux-s390x.tar.gz) expected_hash='0bdc80fa27331e7f416d1d8553b9aabbc3c158709dc32859e4e85724ac1ac302' ;;
+        node-v22.23.4-linux-s390x.tar.xz) expected_hash='07ae074fc218fc42e24c939df0dc0209443fb08eb5b2ed6d26b1bf6757781fff' ;;
+        node-v22.23.4-linux-x64-musl.tar.gz) expected_hash='63189402eaa222aabf51b4983e512592131cd2d4a9efc3ad9bf291fe74e3e4de' ;;
+        node-v22.23.4-linux-x64-musl.tar.xz) expected_hash='38355b952f0392b91703d38a0d9af84eb0ff77d69828ca4bc8cc3bc3af80a720' ;;
+        node-v22.23.4-linux-x64.tar.gz) expected_hash='b8492284c76a54baf58d61668dd0e41ee0fc98adabf9503d30f05d08f55b4406' ;;
+        node-v22.23.4-linux-x64.tar.xz) expected_hash='1805bcd35e6815559bd2eb97db438d3fdb0eb3a5e6a977b7c1badca76337e9ce' ;;
+        *) log_warn "No reviewed Node archive for $node_os-$node_arch"; return 1 ;;
+    esac
 
     local download_url="${index_url}${tarball_name}"
     local tmp_dir
     tmp_dir=$(mktemp -d)
 
     log_info "Downloading $tarball_name..."
-    if ! curl -fsSL "$download_url" -o "$tmp_dir/$tarball_name"; then
+    if ! curl --connect-timeout 30 --max-time 600 -fsSL "$download_url" -o "$tmp_dir/$tarball_name"; then
         log_warn "Download failed"
         rm -rf "$tmp_dir"
         return 1
     fi
 
-    log_info "Extracting to ~/.hermes/node/..."
+    if ! verify_download_sha256 "$tmp_dir/$tarball_name" "$expected_hash"; then
+        rm -rf "$tmp_dir"
+        return 1
+    fi
+    log_info "Extracting the verified Node runtime..."
     if [[ "$tarball_name" == *.tar.xz ]]; then
         tar xf "$tmp_dir/$tarball_name" -C "$tmp_dir"
     else
@@ -1259,16 +1283,9 @@ install_node() {
             ;;
     esac
 
-    # Try the target line first, then the two previous even-numbered (LTS)
-    # lines. Whether a line is usable cannot be known from its index page —
-    # see install_node_line — and stepping down beats adopting a Node that
-    # leaves every native dependency unbuildable.
-    local node_line
-    for node_line in "$NODE_VERSION" "$((NODE_VERSION - 2))" "$((NODE_VERSION - 4))"; do
-        if install_node_line "$node_line" "$node_os" "$node_arch"; then
-            return 0
-        fi
-    done
+    if install_node_line 22 "$node_os" "$node_arch"; then
+        return 0
+    fi
 
     log_warn "No usable Node.js release line found for $node_os-$node_arch"
     log_info "Install manually: https://nodejs.org/en/download/"
@@ -1577,7 +1594,7 @@ clone_repo() {
                 # the whole install at the repository stage. Clear the conflict
                 # markers with `git reset` first -- this keeps working-tree
                 # changes (they're still stashed just below) and only drops the
-                # index-level conflict state. Mirrors the `hermes update` path
+                # index-level conflict state. Mirrors the `hebri update` path
                 # (#4735).
                 if [ -n "$(git ls-files --unmerged)" ]; then
                     log_info "Clearing unmerged index entries from a previous conflict..."
@@ -1599,12 +1616,12 @@ clone_repo() {
             git checkout "$BRANCH"
             # Managed installs should follow origin/$BRANCH exactly. If the
             # checkout has diverged (or has local-only commits), ff-only pull
-            # cannot succeed — mirror ``hermes update`` and reset to the
+            # cannot succeed — mirror ``hebri update`` and reset to the
             # fetched remote so bootstrap/install can recover.
             if ! git pull --ff-only origin "$BRANCH"; then
                 log_warn "Fast-forward not possible; resetting managed install to origin/$BRANCH..."
                 # Park commits the reset drops behind a rescue ref, same namespace
-                # as ``hermes update`` (which also prunes these refs).
+                # as ``hebri update`` (which also prunes these refs).
                 local dropped rescue_kind rescue_ref
                 dropped="$(git rev-list --count "origin/$BRANCH..HEAD" 2>/dev/null || echo 0)"
                 if [ "${dropped:-0}" -gt 0 ]; then
@@ -1874,295 +1891,9 @@ setup_venv() {
     log_success "Virtual environment ready ($(./venv/bin/python --version 2>/dev/null || echo "Python $PYTHON_VERSION"))"
 }
 
-run_locked_uv_sync() {
-    # Bootstrap uv calls stay isolated from ambient config via UV_NO_CONFIG
-    # (#21269). A locked project sync is different: uv.lock records resolver
-    # settings from this checkout's [tool.uv], so hiding pyproject.toml makes
-    # uv 0.12+ reject the valid lock. Re-enable project discovery only for
-    # this subprocess while redirecting user/system config lookups to an empty
-    # directory. Keep HOME unchanged so caches, credentials, and git continue
-    # to work normally.
-    local project_env="$1"
-    local isolated_uv_config
-    local sync_rc
-    isolated_uv_config="$(mktemp -d)" || return 1
-
-    (
-        unset UV_NO_CONFIG UV_CONFIG_FILE
-        export XDG_CONFIG_HOME="$isolated_uv_config"
-        export XDG_CONFIG_DIRS="$isolated_uv_config"
-        UV_PROJECT_ENVIRONMENT="$project_env" $UV_CMD sync --extra all --locked
-    )
-    sync_rc=$?
-    rmdir "$isolated_uv_config" 2>/dev/null || true
-    return "$sync_rc"
-}
-
 install_deps() {
-    log_info "Installing dependencies..."
-
-    # Re-pin UV_PYTHON to the venv interpreter. setup_venv already does this,
-    # but the bootstrap runs install stages (`venv`, `python-deps`) as separate
-    # processes, so an export from setup_venv does NOT survive into a separate
-    # python-deps invocation. Re-deriving it here covers that path. Without it,
-    # an inherited UV_PYTHON=3.14 makes the uv sync/pip tiers below recreate the
-    # venv at 3.14 and fail the maturin source build (no cp314 wheels yet).
-    if [ "$DISTRO" != "termux" ] && [ -x "$INSTALL_DIR/venv/bin/python" ]; then
-        export UV_PYTHON="$INSTALL_DIR/venv/bin/python"
-    fi
-
-    if [ "$DISTRO" = "termux" ]; then
-        if [ "$USE_VENV" = true ]; then
-            export VIRTUAL_ENV="$INSTALL_DIR/venv"
-            PIP_PYTHON="$INSTALL_DIR/venv/bin/python"
-        else
-            PIP_PYTHON="$PYTHON_PATH"
-        fi
-
-        if [ -z "${ANDROID_API_LEVEL:-}" ]; then
-            ANDROID_API_LEVEL="$(getprop ro.build.version.sdk 2>/dev/null || true)"
-            if [ -z "$ANDROID_API_LEVEL" ]; then
-                ANDROID_API_LEVEL=24
-            fi
-            export ANDROID_API_LEVEL
-            log_info "Using ANDROID_API_LEVEL=$ANDROID_API_LEVEL for Android wheel builds"
-        fi
-
-        "$PIP_PYTHON" -m pip install --upgrade pip setuptools wheel >/dev/null
-
-        # On Android, psutil's setup.py rejects sys.platform == 'android' before
-        # it ever invokes the C build, so the next pip install would fail at
-        # "platform android is not supported".  Prebuild psutil from the official
-        # sdist with a one-line marker patch (Linux source path is fine on
-        # Android).  Stopgap until psutil#2762 ships upstream.
-        if "$PIP_PYTHON" -c 'import sys; raise SystemExit(0 if sys.platform == "android" else 1)' 2>/dev/null; then
-            log_info "Android Python detected: prebuilding psutil compatibility shim..."
-            if ! "$PIP_PYTHON" "$INSTALL_DIR/scripts/install_psutil_android.py" --pip "$PIP_PYTHON -m pip"; then
-                log_warn "psutil Android prebuild failed — package install will likely fail next."
-                log_info "Workaround: manually rerun 'python scripts/install_psutil_android.py' once your toolchain is set up."
-            fi
-        fi
-
-        # Try the broad Termux profile first (best-effort "install all" for Android),
-        # then fall back to the conservative Termux baseline, then base package.
-        if ! "$PIP_PYTHON" -m pip install -e '.[termux-all]' -c constraints-termux.txt; then
-            log_warn "Termux broad profile (.[termux-all]) failed, trying baseline Termux profile..."
-            if ! "$PIP_PYTHON" -m pip install -e '.[termux]' -c constraints-termux.txt; then
-                log_warn "Termux baseline profile (.[termux]) failed, trying base install..."
-                if ! "$PIP_PYTHON" -m pip install -e '.' -c constraints-termux.txt; then
-                    log_error "Package installation failed on Termux."
-                    log_info "Ensure these packages are installed: pkg install clang rust make pkg-config libffi openssl ca-certificates curl"
-                    log_info "Then re-run: cd $INSTALL_DIR && python -m pip install -e '.[termux-all]' -c constraints-termux.txt"
-                    exit 1
-                fi
-            fi
-        fi
-
-        log_success "Main package installed"
-        log_info "Termux note: matrix e2ee and local faster-whisper extras are excluded from .[termux-all] due to upstream Android wheel/toolchain blockers."
-        log_info "Termux note: browser/WhatsApp tooling is not installed by default; see the Termux guide for optional follow-up steps."
-
-        log_success "All dependencies installed"
-        return 0
-    fi
-
-    if [ "$USE_VENV" = true ]; then
-        # Tell uv to install into our venv (no need to activate)
-        export VIRTUAL_ENV="$INSTALL_DIR/venv"
-    fi
-
-    # On Debian/Ubuntu (including WSL), some Python packages need build tools.
-    # Check and offer to install them if missing.
-    if [ "$DISTRO" = "ubuntu" ] || [ "$DISTRO" = "debian" ]; then
-        local need_build_tools=false
-        for pkg in gcc python3-dev libffi-dev; do
-            if ! dpkg -s "$pkg" &>/dev/null; then
-                need_build_tools=true
-                break
-            fi
-        done
-        if [ "$need_build_tools" = true ]; then
-            log_info "Some build tools may be needed for Python packages..."
-            if command -v sudo &> /dev/null; then
-                if sudo -n true 2>/dev/null; then
-                    sudo DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get install -y -qq build-essential python3-dev libffi-dev >/dev/null 2>&1 || true
-                    log_success "Build tools installed"
-                else
-                    log_info "sudo is needed ONLY to install build tools (build-essential, python3-dev, libffi-dev) via apt."
-                    log_info "Hebri itself does not require or retain root access."
-                    if prompt_yes_no "Install build tools?" "yes"; then
-                        sudo DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get install -y -qq build-essential python3-dev libffi-dev >/dev/null 2>&1 || true
-                        log_success "Build tools installed"
-                    fi
-                fi
-            fi
-        fi
-    fi
-
-    # Install the main package in editable mode with all extras.
-    #
-    # Hash-verified install (Tier 0) — when uv.lock is present, prefer
-    # `uv sync --locked`. The lockfile records SHA256 hashes for every
-    # transitive, so a compromised transitive (different hash than what
-    # we shipped) is REJECTED by the resolver. This is the *only* path
-    # that protects against the "direct dep is fine, but the dep's dep
-    # got worm-poisoned overnight" failure mode. All `uv pip install`
-    # tiers below re-resolve transitives fresh from PyPI without any
-    # hash verification — they exist to keep installs working when the
-    # lockfile is stale, missing, or out-of-sync with the current
-    # extras spec, NOT because they're equivalent in posture.
-    if [ -f "uv.lock" ]; then
-        log_info "Trying tier: hash-verified (uv.lock) ..."
-        log_info "(this resolves + downloads the curated [all] set — first run on a"
-        log_info " fresh venv can take 1-5 minutes; uv prints progress below)"
-        # Stream uv's progress directly to the user instead of swallowing
-        # it with `2>"$(mktemp)"`.  Two reasons:
-        #   1. `--extra all --locked` against a fresh venv has to pull
-        #      every transitive — silencing stderr makes the install
-        #      look frozen for minutes on slow networks. Users see
-        #      "Trying tier: hash-verified ..." and assume it's hung.
-        #   2. The previous `2>"$(mktemp)"` substituted the path at
-        #      command-build time but never saved it, so on failure the
-        #      uv error message was unreachable — the user just got the
-        #      generic "lockfile may be stale" warning.
-        #
-        # Critical flag choice: `--extra all`, NOT `--all-extras`.
-        #   --all-extras = every [project.optional-dependencies] key.
-        #                  This bypasses the curated `[all]` extra
-        #                  entirely and pulls e.g. [matrix] (which
-        #                  needs python-olm + make on Windows) and
-        #                  [rl] (git+https deps that fail offline).
-        #   --extra all  = install just the `[all]` extra's contents.
-        #                  This respects the curation in pyproject.toml.
-        # uv's own progress UI handles TTY detection and downgrades
-        # gracefully when stdout/stderr aren't terminals.
-        #
-        # Run the Tier-0 locked sync via run_locked_uv_sync: the global
-        # UV_NO_CONFIG export at script start (the #21269 sudo -u hygiene
-        # guard) also hides the project's own [tool.uv] policy —
-        # exclude-newer, its package exemptions, and override-dependencies —
-        # from uv. The resolver then runs under a different policy than the
-        # one uv.lock was resolved under, and --locked turns that mismatch
-        # fatal, so every fresh install fell through to the non-hash-verified
-        # PyPI tiers. The helper re-enables project config discovery for this
-        # one subprocess while keeping ambient user/system uv config hidden
-        # (redirected to an empty XDG dir), preserving the #21269 guarantee.
-        # Runtime code does the same before its locked syncs
-        # (hermes_cli/managed_uv.py).
-        if run_locked_uv_sync "$INSTALL_DIR/venv"; then
-            log_success "Main package installed (hash-verified via uv.lock)"
-            log_success "All dependencies installed"
-            return 0
-        fi
-        log_warn "uv.lock sync failed (see uv output above), falling back to PyPI resolve..."
-    else
-        log_info "uv.lock not found — falling back to PyPI resolve (no hash verification)"
-    fi
-
-    # Multi-tier fallback. The point of the tiers is that ONE compromised
-    # PyPI package (a worm-poisoned release that gets quarantined, like
-    # mistralai 2.4.6 in May 2026) shouldn't be able to silently demote a
-    # fresh install all the way down to "core only" — the user should keep
-    # everything else they signed up for.
-    #
-    # Tier 1: [all] — the curated extra in pyproject.toml.
-    # Tier 2: [all] minus the currently-broken extras list (_BROKEN_EXTRAS).
-    #         Edit _BROKEN_EXTRAS below when something on PyPI breaks; this
-    #         lets users keep the rest of [all] when one transitive is
-    #         unavailable. The list of [all]'s contents is parsed from
-    #         pyproject.toml at runtime — there is NO hand-mirrored copy
-    #         to drift out of sync. If you want to change what [all]
-    #         contains, edit pyproject.toml only.
-    # Tier 3: bare `.` — last-resort so at least the core CLI launches.
-    #         Skipped tiers like "PyPI-only extras (no git deps)" used to
-    #         exist to dodge [rl] / [matrix] git+sdist deps; those are no
-    #         longer in [all] post-2026-05-12 lazy-install migration, so
-    #         a separate PyPI-only tier had no remaining content.
-    local _BROKEN_EXTRAS=()  # populate when an extra becomes unresolvable
-
-    # Parse [project.optional-dependencies].all from pyproject.toml.
-    # tomllib is stdlib on Python 3.11+ which uv's bootstrap guarantees.
-    # Falls back to a hand list if parse fails — defensive only.
-    local _ALL_EXTRAS_CSV
-    _ALL_EXTRAS_CSV="$(
-        "$PYTHON_PATH" - <<'PY' 2>/dev/null
-import re, sys, tomllib
-try:
-    with open("pyproject.toml", "rb") as fh:
-        data = tomllib.load(fh)
-    specs = data["project"]["optional-dependencies"]["all"]
-    extras = []
-    for s in specs:
-        m = re.search(r"hermes-agent\[([\w-]+)\]", s)
-        if m:
-            extras.append(m.group(1))
-    print(",".join(extras))
-except Exception as e:
-    print("", file=sys.stderr)
-    sys.exit(1)
-PY
-    )"
-    if [ -z "$_ALL_EXTRAS_CSV" ]; then
-        log_warn "Could not parse [all] from pyproject.toml; falling back to .[all] only."
-        _ALL_EXTRAS_CSV=""
-    fi
-
-    # Build "[all] minus broken" spec by filtering the parsed list.
-    local _SAFE_SPEC=".[all]"
-    if [ -n "$_ALL_EXTRAS_CSV" ] && [ "${#_BROKEN_EXTRAS[@]}" -gt 0 ]; then
-        local _SAFE_EXTRAS=()
-        local _e _b _skip
-        IFS=',' read -ra _ALL_EXTRAS_ARR <<< "$_ALL_EXTRAS_CSV"
-        for _e in "${_ALL_EXTRAS_ARR[@]}"; do
-            _skip=false
-            for _b in "${_BROKEN_EXTRAS[@]}"; do
-                if [ "$_e" = "$_b" ]; then _skip=true; break; fi
-            done
-            if [ "$_skip" = false ]; then _SAFE_EXTRAS+=("$_e"); fi
-        done
-        _SAFE_SPEC=".[$(IFS=,; echo "${_SAFE_EXTRAS[*]}")]"
-    fi
-
-    ALL_INSTALL_LOG=$(mktemp)
-    local _installed=false
-    local _tier_name=""
-
-    install_tier() {
-        local name="$1"; local spec="$2"
-        log_info "Trying tier: $name ..."
-        if $UV_CMD pip install -e "$spec" 2>"$ALL_INSTALL_LOG"; then
-            log_success "Main package installed ($name)"
-            _installed=true
-            _tier_name="$name"
-            return 0
-        fi
-        log_warn "Tier '$name' failed. Top of pip output:"
-        head -5 "$ALL_INSTALL_LOG" | sed 's/^/    /' >&2
-        return 1
-    }
-
-    install_tier "all" ".[all]" \
-        || install_tier "all minus known-broken (${_BROKEN_EXTRAS[*]:-none})" "$_SAFE_SPEC" \
-        || install_tier "core only (no extras)" "."
-
-    rm -f "$ALL_INSTALL_LOG"
-
-    if [ "$_installed" = false ]; then
-        log_error "Package installation failed even with no extras."
-        log_info "Check that build tools are installed: sudo apt install build-essential python3-dev"
-        log_info "Then re-run: cd $INSTALL_DIR && uv pip install -e '.[all]'"
-        exit 1
-    fi
-
-    if [ "$_tier_name" != "all" ]; then
-        log_warn "Note: installed via fallback tier ($_tier_name)."
-        log_info "Some optional features may be missing. After resolving any"
-        log_info "PyPI/network issue, re-run: $UV_CMD pip install -e '.[all]'"
-    fi
-
-    log_success "Main package installed"
-
-    log_success "All dependencies installed"
+    source "$INSTALL_DIR/scripts/lib/install-dependencies.sh"
+    hebri_install_deps
 }
 
 setup_path() {
@@ -2461,14 +2192,14 @@ SOUL_EOF
     # Seed bundled skills into ~/.hermes/skills/ (manifest-based, one-time per skill)
     if [ "$NO_SKILLS" = true ]; then
         # Blank-slate install: write the opt-out marker and skip seeding.
-        # skills_sync.py and `hermes update` both honor this marker, so the
+        # skills_sync.py and `hebri update` both honor this marker, so the
         # default profile stays empty across future updates too.
         printf '%s\n' \
             "This profile opted out of bundled-skill seeding (installed with --no-skills)." \
-            "Delete this file to re-enable sync on the next 'hermes update'." \
+            "Delete this file to re-enable sync on the next 'hebri update'." \
             > "$HERMES_HOME/.no-bundled-skills" 2>/dev/null || true
         log_info "Skipping bundled skills (--no-skills). Wrote $HERMES_HOME/.no-bundled-skills"
-        log_info "  Future 'hermes update' runs will not inject bundled skills. Delete the marker to opt back in."
+        log_info "  Future 'hebri update' runs will not inject bundled skills. Delete the marker to opt back in."
     else
         log_info "Syncing bundled skills to ~/.hermes/skills/ ..."
         if "$INSTALL_DIR/venv/bin/python" "$INSTALL_DIR/tools/skills_sync.py" 2>/dev/null; then
@@ -2698,7 +2429,7 @@ playwright_fallback_platform() {
 # An operator-provided PLAYWRIGHT_HOST_PLATFORM_OVERRIDE is always respected:
 # it is inherited by the first attempt, and the retry is skipped.
 #
-# Usage: run_playwright_install <timeout_seconds> npx playwright install [args...]
+# Usage: run_playwright_install <timeout_seconds> npx --no-install playwright install [args...]
 run_playwright_install() {
     local timeout_seconds="$1"
     shift
@@ -2777,7 +2508,7 @@ configure_browser_env_from_system_browser() {
 # Naming ui-tui/web excludes the unnamed apps/* workspaces, and
 # --include-workspace-root keeps the root's own devDependencies (the shared
 # ESLint flat config each workspace imports) from being pruned by the scoped
-# install — the same closure `hermes update` installs
+# install — the same closure `hebri update` installs
 # (hermes_cli/main.py::_update_node_dependencies). Prebuilt/partial checkouts
 # can lack a workspace, and naming a missing one makes npm fail hard, so fall
 # back to a root-only install that still skips apps/*.
@@ -2820,7 +2551,7 @@ install_node_deps() {
         node_deps_workspace_args "$INSTALL_DIR"
         local npm_log
         npm_log="$(mktemp)"
-        if ! run_with_timeout "$NODE_DEPS_TIMEOUT" npm install "${NODE_DEPS_WORKSPACE_ARGS[@]}" --silent \
+        if ! run_with_timeout "$NODE_DEPS_TIMEOUT" npm ci "${NODE_DEPS_WORKSPACE_ARGS[@]}" --no-fund --no-audit \
                 >"$npm_log" 2>&1; then
             log_error "npm install failed or timed out; Node.js dependencies were not installed"
             if [ -s "$npm_log" ]; then
@@ -2841,9 +2572,9 @@ install_node_deps() {
         if [ "$SKIP_BROWSER" = true ]; then
             log_info "Skipping Playwright/Chromium install (--skip-browser)"
             log_info "Browser tools will be unavailable until you run manually:"
-            log_info "  cd $INSTALL_DIR && npx playwright install chromium"
+            log_info "  cd $INSTALL_DIR && npx --no-install playwright install chromium"
             log_info "On apt-based systems, an admin also needs to run:"
-            log_info "  sudo npx playwright install-deps chromium"
+            log_info "  sudo npx --no-install playwright install-deps chromium"
         else
         log_info "Installing browser engine (Playwright Chromium)..."
         strip_snap_browser_override
@@ -2863,19 +2594,19 @@ install_node_deps() {
                     # exact command the admin needs to run separately.
                     if [ "$(id -u)" -eq 0 ] || (command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null); then
                         log_info "Installing Playwright Chromium with system dependencies..."
-                        cd "$INSTALL_DIR" && run_playwright_install 600 npx playwright install --with-deps chromium || {
+                        cd "$INSTALL_DIR" && run_playwright_install 600 npx --no-install playwright install --with-deps chromium || {
                             log_warn "Playwright browser installation failed — browser tools will not work."
-                            log_warn "Try running manually: cd $INSTALL_DIR && npx playwright install --with-deps chromium"
+                            log_warn "Try running manually: cd $INSTALL_DIR && npx --no-install playwright install --with-deps chromium"
                         }
                     else
                         log_warn "No sudo available — skipping system-library install (--with-deps)."
                         log_info "Ask an administrator to run, one time, as root:"
-                        log_info "  sudo npx playwright install-deps chromium"
+                        log_info "  sudo npx --no-install playwright install-deps chromium"
                         log_info "  (from $INSTALL_DIR, after Node.js deps are installed)"
                         log_info "Installing Chromium binary into this user's Playwright cache..."
-                        cd "$INSTALL_DIR" && run_playwright_install 600 npx playwright install chromium || {
+                        cd "$INSTALL_DIR" && run_playwright_install 600 npx --no-install playwright install chromium || {
                             log_warn "Playwright browser installation failed — browser tools will not work."
-                            log_warn "Try running manually: cd $INSTALL_DIR && npx playwright install chromium"
+                            log_warn "Try running manually: cd $INSTALL_DIR && npx --no-install playwright install chromium"
                         }
                     fi
                     ;;
@@ -2893,7 +2624,7 @@ install_node_deps() {
                             log_warn "  sudo pacman -S nss atk at-spi2-core cups libdrm libxkbcommon mesa pango cairo alsa-lib"
                         fi
                     fi
-                    cd "$INSTALL_DIR" && run_playwright_install 600 npx playwright install chromium || {
+                    cd "$INSTALL_DIR" && run_playwright_install 600 npx --no-install playwright install chromium || {
                         log_warn "Playwright browser installation failed — browser tools will not work."
                     }
                     ;;
@@ -2901,7 +2632,7 @@ install_node_deps() {
                     log_warn "Playwright does not support automatic dependency installation on RPM-based systems."
                     log_info "Install Chromium system dependencies manually before using browser tools:"
                     log_info "  sudo dnf install nss atk at-spi2-core cups-libs libdrm libxkbcommon mesa-libgbm pango cairo alsa-lib"
-                    cd "$INSTALL_DIR" && run_playwright_install 600 npx playwright install chromium || {
+                    cd "$INSTALL_DIR" && run_playwright_install 600 npx --no-install playwright install chromium || {
                         log_warn "Playwright browser installation failed — install dependencies above and retry."
                     }
                     ;;
@@ -2909,16 +2640,16 @@ install_node_deps() {
                     log_warn "Playwright does not support automatic dependency installation on zypper-based systems."
                     log_info "Install Chromium system dependencies manually before using browser tools:"
                     log_info "  sudo zypper install mozilla-nss libatk-1_0-0 at-spi2-core cups-libs libdrm2 libxkbcommon0 Mesa-libgbm1 pango cairo libasound2"
-                    cd "$INSTALL_DIR" && run_playwright_install 600 npx playwright install chromium || {
+                    cd "$INSTALL_DIR" && run_playwright_install 600 npx --no-install playwright install chromium || {
                         log_warn "Playwright browser installation failed — install dependencies above and retry."
                     }
                     ;;
                 *)
                     log_warn "Playwright does not support automatic dependency installation on $DISTRO."
                     log_info "Install Chromium/browser system dependencies for your distribution, then run:"
-                    log_info "  cd $INSTALL_DIR && npx playwright install chromium"
+                    log_info "  cd $INSTALL_DIR && npx --no-install playwright install chromium"
                     log_info "Browser tools will not work until dependencies are installed."
-                    cd "$INSTALL_DIR" && run_playwright_install 600 npx playwright install chromium || true
+                    cd "$INSTALL_DIR" && run_playwright_install 600 npx --no-install playwright install chromium || true
                     ;;
             esac
         fi
@@ -2926,153 +2657,13 @@ install_node_deps() {
         log_success "Browser engine setup complete"
     fi
 
-    # Install TUI dependencies
-    if [ -f "$INSTALL_DIR/ui-tui/package.json" ]; then
-        log_info "Installing TUI dependencies..."
-        cd "$INSTALL_DIR/ui-tui"
-        # Time-boxed: a stalled registry fetch would otherwise hang here (#39219).
-        # Report success only on actual success, same as node-deps above
-        # (#77003) — and fail the install outright (#85297).
-        # Capture npm output so failures are diagnosable (#87340).
-        local tui_npm_log
-        tui_npm_log="$(mktemp)"
-        if ! run_with_timeout "$NODE_DEPS_TIMEOUT" npm install --silent \
-                >"$tui_npm_log" 2>&1; then
-            log_error "TUI npm install failed or timed out; TUI dependencies were not installed"
-            if [ -s "$tui_npm_log" ]; then
-                log_error "npm output:"
-                cat "$tui_npm_log" >&2
-            fi
-            rm -f "$tui_npm_log"
-            restore_dirty_lockfiles "$INSTALL_DIR"
-            return 1
-        fi
-        rm -f "$tui_npm_log"
-        log_success "TUI dependencies installed"
-    fi
+    # The scoped root npm ci already installs the TUI and web workspaces.
 
-    # Keep the checkout clean so `hermes update` doesn't autostash every run.
+    # Keep the checkout clean so `hebri update` doesn't autostash every run.
     restore_dirty_lockfiles "$INSTALL_DIR"
 }
 
-install_browser_use_cli() {
-    # The Browser Use CLI is the default browser backend when it is runnable
-    # (tools/browser_use_cli.py). Provision it here so fresh installs don't
-    # silently fall back to the built-in browser tools. Best-effort: any
-    # failure is non-fatal because browser_exec can still run via uvx and
-    # `hermes tools` can install it later.
-    if [ "$SKIP_BROWSER" = true ]; then
-        log_info "Skipping Browser Use CLI install (--skip-browser)"
-        return 0
-    fi
-    if [ "$DISTRO" = "termux" ]; then
-        return 0
-    fi
-    if [ -z "$UV_CMD" ]; then
-        log_info "Skipping Browser Use CLI install (uv unavailable)"
-        return 0
-    fi
-    # MANAGED-FIRST: only Hermes' managed copy short-circuits. A browser-use
-    # on the user's PATH is a side install — resolution prefers the managed
-    # copy, so it must be provisioned regardless.
-    if [ -x "$HERMES_HOME/bin/browser-use" ]; then
-        log_success "Browser Use CLI already installed"
-        return 0
-    fi
 
-    log_info "Installing Browser Use CLI (default browser backend)..."
-    # UV_TOOL_BIN_DIR keeps the binary inside Hermes' managed bin dir, where
-    # the browser tool resolves it — no reliance on the user's PATH.
-    if run_with_timeout 600 env UV_NO_CONFIG=1 UV_TOOL_BIN_DIR="$HERMES_HOME/bin" \
-        "$UV_CMD" tool install browser-use >/dev/null 2>&1; then
-        log_success "Browser Use CLI installed"
-    else
-        log_warn "Browser Use CLI install failed — browser automation falls back to built-in tools."
-        log_info "Install later with: $UV_CMD tool install browser-use  (or via 'hermes tools')"
-    fi
-}
-
-cua_driver_runtime_compatible() {
-    local driver_path version_output manifest_output
-    local major minor
-    driver_path="$(command -v cua-driver 2>/dev/null)" || return 1
-    version_output="$("$driver_path" --version 2>/dev/null)" || return 1
-    if [[ ! "$version_output" =~ ([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
-        return 1
-    fi
-    major="${BASH_REMATCH[1]}"
-    minor="${BASH_REMATCH[2]}"
-    if (( major == 0 && minor < 20 )); then
-        return 1
-    fi
-    manifest_output="$("$driver_path" manifest 2>/dev/null)" || return 1
-    local required
-    for required in \
-        '"mcp_invocation"' \
-        '"--socket"' \
-        '"--grant"' \
-        '"--permission-mode"' \
-        '"--capability-manifest"' \
-        '"--approve-capability-manifest"' \
-        '"--embedded"'; do
-        case "$manifest_output" in
-            *"$required"*) ;;
-            *) return 1 ;;
-        esac
-    done
-    return 0
-}
-
-install_computer_use_driver() {
-    # cua-driver powers the computer_use toolset (background desktop control).
-    # Provision it at install time so enabling the tool later — via
-    # `hermes tools`, the dashboard, or the desktop app — is a config flip,
-    # not a surprise multi-minute binary fetch (the confusion this fixes:
-    # users had to discover `hermes computer-use install` on their own).
-    # Best-effort and non-fatal: the enable paths still lazy-install via
-    # install_cua_driver() when this step was skipped or failed.
-    if [ "$SKIP_COMPUTER_USE" = true ]; then
-        log_info "Skipping Computer Use (cua-driver) install (--skip-computer-use)"
-        return 0
-    fi
-    case "$DISTRO" in
-        termux)
-            return 0
-            ;;
-    esac
-    if command -v cua-driver >/dev/null 2>&1; then
-        if cua_driver_runtime_compatible; then
-            log_success "Computer Use driver (cua-driver) already installed and compatible"
-            return 0
-        fi
-        log_warn "Existing cua-driver is old or incomplete; repairing it"
-    fi
-    # Non-admin macOS accounts can't receive the CuaDriver.app bundle in
-    # /Applications; skip cleanly instead of failing loudly (#47865 class).
-    if [ "$(uname -s)" = "Darwin" ] && [ -d /Applications ] && [ ! -w /Applications ]; then
-        log_info "Skipping Computer Use driver (cua-driver): /Applications is not writable"
-        return 0
-    fi
-
-    log_info "Installing Computer Use driver (cua-driver)..."
-    # Same upstream installer `hermes computer-use install` runs; time-boxed
-    # so a stalled GitHub download can't hang the Hermes install. The
-    # upstream installer serializes with its own lock (600s stale window),
-    # so give it a ceiling above that — matching Hermes'
-    # _CUA_INSTALLER_TIMEOUT (660s).
-    local cua_log
-    cua_log="$(mktemp)"
-    if run_with_timeout 660 /bin/bash -c \
-        'curl -fsSL https://raw.githubusercontent.com/trycua/cua/main/libs/cua-driver/scripts/install.sh | /bin/bash' \
-        >"$cua_log" 2>&1; then
-        log_success "Computer Use driver installed (enable via 'hermes tools' → Computer Use)"
-    else
-        log_warn "Computer Use driver install failed — it will install on demand when you enable the tool."
-        log_info "Install later with: hermes computer-use install"
-        tail -n 5 "$cua_log" >&2 || true
-    fi
-    rm -f "$cua_log"
-}
 
 run_setup_wizard() {
     if [ "$RUN_SETUP" = false ]; then
@@ -3089,7 +2680,7 @@ run_setup_wizard() {
     # but opening fails with ENXIO, so the wizard would proceed and
     # then crash on `< /dev/tty` below.
     if ! (: </dev/tty) 2>/dev/null; then
-        log_info "Setup wizard skipped (no terminal available). Run 'hermes setup' after install."
+        log_info "Setup wizard skipped (no terminal available). Run 'hebri setup' after install."
         return 0
     fi
 
@@ -3099,7 +2690,7 @@ run_setup_wizard() {
 
     cd "$INSTALL_DIR"
 
-    # Run hermes setup using the venv Python directly (no activation needed).
+    # Run hebri setup using the venv Python directly (no activation needed).
     # Redirect stdin from /dev/tty so interactive prompts work when piped from curl.
     if [ "$USE_VENV" = true ]; then
         "$INSTALL_DIR/venv/bin/python" -m hermes_cli.main setup < /dev/tty
@@ -3139,14 +2730,14 @@ maybe_start_gateway() {
         if [ "$IS_INTERACTIVE" = true ]; then
             echo ""
             log_info "WhatsApp is enabled but not yet paired."
-            log_info "Running 'hermes whatsapp' to pair via QR code..."
+            log_info "Running 'hebri whatsapp' to pair via QR code..."
             echo ""
             if prompt_yes_no "Pair WhatsApp now?" "yes"; then
                 HERMES_CMD="$(get_hermes_command_path)"
                 $HERMES_CMD whatsapp || true
             fi
         else
-            log_info "WhatsApp pairing skipped (non-interactive). Run 'hermes whatsapp' to pair."
+            log_info "WhatsApp pairing skipped (non-interactive). Run 'hebri whatsapp' to pair."
         fi
     fi
 
@@ -3154,7 +2745,7 @@ maybe_start_gateway() {
     # in Docker builds where the device node is in the mount namespace
     # but opening fails with ENXIO. See #16746.
     if ! (: </dev/tty) 2>/dev/null; then
-        log_info "Gateway setup skipped (no terminal available). Run 'hermes gateway install' later."
+        log_info "Gateway setup skipped (no terminal available). Run 'hebri gateway install' later."
         return 0
     fi
 
@@ -3180,10 +2771,10 @@ maybe_start_gateway() {
                 if $HERMES_CMD gateway start 2>/dev/null; then
                     log_success "Gateway started! Your bot is now online."
                 else
-                    log_warn "Service installed but failed to start. Try: hermes gateway start"
+                    log_warn "Service installed but failed to start. Try: hebri gateway start"
                 fi
             else
-                log_warn "Systemd install failed. You can start manually: hermes gateway"
+                log_warn "Systemd install failed. You can start manually: hebri gateway"
             fi
         else
             if [ "$DISTRO" = "termux" ]; then
@@ -3195,13 +2786,13 @@ maybe_start_gateway() {
             GATEWAY_PID=$!
             log_success "Gateway started (PID $GATEWAY_PID). Logs: ~/.hermes/logs/gateway.log"
             log_info "To stop: kill $GATEWAY_PID"
-            log_info "To restart later: hermes gateway"
+            log_info "To restart later: hebri gateway"
             if [ "$DISTRO" = "termux" ]; then
                 log_warn "Android may stop background processes when Termux is suspended or the system reclaims resources."
             fi
         fi
     else
-        log_info "Skipped. Start the gateway later with: hermes gateway"
+        log_info "Skipped. Start the gateway later with: hebri gateway"
     fi
 }
 
@@ -3270,23 +2861,23 @@ print_success() {
     echo -e "${CYAN}${BOLD}🚀 Commands:${NC}"
     echo ""
     echo -e "   ${GREEN}hermes${NC}              Start chatting"
-    echo -e "   ${GREEN}hermes setup${NC}        Configure API keys & settings"
-    echo -e "   ${GREEN}hermes config${NC}       View/edit configuration"
-    echo -e "   ${GREEN}hermes config edit${NC}  Open config in editor"
-    echo -e "   ${GREEN}hermes gateway install${NC} Install gateway service (messaging + cron)"
-    echo -e "   ${GREEN}hermes update${NC}       Update to latest version"
+    echo -e "   ${GREEN}hebri setup${NC}        Configure API keys & settings"
+    echo -e "   ${GREEN}hebri config${NC}       View/edit configuration"
+    echo -e "   ${GREEN}hebri config edit${NC}  Open config in editor"
+    echo -e "   ${GREEN}hebri gateway install${NC} Install gateway service (messaging + cron)"
+    echo -e "   ${GREEN}hebri update${NC}       Update to latest version"
     echo ""
 
     echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
     echo ""
     if [ "$DISTRO" = "termux" ]; then
-        echo -e "${YELLOW}⚡ 'hermes' was linked into $(get_command_link_display_dir), which is already on PATH in Termux.${NC}"
+        echo -e "${YELLOW}⚡ 'hebri' was linked into $(get_command_link_display_dir), which is already on PATH in Termux.${NC}"
         echo ""
     elif [ "$ROOT_FHS_LAYOUT" = true ]; then
-        echo -e "${YELLOW}⚡ 'hermes' was linked into /usr/local/bin and is ready to use — no shell reload needed.${NC}"
+        echo -e "${YELLOW}⚡ 'hebri' was linked into /usr/local/bin and is ready to use — no shell reload needed.${NC}"
         echo ""
     else
-        echo -e "${YELLOW}⚡ Reload your shell to use 'hermes' command:${NC}"
+        echo -e "${YELLOW}⚡ Reload your shell to use 'hebri' command:${NC}"
         echo ""
         LOGIN_SHELL="$(basename "${SHELL:-/bin/bash}")"
         if [ "$LOGIN_SHELL" = "zsh" ]; then
@@ -3348,7 +2939,7 @@ ensure_browser() {
 
     # agent-browser itself is intentionally NOT installed here (#43564 /
     # PR #44772 review): it resolves lazily via `npx agent-browser` instead,
-    # which every consumer (tools/browser_tool.py, `hermes update`'s npx
+    # which every consumer (tools/browser_tool.py, `hebri update`'s npx
     # cache warm) already goes through. Eagerly npm-installing a second,
     # separately version-pinned copy here -- only reachable via this
     # explicit --ensure browser fallback in the first place -- was redundant
@@ -3426,7 +3017,7 @@ ensure_mode() {
 # extract a tree MISSING the electron binary, so the `electron`->`Hermes` rename
 # dies with ENOENT and every re-run repeats the broken extraction forever. This
 # is the bash sibling of install.ps1's Clear-ElectronBuildCache and the Python
-# _purge_electron_build_cache() used by `hermes desktop`; install.sh was the only
+# _purge_electron_build_cache() used by `hebri desktop`; install.sh was the only
 # build path lacking it. Echoes the removed paths (one per line); best-effort.
 clear_electron_build_cache() {
     local desktop_dir="$1"
@@ -3595,7 +3186,7 @@ install_desktop_voice_deps() {
         return 0
     fi
     log_info "Installing voice + wake-word dependencies (onnxruntime, faster-whisper — 1-3min)..."
-    if (cd "$INSTALL_DIR" && $UV_CMD pip install -e ".[wake,voice]") ; then
+    if (cd "$INSTALL_DIR" && source "$INSTALL_DIR/scripts/lib/install-dependencies.sh" && run_locked_uv_sync "$INSTALL_DIR/venv" --extra wake --extra voice --inexact) ; then
         log_success "Voice + wake-word dependencies installed"
     else
         log_warn "Voice/wake dependency install failed — they will lazy-install at first use"
@@ -3638,8 +3229,8 @@ install_desktop() {
     #    can report "up to date" against a stale node_modules/.package-lock.json
     #    marker while node_modules is actually empty (Windows workspace-hoisting
     #    flake) — leaving tsc/typescript unresolved and `npm run pack`'s
-    #    `tsc -b` failing with no obvious cause. Fall back to `npm install`
-    #    only if `npm ci` is unavailable or the lockfile is out of sync.
+    #    `tsc -b` failing with no obvious cause. A stale lock must fail the
+    #    install so the user can retry a corrected release.
     #
     #    Both the install and the build below are wrapped in a hard wall-clock
     #    timeout (#39219): the Electron binary (~150MB) is fetched from GitHub,
@@ -3649,23 +3240,9 @@ install_desktop() {
     #    converts to a non-zero exit, which feeds the existing self-heal /
     #    mirror-fallback escalation instead of hanging the whole install.
     #
-    #    The `npm ci` and its `npm install` fallback SHARE one budget: a stalled
-    #    link wedges both identically, so giving each a full DESKTOP_BUILD_TIMEOUT
-    #    would double the worst-case hang. We compute a single deadline and pass
-    #    the remaining seconds to the fallback (min 30s so it still gets a real
-    #    attempt if `npm ci` failed fast rather than stalling).
     log_info "Installing desktop workspace dependencies (includes Electron ~150MB, 1-3min)..."
-    local _deps_start _deps_remaining
-    _deps_start=$(date +%s)
     if run_with_timeout "$DESKTOP_BUILD_TIMEOUT" bash -c 'cd "$1" && npm ci --include=optional && node apps/desktop/scripts/ensure-rolldown-binding.mjs' _ "$INSTALL_DIR"; then
         log_success "Desktop workspace dependencies installed"
-    elif _deps_remaining=$(( DESKTOP_BUILD_TIMEOUT - ($(date +%s) - _deps_start) )); \
-         [ "$_deps_remaining" -lt 30 ] && _deps_remaining=30; \
-         run_with_timeout "$_deps_remaining" bash -c 'cd "$1" && npm install --include=optional && node apps/desktop/scripts/ensure-rolldown-binding.mjs' _ "$INSTALL_DIR"; then
-        log_success "Desktop workspace dependencies installed"
-    elif _electron_pkg_staged_missing_dist "$INSTALL_DIR"; then
-        log_warn "Desktop dependency install failed with a missing Electron dist; attempting self-heal..."
-        _restore_electron_dist_with_fallback "$INSTALL_DIR" || true
     else
         log_error "Desktop workspace npm install failed"
         # Common cause: a previous 'sudo npm'/'sudo npx' left root-owned files in
@@ -3685,7 +3262,7 @@ install_desktop() {
     #    Electron download self-heals instead of failing the whole install:
     #      a) plain `npm run pack` (downloads Electron from GitHub),
     #      b) on failure, purge a corrupt cached zip + stale unpacked dir and
-    #         retry (matches install.ps1 / `hermes desktop`),
+    #         retry (matches install.ps1 / `hebri desktop`),
     #      c) on still-failing, fall back to a public Electron mirror — this is
     #         the GitHub-blocked/throttled case (the repeating "retrying" log).
     log_info "Building desktop app (this takes 1-3 minutes)..."
@@ -3782,7 +3359,7 @@ install_desktop() {
     fi
 
     # macOS: route through the same config-aware signing fixup as
-    # `hermes desktop`, so install/repair and self-update agree about the app's
+    # `hebri desktop`, so install/repair and self-update agree about the app's
     # identity. The fixup preserves the Electron entitlement plists and signs
     # with a stable Designated Requirement (configured keychain identity, else
     # identifier-pinned ad-hoc), so macOS TCC grants — Full Disk Access,
@@ -3819,7 +3396,7 @@ PYEOF
     fi
 
     # `npm install` + `npm run pack` rewrite lockfiles; restore them so the
-    # checkout stays clean for the next `hermes update`.
+    # checkout stays clean for the next `hebri update`.
     restore_dirty_lockfiles "$INSTALL_DIR"
 }
 
@@ -3883,8 +3460,7 @@ run_stage_body() {
             check_node
             install_node_deps || return
             install_uv
-            install_browser_use_cli
-            install_computer_use_driver
+            log_info "Optional Browser Use and Computer Use are installed when enabled via hebri tools."
             ;;
         path)
             detect_os
@@ -3931,7 +3507,7 @@ run_stage_body() {
             # $HERMES_HOME. $HERMES_HOME is a shared data dir (it can be
             # bind-mounted into a Docker gateway too), so a stamp there gets
             # clobbered by the container's 'docker' stamp and wrongly blocks
-            # 'hermes update' on this host install. See detect_install_method().
+            # 'hebri update' on this host install. See detect_install_method().
             echo "git" > "$INSTALL_DIR/.install_method"
             ;;
         *)
@@ -4001,8 +3577,7 @@ main() {
     setup_venv
     install_deps
     install_node_deps || return
-    install_browser_use_cli
-    install_computer_use_driver
+    log_info "Optional Browser Use and Computer Use are installed when enabled via hebri tools."
     setup_path
     copy_config_templates
     run_setup_wizard
@@ -4020,7 +3595,7 @@ main() {
     # Code-scoped stamp: write next to the install tree, not into $HERMES_HOME.
     # $HERMES_HOME is a shared data dir (it can be bind-mounted into a Docker
     # gateway too), so a stamp there gets clobbered by the container's 'docker'
-    # stamp and wrongly blocks 'hermes update' on this host install.
+    # stamp and wrongly blocks 'hebri update' on this host install.
     # See detect_install_method().
     echo "git" > "$INSTALL_DIR/.install_method"
 }

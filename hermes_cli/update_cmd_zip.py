@@ -1,4 +1,4 @@
-"""ZIP-download fallback for ``hermes update`` (Windows with broken git): two-phase stage/commit swap, dirty-tree guard.
+"""ZIP-download fallback for ``hebri update`` (Windows with broken git): two-phase stage/commit swap, dirty-tree guard.
 
 Split out of ``update_cmd.py``; every name is re-imported there so ``hermes_cli.update_cmd.<name>`` keeps
 resolving/monkeypatching. Origin helpers are imported lazily per function (no cycle; test patches stay effective).
@@ -36,7 +36,7 @@ _ZIP_PRESERVED_NESTED = {
     "web": ("node_modules",),
 }
 
-_STASH_HINT = "  Stash or commit your changes, then rerun `hermes update`."
+_STASH_HINT = "  Stash or commit your changes, then rerun `hebri update`."
 
 
 def _remove_path(path: str, *, ignore_errors: bool = False) -> None:
@@ -430,8 +430,8 @@ def _update_via_zip(args, *, had_desktop_app_before_update: bool = False, _windo
         print(
             "  This path runs when git file I/O is broken on the system. "
             "Either resolve the git-side breakage (typically an antivirus "
-            "or NTFS filter holding files open) and rerun `hermes update "
-            f"--branch {branch}`, or update against main with `hermes update`."
+            "or NTFS filter holding files open) and rerun `hebri update "
+            f"--branch {branch}`, or update against main with `hebri update`."
         )
         _m().sys.exit(1)
     _abort_zip_update_if_dirty_tree()
@@ -474,7 +474,7 @@ def _finish_zip_update(
         print(f"  {failing_module}: {import_error}")
         print()
         print("  This usually means the copy was interrupted partway through.")
-        print("  Re-run `hermes update` to complete it.")
+        print("  Re-run `hebri update` to complete it.")
         _m().sys.exit(1)
     node_failures = _update_node_dependencies()
     _m()._build_web_ui(_m().PROJECT_ROOT / "web")

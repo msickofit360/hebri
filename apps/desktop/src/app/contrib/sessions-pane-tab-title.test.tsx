@@ -4,15 +4,82 @@
  * `translateNow` sampled then. The strip label must come from `tabTitle`,
  * which subscribes to the live locale.
  */
+import { render } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
+import { $workspaceOwnerLabels } from '@/components/pane-shell/workspace-scope'
 import { I18nProvider, setRuntimeI18nLocale } from '@/i18n'
+import { $botChatScopes, readBotChatScopes, restoreBotChatOwnerLabels } from '@/store/bot-chat-scopes'
+import { $draftTitles } from '@/store/composer'
+import { $selectedStoredSessionId, $sessions } from '@/store/session'
 
 const { registry } = await import('@/contrib/registry')
 
 await import('./controller')
+
+describe('the main chat tab identity', () => {
+  it('labels hidden canonical chats by their own Bit while preserving fresh draft titles', () => {
+    const original = {
+      selected: $selectedStoredSessionId.get(),
+      sessions: $sessions.get(),
+      scopes: $botChatScopes.get(),
+      labels: $workspaceOwnerLabels.get(),
+      drafts: $draftTitles.get()
+    }
+
+    const caption = () => {
+      const pane = registry.getArea('panes').find(c => c.id === 'workspace')!
+      const tabTitle = (pane.data as { tabTitle?: () => ReactNode }).tabTitle
+
+      if (!tabTitle) {
+        return pane.title
+      }
+
+      const view = render(<>{tabTitle()}</>)
+      const title = view.container.textContent
+      view.unmount()
+
+      return title
+    }
+
+    try {
+      $sessions.set([])
+      $workspaceOwnerLabels.set({ 'bot:alpha': 'Alpha', 'bot:beta': 'Beta' })
+      $botChatScopes.set({
+        'hidden-alpha': { workspaceMode: 'bots', workspaceOwnerKey: 'bot:alpha', workspaceTabTitle: 'Bot Chat', ownerRoute: { connectionId: 'local', profile: 'alpha' } },
+        'hidden-beta': { workspaceMode: 'bots', workspaceOwnerKey: 'bot:beta', workspaceTabTitle: 'Bot Chat', ownerRoute: { connectionId: 'local', profile: 'beta' } }
+      })
+      // Cold startup on Team Chat has neither session rows nor a mounted Bits roster.
+      const restored = readBotChatScopes()
+      $botChatScopes.set({})
+      $workspaceOwnerLabels.set({})
+      $botChatScopes.set(restored)
+      restoreBotChatOwnerLabels()
+      $draftTitles.set({ 'hidden-alpha': 'Unsent follow-up', 'fresh-draft': 'Plan the trip' })
+
+      for (const [id, label] of [['hidden-alpha', 'Alpha'], ['hidden-beta', 'Beta'], ['hidden-alpha', 'Alpha']]) {
+        $selectedStoredSessionId.set(id)
+        expect(caption()).toBe(label)
+      }
+
+      $workspaceOwnerLabels.set({ 'bot:alpha': 'Renamed Alpha', 'bot:beta': 'Beta' })
+      expect(caption()).toBe('Renamed Alpha')
+      expect(readBotChatScopes()['hidden-alpha'].workspaceOwnerLabel).toBe('Renamed Alpha')
+      restoreBotChatOwnerLabels(restored)
+      expect(caption()).toBe('Renamed Alpha')
+      $selectedStoredSessionId.set('fresh-draft')
+      expect(caption()).toBe('Plan the trip')
+    } finally {
+      $draftTitles.set(original.drafts)
+      $botChatScopes.set(original.scopes)
+      $workspaceOwnerLabels.set(original.labels)
+      $sessions.set(original.sessions)
+      $selectedStoredSessionId.set(original.selected)
+    }
+  })
+})
 
 describe('the Sessions pane tab label', () => {
   it('follows the live locale instead of the register-time title', () => {

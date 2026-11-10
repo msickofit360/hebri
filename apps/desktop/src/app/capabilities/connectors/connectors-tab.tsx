@@ -6,8 +6,6 @@ import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import type { HermesGateway, ProfileScope } from '@/hermes'
 import { useI18n } from '@/i18n'
-import { $freeTierStatus } from '@/store/free-tier'
-import { openFreeTierSignIn } from '@/store/free-tier-sign-in'
 import { notifyError, readableError } from '@/store/notifications'
 
 import { installBundledEntry } from '../mcp/install-catalog-entry'
@@ -50,7 +48,6 @@ export function ConnectorsTab({ gateway, profile }: ConnectorsTabProps) {
   const mcp = useMcpServers({ gateway, profile })
   const operations = useStore($accountOperations)
   const abandoned = useStore($abandonedConnects)
-  const freeTier = useStore($freeTierStatus)
 
   const connector = useConnectConnector(profile)
   const switcher = useConnectorSwitch(profile)
@@ -239,7 +236,7 @@ export function ConnectorsTab({ gateway, profile }: ConnectorsTabProps) {
         filter={filter}
         hostedFailed={hosted.phase === 'failed'}
         loading={(hosted.phase === 'loading' || mcp.configLoading || mcp.catalogLoading) && cards.length === 0}
-        notices={<HostedNotice hasGuest={freeTier?.has_guest === true} phase={hosted.phase} />}
+        notices={<HostedNotice phase={hosted.phase} />}
         onFilterChange={setFilter}
         onOpen={card => setOpenKey(cardKey(card))}
         onPrefetch={card => {
@@ -334,15 +331,16 @@ export function ConnectorsTab({ gateway, profile }: ConnectorsTabProps) {
   )
 }
 
-function HostedNotice({ hasGuest, phase }: { hasGuest: boolean; phase: HostedPhase }) {
+function HostedNotice({ phase }: { phase: HostedPhase }) {
   const { t } = useI18n()
   const copy = t.connectorsPage.page
+  const navigate = useNavigate()
 
   if (phase === 'signedOut') {
     return (
       <p className="flex shrink-0 items-center gap-1 text-[0.7rem] text-(--ui-text-tertiary)">
-        {copy.signInLine}
-        <Button onClick={() => openFreeTierSignIn()} size="xs" variant="text">
+        Sign in to Synapsek to manage this Bit’s connections.
+        <Button onClick={() => navigate('/settings?tab=billing')} size="xs" variant="text">
           {copy.signIn}
         </Button>
       </p>
@@ -350,10 +348,22 @@ function HostedNotice({ hasGuest, phase }: { hasGuest: boolean; phase: HostedPha
   }
 
   if (phase === 'unavailable') {
-    return <p className="shrink-0 text-[0.7rem] text-(--ui-text-tertiary)">{copy.managedUnavailable}</p>
+    return (
+      <p className="shrink-0 text-[0.7rem] text-(--ui-text-tertiary)">
+        {copy.managedUnavailable}{' '}
+        <Button onClick={() => navigate('/settings?tab=billing')} size="xs" variant="text">
+          Synapsek account
+        </Button>
+      </p>
+    )
   }
 
-  return hasGuest ? <p className="shrink-0 text-[0.7rem] text-(--ui-text-tertiary)">{copy.freeTierNote}</p> : null
+  return (
+    <p className="shrink-0 text-[0.7rem] text-(--ui-text-tertiary)">
+      Managed connections use Synapsek. Each Bit needs its own access grant; proposed writes require approval. Existing
+      Nous connections need fresh Synapsek consent. Direct MCP connections keep their own setup and permissions.
+    </p>
+  )
 }
 
 function useOpenFromRoute(cards: readonly ConnectorCardModel[], open: (key: string) => void): void {

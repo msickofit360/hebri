@@ -15,5 +15,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
+    // A read-only smoke check that never starts the installer or touches a profile.
+    if std::env::args_os().any(|arg| arg == "--version") {
+        println!("Hebri Setup {}", env!("CARGO_PKG_VERSION"));
+        return;
+    }
     hermes_bootstrap_lib::run()
 }

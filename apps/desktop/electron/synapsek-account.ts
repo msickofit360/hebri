@@ -287,6 +287,9 @@ export async function accountJson(url: string, init: RequestInit = {}, maxBytes 
       throw new AccountError(body.code)
     }
 
+    if (!response.ok && /^connector_[a-z_]{1,60}$/.test(String(body?.code || ''))) {
+      throw new AccountError(body.code)
+    }
     if (response.status === 401 || response.status === 403) {
       throw new AccountError('reauthentication_required')
     }
@@ -662,8 +665,9 @@ export class SynapsekAccount {
         view.state !== 'signed_in' ||
         view.account?.userId !== saved.userId ||
         command.expectedUserId !== saved.userId
-      )
-        {throw new AccountError('account_mismatch')}
+      ) {
+        throw new AccountError('account_mismatch')
+      }
 
       const result = await this.json(
         `${this.origin}/api/teams`,
@@ -675,7 +679,9 @@ export class SynapsekAccount {
         2_000_000
       )
 
-      if (result?.userId !== saved.userId) {throw new AccountError('account_mismatch')}
+      if (result?.userId !== saved.userId) {
+        throw new AccountError('account_mismatch')
+      }
 
       if (
         result.inviteUrl &&
@@ -715,6 +721,32 @@ export class SynapsekAccount {
         },
         ...(action === 'completion' ? { body: JSON.stringify(body) } : {})
       })
+    })
+  }
+  async connectorRequest(body: unknown, expectedUserId?: string) {
+    if (!body || typeof body !== 'object' || JSON.stringify(body).length > 24_000) {
+      throw new AccountError('connector_invalid_request')
+    }
+    const view = await this.status()
+    return this.exclusive(async () => {
+      const saved = loadAccount(this.storage)
+      if (
+        !saved ||
+        !this.tokens ||
+        view.state !== 'signed_in' ||
+        view.account?.userId !== saved.userId ||
+        (expectedUserId && expectedUserId !== saved.userId)
+      )
+        throw new AccountError('account_mismatch')
+      return this.json(
+        `${this.origin}/api/hebri-connectors`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${this.tokens.accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        },
+        512_000
+      )
     })
   }
   forgetLocal(): Promise<SynapsekAccountView> {

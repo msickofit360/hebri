@@ -521,7 +521,7 @@ def _env_enablement() -> Optional[dict]:
 
 
 def interactive_setup() -> None:
-    """``hermes gateway setup`` flow: persists ``RAFT_PROFILE`` to the Hebri env file.
+    """``hebri gateway setup`` flow: persists ``RAFT_PROFILE`` to the Hebri env file.
     CLI helpers are lazy-imported so the plugin stays importable in gateway runtime and tests."""
     from hermes_cli.cli_output import print_header, print_info, print_success, print_warning, prompt
     from hermes_cli.config import get_env_value, save_env_value
@@ -542,7 +542,7 @@ def interactive_setup() -> None:
     save_env_value("RAFT_PROFILE", profile.strip())
     print()
     print_success("Raft configuration saved")
-    print_info("Restart the gateway for changes to take effect: hermes gateway restart")
+    print_info("Restart the gateway for changes to take effect: hebri gateway restart")
 
 
 def register(ctx) -> None:

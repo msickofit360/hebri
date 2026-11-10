@@ -48,7 +48,7 @@ grow: expansive at the edges, conservative at the waist.
   where it manifests, and fix the whole bug class — sibling call paths included.
 - **Expand reach at the edges.** New adapters, channels, providers, models, desktop/TUI/
   dashboard features land routinely, including large ones — as long as they integrate with
-  the existing setup/config UX (`hermes tools`, `hermes setup`, auto-install) rather than
+  the existing setup/config UX (`hebri tools`, `hebri setup`, auto-install) rather than
   bolting on a raw env var.
 - **Refactor god-files into clean modules.** Huge mechanical `+N/-N` extraction PRs are
   wanted work. "Every line traces to the request" applies to *feature* PRs; a declared
@@ -90,7 +90,7 @@ grow: expansive at the edges, conservative at the waist.
   (`git log -p -S`) before restricting behavior; find a fix that preserves the feature.
 - **Outbound telemetry / usage attribution without opt-in gating.** No analytics,
   third-party identifier tagging, or attribution tags until a generic user-facing opt-in
-  (config gate + setup prompt + `hermes tools` toggle) exists. Park behind a label.
+  (config gate + setup prompt + `hebri tools` toggle) exists. Park behind a label.
 - **Change-detector tests, cache-breaking mid-conversation, dead code wired in without E2E
   proof, plugins that touch core files.** Plugins work within the ABCs/hooks we provide; if
   one needs more, widen the generic plugin surface, never special-case it in core.
@@ -137,7 +137,7 @@ Choose the highest (least-footprint) rung that correctly solves the problem:
 1. **Extend existing code** — a variation of something that exists. Zero new surface.
 2. **CLI command + skill** — config/state/infra expressible as shell commands; the agent runs
    `hermes <subcommand>` guided by a skill. Default for subscriptions, scheduled tasks,
-   service setup (`hermes webhook`, `hermes cron`, `hermes tools`).
+   service setup (`hebri webhook`, `hebri cron`, `hebri tools`).
 3. **Service-gated tool (`check_fn`)** — needs structured params/returns AND only appears when
    a prerequisite is configured (Home Assistant tools, memory-provider tools). This rung gates
    reachability/opt-in process-wide; a capability that varies per SESSION (who is watching) is
@@ -169,7 +169,7 @@ is "inside the Hermes desktop app". The pattern:
   (`tools/registry.py`); a per-session answer does not belong there.
 - **Ask which identity you mean.** `HERMES_DESKTOP=1` legitimately means "this backend was
   spawned by the app" (cron ticker, web-dist handling). It does NOT mean "a GUI is watching";
-  the embedded terminal pane (`hermes --tui` against that backend) is the counterexample.
+  the embedded terminal pane (`hebri --tui` against that backend) is the counterexample.
 
 Test: if the capability still makes sense with the client on another machine, it is
 session-scoped. Assert the GUI session gets the tool **with the env var absent**.
@@ -206,7 +206,7 @@ hermes-agent/
 │   └── builtin_hooks/    # Always-registered gateway hooks (extension point; none shipped)
 ├── plugins/              # memory/, context_engine/, model-providers/, kanban/, image_gen/, ...
 ├── skills/               # Built-in skills (by category)   optional-skills/: shipped, not active
-├── ui-tui/               # Ink (React) terminal UI — `hermes --tui`
+├── ui-tui/               # Ink (React) terminal UI — `hebri --tui`
 ├── tui_gateway/          # Python JSON-RPC backend for TUI + Desktop — server.py + methods_*.py
 ├── apps/desktop/         # Electron desktop app (+ apps/shared JSON-RPC client)   web/: dashboard SPA
 ├── acp_adapter/          # ACP server (VS Code / Zed / JetBrains)
@@ -219,7 +219,7 @@ hermes-agent/
 
 **User state:** `~/.hermes/config.yaml` (settings), `~/.hermes/.env` (secrets only),
 `~/.hermes/logs/` (`agent.log` INFO+, `errors.log` WARNING+, `gateway.log`); all
-profile-aware via `get_hermes_home()`. Browse logs with `hermes logs [--follow] [--level] [--session]`.
+profile-aware via `get_hermes_home()`. Browse logs with `hebri logs [--follow] [--level] [--session]`.
 
 **Dependency chain:** `tools/registry.py` (no deps) ← `tools/*.py` (register at import) ←
 `model_tools.py` (discovery) ← `run_agent.py`, `cli.py`, `batch_runner.py`, `environments/`.
@@ -271,7 +271,7 @@ families: `hermes_state.py` (21), `gateway/run.py` (15), `tools/mcp_tool.py` (15
 - **Never hardcode `~/.hermes`.** `get_hermes_home()` for code paths, `display_hermes_home()`
   for user-facing text (both from `hermes_constants`). Hardcoding breaks profiles (5 bugs in
   PR #3575). Profile operations themselves are HOME-anchored
-  (`_get_profiles_root()` = `Path.home()/.hermes/profiles`) so `hermes -p x profile list`
+  (`_get_profiles_root()` = `Path.home()/.hermes/profiles`) so `hebri -p x profile list`
   sees all profiles — intentional, not a bug.
 - **One process may serve many profiles; code that runs outside a turn binds the owning
   profile scope explicitly.** A profile = home + secret scope + terminal scope, bound by
@@ -297,7 +297,7 @@ families: `hermes_state.py` (21), `gateway/run.py` (15), `tools/mcp_tool.py` (15
   `tests/test_managed_runtime_resolution.py` unless allowlisted with a reason; resolvers land in
   `hermes_platform/resolver/`. Lookup never installs, downloads, or starts anything.
 - **Argparse alias dispatch:** `add_parser("list", aliases=["ls"])` sets `dest` to the literal
-  the user typed (`"ls"`). Dispatch must accept both (caught PTY-testing `hermes webhook ls`).
+  the user typed (`"ls"`). Dispatch must accept both (caught PTY-testing `hebri webhook ls`).
 - **Don't wire in dead code without E2E validation.** Unshipped code was dead for a reason;
   E2E the real resolution chain with real imports against a temp `HERMES_HOME` first.
 
@@ -324,7 +324,7 @@ pip: `==exact`. A bare `>=X.Y.Z` is rejected by CI and reviewers. Run `uv lock` 
 changing `pyproject.toml`. Reference: #2810 (bounds), #9801 (SHA pinning + audit CI).
 
 The `[tool.uv] exclude-newer = "14 days"` quarantine covers **Hermes's own dependencies only**
-(`uv lock`/`sync`, `hermes update`, `tools.lazy_deps.ensure` extras — `install policy "core"`).
+(`uv lock`/`sync`, `hebri update`, `tools.lazy_deps.ensure` extras — `install policy "core"`).
 Plugin `python_dependencies` install under the plugin's own policy (`install_specs(policy="plugin")`
 → `uv --no-config`, still inside the core constraints file); Teknium's ruling: "plugins dont have to
 abide by our 14 day rule … Only hermes' dependencies themselves have to." We recommend (not require)
@@ -447,7 +447,7 @@ extract, not to regex around it.
 | Area | Read | Covers |
 |---|---|---|
 | `run_agent.py`, `agent/` | `agent/AGENTS.md` | AIAgent + mixins, turn phases, caching integrity, message-flow invariants, compression, model/aux resolution |
-| `cli.py`, `hermes_cli/`, `main.py` | `hermes_cli/AGENTS.md` | CLI mixins, `_SLASH_DISPATCH`, slash registry, config system + loaders, skins, `hermes update` pipeline, profiles / multiplex |
+| `cli.py`, `hermes_cli/`, `main.py` | `hermes_cli/AGENTS.md` | CLI mixins, `_SLASH_DISPATCH`, slash registry, config system + loaders, skins, `hebri update` pipeline, profiles / multiplex |
 | `gateway/` | `gateway/AGENTS.md` | Adapters, two message guards, streaming contract, background notifications, gateway vs desktop lifecycle, token locks, scoped secrets |
 | `tools/`, `toolsets.py`, `model_tools.py` | `tools/AGENTS.md` | Adding tools, registry, toolsets, delegation, cross-tool references, backends |
 | `plugins/`, `hermes_cli/plugins*.py` | `plugins/AGENTS.md` | Plugin kinds, native compat contract, in-tree policy, Sep-2026 compat window |

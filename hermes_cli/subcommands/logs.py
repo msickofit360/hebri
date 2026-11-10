@@ -1,4 +1,4 @@
-"""``hermes logs`` subcommand parser."""
+"""``hebri logs`` subcommand parser."""
 
 from __future__ import annotations
 
@@ -14,18 +14,18 @@ def build_logs_parser(subparsers, *, cmd_logs: Callable) -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 Examples:
-    hermes logs                    Show last 50 lines of agent.log
-    hermes logs -f                 Follow agent.log in real time
-    hermes logs errors             Show last 50 lines of errors.log
-    hermes logs gateway -n 100     Show last 100 lines of gateway.log
-    hermes logs gui -f             Follow gui.log in real time
-    hermes logs desktop -f         Follow desktop.log (Electron app boot/backend)
-    hermes logs --level WARNING    Only show WARNING and above
-    hermes logs --session abc123   Filter by session ID
-    hermes logs --component tools  Only show tool-related lines
-    hermes logs --since 1h         Lines from the last hour
-    hermes logs --since 30m -f     Follow, starting from 30 min ago
-    hermes logs list               List available log files with sizes
+    hebri logs                    Show last 50 lines of agent.log
+    hebri logs -f                 Follow agent.log in real time
+    hebri logs errors             Show last 50 lines of errors.log
+    hebri logs gateway -n 100     Show last 100 lines of gateway.log
+    hebri logs gui -f             Follow gui.log in real time
+    hebri logs desktop -f         Follow desktop.log (Electron app boot/backend)
+    hebri logs --level WARNING    Only show WARNING and above
+    hebri logs --session abc123   Filter by session ID
+    hebri logs --component tools  Only show tool-related lines
+    hebri logs --since 1h         Lines from the last hour
+    hebri logs --since 30m -f     Follow, starting from 30 min ago
+    hebri logs list               List available log files with sizes
 """)
     logs_parser.add_argument(
         "log_name", nargs="?", default="agent",

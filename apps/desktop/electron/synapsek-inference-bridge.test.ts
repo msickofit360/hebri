@@ -4,6 +4,36 @@ import { AccountError } from './synapsek-account'
 import { startSynapsekInferenceBridge } from './synapsek-inference-bridge'
 
 let close: (() => Promise<void>) | undefined
+it('keeps connector requests on the owner-pinned native channel and rejects browsers and oversized bodies', async () => {
+  let user = 'a'
+  const connectorRequest = vi.fn(async () => ({ items: [] }))
+  const bridge = await startSynapsekInferenceBridge({
+    status: async () => ({ state: 'signed_in', account: { userId: user } }),
+    managedRequest: async () => ({}),
+    connectorRequest
+  })
+  close = bridge.close
+  const send = (body: unknown, headers = {}) =>
+    fetch(`${bridge.env.HEBRI_SYNAPSEK_BRIDGE_URL}/connectors`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${bridge.env.HEBRI_SYNAPSEK_BRIDGE_TOKEN}`,
+        'Content-Type': 'application/json',
+        ...headers
+      },
+      body: JSON.stringify(body)
+    })
+  expect((await send({}, { Origin: 'https://evil.example' })).status).toBe(401)
+  expect((await send({}, { Authorization: 'Bearer wrong' })).status).toBe(401)
+  expect((await send({ payload: 'x'.repeat(24_001) })).status).toBe(413)
+  expect(connectorRequest).not.toHaveBeenCalled()
+  const body = { bitId: 'a', command: { action: 'catalog' } }
+  expect((await send(body)).status).toBe(200)
+  expect(connectorRequest).toHaveBeenCalledWith(body, 'a')
+  user = 'b'
+  expect((await send(body)).status).toBe(409)
+  expect(connectorRequest).toHaveBeenCalledTimes(1)
+})
 afterEach(async () => {
   await close?.()
   close = undefined

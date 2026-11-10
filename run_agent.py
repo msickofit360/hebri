@@ -10,11 +10,11 @@
 try:
     import hermes_bootstrap  # noqa: F401
 except ModuleNotFoundError:
-    pass  # partial `hermes update` — only skips the Windows UTF-8 stdio setup
+    pass  # partial `hebri update` — only skips the Windows UTF-8 stdio setup
 
 import sys
 
-# `hermes-agent` runs this module without hermes_cli.main, which repairs a `hermes update` killed
+# `hermes-agent` runs this module without hermes_cli.main, which repairs a `hebri update` killed
 # while git wrote the new tree; do it here, before importing anything else from the checkout.
 if "hermes_cli.main" not in sys.modules:
     from hermes_cli import _early_recovery
@@ -39,7 +39,7 @@ from hermes_constants import get_hermes_home
 
 
 def _launch_cwd_for_session(source: str) -> Optional[str]:
-    """cwd to stamp on a new session row (``hermes -c`` / ``--resume``), or None.
+    """cwd to stamp on a new session row (``hebri -c`` / ``--resume``), or None.
 
     Only local CLI sessions record one: gateway/cron/remote backends (non-"local" ``TERMINAL_ENV``) have no
     stable host cwd for the agent's tools.
@@ -52,15 +52,15 @@ def _launch_cwd_for_session(source: str) -> Optional[str]:
         return None
 
 
-# Sources that label the human conversation an interactive UI transport hosts. A finite ``hermes chat -q`` /
+# Sources that label the human conversation an interactive UI transport hosts. A finite ``hebri chat -q`` /
 # one-shot child spawned from such a session inherits HERMES_SESSION_SOURCE (the terminal tool bridges the
 # session env into child processes) but is NOT that conversation: labelling it ``tui``/``desktop`` lists it
-# in the TUI/WebUI pickers as a resumable chat and lets ``hermes -c`` in the TUI continue it (#112550).
+# in the TUI/WebUI pickers as a resumable chat and lets ``hebri -c`` in the TUI continue it (#112550).
 # Automation sources (kanban, tool, cron, a2a, ...) are inherited on purpose.
 _UI_TRANSPORT_SOURCES = frozenset({"tui", "desktop"})
 
-# Finite non-interactive CLI runs (``hermes chat -q``/``--oneshot``, ``hermes -z``) get their own source so human
-# pickers hide them without title/cwd heuristics; ``hermes -c`` still treats them as CLI history.
+# Finite non-interactive CLI runs (``hebri chat -q``/``--oneshot``, ``hebri -z``) get their own source so human
+# pickers hide them without title/cwd heuristics; ``hebri -c`` still treats them as CLI history.
 ONESHOT_SOURCE = "oneshot"
 CLI_FAMILY_SOURCES = frozenset({"cli", ONESHOT_SOURCE})
 
@@ -332,7 +332,7 @@ class AIAgent(
         """``model_config`` for the session row: the init config plus the live YOLO bypass.
 
         The row is created lazily on the first turn, so this is the only chance to record a pre-first-turn
-        /yolo toggle for ``hermes --resume``.
+        /yolo toggle for ``hebri --resume``.
         """
         model_config = self._session_init_model_config
         try:
@@ -1332,7 +1332,7 @@ class AIAgent(
         self._executing_tools = True  # allow _vprint during tool execution even with stream consumers
         try:
             with scoped_connection_surface(agent_connection_surface(self)):
-                if len(tool_calls) <= 1:
+                if len(tool_calls) <= 1 or getattr(self, "_delegate_stop_on_tool_error", False):
                     self._execute_tool_calls_sequential(*args)
                 else:
                     from agent.tool_dispatch_helpers import _plan_tool_batch_segments

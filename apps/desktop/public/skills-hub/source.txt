@@ -1,0 +1,12 @@
+Synapsek Skills Hub
+Adapted from Synapsek-Labs/keel, src/skills-hub/page, commit 34ae66c7b8927d5c39be713567f20ffe22bb5d55.
+This static Hub page is licensed under GNU AGPL version 3; see ./LICENSE.txt.
+Hebri adaptation: bundled catalog, no network fetch, isolated desktop picker.
+Its complete, unminified running source ships alongside this file:
+ ./index.html
+ ./hub.js
+ ./hub.css
+ ./catalog.js
+Corresponding source: https://github.com/Synapsek-Labs/hebri/tree/main/apps/desktop/public/skills-hub
+The catalog data is metadata obtained from the named upstream sources. Individual skills retain
+ their own licenses. A listing does not grant rights to redistribute the underlying skill.

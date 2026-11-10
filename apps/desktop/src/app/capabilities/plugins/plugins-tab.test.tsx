@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { $pluginRecords } from '@/contrib/plugins-store'
-import { CATALOG_ORIGIN } from '@/lib/plugin-catalog'
+import { bundledPluginCatalog } from '@/lib/plugin-catalog'
 import { $agentPlugins, $agentPluginsStatus } from '@/store/agent-plugins'
 import { $confirmRequest, settleConfirm } from '@/store/confirm'
 import { $paneHeightOverride, setPaneHeightOverride } from '@/store/panes'
@@ -29,8 +29,8 @@ vi.mock('@/app/gateway/hooks/use-gateway-request', () => ({
 
 const uninstallDiskPlugin = vi.fn(async (_id: string) => ({ ok: true }))
 
-vi.mock('@/contrib/runtime-loader', async importOriginal => ({
-  ...(await importOriginal<Record<string, unknown>>()),
+vi.mock('@/contrib/runtime-loader', () => ({
+  discoverRuntimePlugins: vi.fn(),
   uninstallDiskPlugin: (id: string) => uninstallDiskPlugin(id)
 }))
 
@@ -208,48 +208,37 @@ describe('PluginsTab', () => {
     )
   })
 
-  it('opens the dual-target install modal from a catalog pick message', async () => {
+  it('opens the pinned dialog for the selected Bit from an offline catalog pick', async () => {
     render(<PluginsTab profile="workbot" />)
-
-    window.dispatchEvent(
-      new MessageEvent('message', {
-        data: {
-          name: 'weather-plugin',
-          repo: 'https://github.com/example/weather-plugin',
-          sha: 'a'.repeat(40),
-          subdir: '',
-          tier: 'community',
-          type: 'hermes-plugin-pick'
-        },
-        origin: CATALOG_ORIGIN
+    const entry = bundledPluginCatalog[0]!
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search plugins' }), { target: { value: entry.name } })
+    fireEvent.click(screen.getByRole('button', { name: `Review: ${entry.name}` }))
+    await waitFor(() =>
+      expect($pluginInstallRequest.get()).toMatchObject({
+        catalogName: entry.name,
+        profile: 'workbot',
+        sha: entry.sha,
+        repo: entry.subdir ? `${entry.repo}#${entry.subdir}` : entry.repo
       })
     )
-
-    await waitFor(() => {
-      const request = $pluginInstallRequest.get()
-
-      expect(request).not.toBeNull()
-      expect(request?.catalogName).toBe('weather-plugin')
-      expect(request?.repo).toBe('https://github.com/example/weather-plugin')
-      expect(request?.profile).toBe('workbot')
-      expect(request?.sha).toBe('a'.repeat(40))
-    })
+    expect(requestGateway).not.toHaveBeenCalledWith('plugins.manage', expect.objectContaining({ action: 'install' }))
+    expect(document.querySelector('iframe')).toBeNull()
   })
 
-  it('ignores pick messages from foreign origins', () => {
+  it('ignores website messages, including the former catalog origin', () => {
     render(<PluginsTab profile={null} />)
-
-    window.dispatchEvent(
-      new MessageEvent('message', {
-        data: {
-          name: 'evil-plugin',
-          repo: 'https://github.com/evil/evil-plugin',
-          type: 'hermes-plugin-pick'
-        },
-        origin: 'https://evil.example.com'
-      })
-    )
-
+    for (const origin of ['https://evil.example.com', 'https://synapseklabs.org']) {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          origin,
+          data: {
+            type: 'hermes-plugin-pick',
+            name: 'evil',
+            repo: 'https://github.com/evil/evil'
+          }
+        })
+      )
+    }
     expect($pluginInstallRequest.get()).toBeNull()
   })
 
@@ -303,26 +292,6 @@ describe('PluginsTab', () => {
     toggle.click()
 
     expect(requestGateway).not.toHaveBeenCalledWith('plugins.manage', expect.objectContaining({ action: 'toggle' }))
-  })
-
-  it('appends the subdir fragment for multi-plugin repos', async () => {
-    render(<PluginsTab profile={null} />)
-
-    window.dispatchEvent(
-      new MessageEvent('message', {
-        data: {
-          name: 'nested-plugin',
-          repo: 'https://github.com/example/plugins-monorepo',
-          subdir: 'nested-plugin',
-          type: 'hermes-plugin-pick'
-        },
-        origin: CATALOG_ORIGIN
-      })
-    )
-
-    await waitFor(() => {
-      expect($pluginInstallRequest.get()?.repo).toBe('https://github.com/example/plugins-monorepo#nested-plugin')
-    })
   })
 })
 
@@ -488,11 +457,11 @@ describe('PluginsTab catalog UX', () => {
   it('refuses a catalog pick that is already installed and current', async () => {
     $agentPlugins.set([
       {
-        catalog_name: 'demo-weather',
+        catalog_name: bundledPluginCatalog[0]!.name,
         description: '',
         installed_sha: 'a'.repeat(40),
         key: 'demo-weather',
-        name: 'demo-weather',
+        name: bundledPluginCatalog[0]!.name,
         source: 'git',
         status: 'enabled',
         update_available: false,
@@ -502,16 +471,7 @@ describe('PluginsTab catalog UX', () => {
 
     render(<PluginsTab profile={null} />)
 
-    window.dispatchEvent(
-      new MessageEvent('message', {
-        data: {
-          name: 'demo-weather',
-          repo: 'https://github.com/example/demo-weather',
-          type: 'hermes-plugin-pick'
-        },
-        origin: CATALOG_ORIGIN
-      })
-    )
+    fireEvent.click(screen.getByRole('button', { name: `Review: ${bundledPluginCatalog[0]!.name}` }))
 
     // The modal must NOT open — the pick is refused with a toast.
     await new Promise(resolve => setTimeout(resolve, 20))
@@ -521,11 +481,11 @@ describe('PluginsTab catalog UX', () => {
   it('still opens the modal for an installed pick when an update is available', async () => {
     $agentPlugins.set([
       {
-        catalog_name: 'demo-weather',
+        catalog_name: bundledPluginCatalog[0]!.name,
         description: '',
         installed_sha: 'a'.repeat(40),
         key: 'demo-weather',
-        name: 'demo-weather',
+        name: bundledPluginCatalog[0]!.name,
         source: 'git',
         status: 'enabled',
         update_available: true,
@@ -535,16 +495,7 @@ describe('PluginsTab catalog UX', () => {
 
     render(<PluginsTab profile={null} />)
 
-    window.dispatchEvent(
-      new MessageEvent('message', {
-        data: {
-          name: 'demo-weather',
-          repo: 'https://github.com/example/demo-weather',
-          type: 'hermes-plugin-pick'
-        },
-        origin: CATALOG_ORIGIN
-      })
-    )
+    fireEvent.click(screen.getByRole('button', { name: `Review: ${bundledPluginCatalog[0]!.name}` }))
 
     await waitFor(() => expect($pluginInstallRequest.get()).not.toBeNull())
   })

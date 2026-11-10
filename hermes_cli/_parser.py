@@ -45,7 +45,7 @@ def top_level_value_flag_sets() -> tuple[frozenset[str], frozenset[str]]:
 
     Introspects ``build_top_level_parser()`` (every option with nargs != 0) so the argv scanners in
     ``main.py`` (``_first_positional_argv``, ``_apply_profile_override``) can never drift from the
-    argparse surface — the drift that made ``hermes --reasoning high chat …`` misread ``high`` as
+    argparse surface — the drift that made ``hebri --reasoning high chat …`` misread ``high`` as
     the subcommand and forced eager plugin discovery.
 
     Mirrors the ``update_cmd._holder_value_flags`` precedent, including the handwritten-snapshot fallback
@@ -74,52 +74,52 @@ def _inherited_flag(parser, *args, **kwargs):
 
 _EPILOGUE = """
 Examples:
-    hermes                        Start interactive chat
-    hermes chat -q "Hello"        Single query mode
-    hermes --tui                  Launch the modern TUI (or set display.interface: tui)
-    hermes --cli                  Force the classic REPL (overrides display.interface: tui)
-    hermes -c                     Resume the most recent session
-    hermes -c "my project"        Resume a session by name (latest in lineage)
-    hermes --resume <session_id>  Resume a specific session by ID
-    hermes --resume latest        Resume the most recent session (same as -c)
-    hermes --tui --resume latest --in ./dir   Resume ./dir's latest session in the TUI
-    hermes setup                  Run setup wizard
-    hermes logout                 Clear stored authentication
-    hermes auth add <provider>    Add a pooled credential
-    hermes auth list              List pooled credentials
-    hermes auth remove <p> <t>    Remove pooled credential by index, id, or label
-    hermes auth reset <p> [t]     Clear exhaustion status for a provider, or one credential
-    hermes auth priority <p> <t> <n>  Move a pooled credential to priority n (0 = tried first)
-    hermes auth refresh <p> [t]   Refresh a pooled OAuth credential and clear its cooldown
-    hermes model                  Select default model
-    hermes fallback [list]        Show fallback provider chain
-    hermes fallback add           Add a fallback provider (same picker as `hermes model`)
-    hermes fallback remove        Remove a fallback provider from the chain
-    hermes config                 View configuration
-    hermes config edit            Edit config in $EDITOR
-    hermes config set model gpt-4 Set a config value
-    hermes gateway                Run messaging gateway
-    hermes gateway install        Install gateway background service
-    hermes gateway start          Start the installed gateway service
-    hermes gateway stop           Stop the gateway service
-    hermes gateway status         Show gateway status
-    hermes -p <profile> <cmd>     Run any command against a named profile's
-                                  home (also --profile) — e.g. hermes -p coder gateway stop
-    hermes -s hermes-agent-dev,github-auth
-    hermes -w                     Start in isolated git worktree
-    hermes sessions list          List past sessions
-    hermes sessions browse        Interactive session picker
-    hermes sessions rename ID T   Rename/title a session
-    hermes logs                   View agent.log (last 50 lines)
-    hermes logs -f                Follow agent.log in real time
-    hermes logs errors            View errors.log
-    hermes logs --since 1h        Lines from the last hour
-    hermes debug share             Upload debug report for support
-    hermes console                Open the safe Hermes command console
-    hermes update                 Update to latest version
-    hermes dashboard              Start web UI dashboard (port 9119)
-    hermes dashboard --stop       Stop running dashboard processes
-    hermes dashboard --status     List running dashboard processes
+    hebri                         Start interactive chat
+    hebri chat -q "Hello"        Single query mode
+    hebri --tui                  Launch the modern TUI (or set display.interface: tui)
+    hebri --cli                  Force the classic REPL (overrides display.interface: tui)
+    hebri -c                     Resume the most recent session
+    hebri -c "my project"        Resume a session by name (latest in lineage)
+    hebri --resume <session_id>  Resume a specific session by ID
+    hebri --resume latest        Resume the most recent session (same as -c)
+    hebri --tui --resume latest --in ./dir   Resume ./dir's latest session in the TUI
+    hebri setup                  Run setup wizard
+    hebri logout                 Clear stored authentication
+    hebri auth add <provider>    Add a pooled credential
+    hebri auth list              List pooled credentials
+    hebri auth remove <p> <t>    Remove pooled credential by index, id, or label
+    hebri auth reset <p> [t]     Clear exhaustion status for a provider, or one credential
+    hebri auth priority <p> <t> <n>  Move a pooled credential to priority n (0 = tried first)
+    hebri auth refresh <p> [t]   Refresh a pooled OAuth credential and clear its cooldown
+    hebri model                  Select default model
+    hebri fallback [list]        Show fallback provider chain
+    hebri fallback add           Add a fallback provider (same picker as `hebri model`)
+    hebri fallback remove        Remove a fallback provider from the chain
+    hebri config                 View configuration
+    hebri config edit            Edit config in $EDITOR
+    hebri config set model gpt-4 Set a config value
+    hebri gateway                Run messaging gateway
+    hebri gateway install        Install gateway background service
+    hebri gateway start          Start the installed gateway service
+    hebri gateway stop           Stop the gateway service
+    hebri gateway status         Show gateway status
+    hebri -p <profile> <cmd>     Run any command against a named profile's
+                                  home (also --profile) — e.g. hebri -p coder gateway stop
+    hebri -s hermes-agent-dev,github-auth
+    hebri -w                     Start in isolated git worktree
+    hebri sessions list          List past sessions
+    hebri sessions browse        Interactive session picker
+    hebri sessions rename ID T   Rename/title a session
+    hebri logs                   View agent.log (last 50 lines)
+    hebri logs -f                Follow agent.log in real time
+    hebri logs errors            View errors.log
+    hebri logs --since 1h        Lines from the last hour
+    hebri debug share             Upload debug report for support
+    hebri console                Open the safe Hermes command console
+    hebri update                 Update to latest version
+    hebri dashboard              Start web UI dashboard (port 9119)
+    hebri dashboard --stop       Stop running dashboard processes
+    hebri dashboard --status     List running dashboard processes
 
 For more help on a command:
     hermes <command> --help
@@ -149,7 +149,7 @@ def _add_top_level_flags(parser: argparse.ArgumentParser) -> None:
     inherited(parser, "--provider", default=None, help=(
         "Provider override for this invocation (e.g. openrouter, anthropic). "
         "Applies to -z/--oneshot and --tui. The persistent provider lives in config.yaml "
-        "under model.provider — use `hermes setup` or edit the file to change it."))
+        "under model.provider — use `hebri setup` or edit the file to change it."))
     inherited(parser, "--reasoning", default=None, metavar="LEVEL", help=(
         "Reasoning effort for this invocation: none, minimal, low, medium, "
         "high, xhigh, max, or ultra. Overrides agent.reasoning_effort in "
@@ -200,7 +200,7 @@ def _build_chat_parser(subparsers) -> argparse.ArgumentParser:
     """The ``chat`` subparser (also the implicit default command).
 
     Flags ALSO declared on the top-level parser use ``default=argparse.SUPPRESS``: for
-    ``hermes -m foo chat`` argparse first sets ``args.model`` from the top-level parser, then
+    ``hebri -m foo chat`` argparse first sets ``args.model`` from the top-level parser, then
     dispatches to the chat subparser, which shares the namespace and ``dest`` — a plain ``None``
     default would silently clobber the top-level value. SUPPRESS keeps the subparser action a no-op
     unless the flag is actually passed after the subcommand (tests/hermes_cli/
@@ -311,7 +311,7 @@ class HermesArgumentParser(argparse.ArgumentParser):
 
     def _check_value(self, action, value):
         if isinstance(action, argparse._SubParsersAction) and value not in action.choices:
-            # ``self.prog`` is "hermes" at the top level and "hermes gateway" for a nested group
+            # ``self.prog`` is "hermes" at the top level and "hebri gateway" for a nested group
             # (argparse hands add_parser() the parent's class), so the copy stays correct for both.
             lines = [f"{self.prog}: '{value}' is not a `{self.prog}` command."]
             close = difflib.get_close_matches(str(value), list(action.choices), n=3, cutoff=0.6)
@@ -330,10 +330,10 @@ def build_top_level_parser():
     ``subparsers.add_parser(...)``.
     """
     parser = HermesArgumentParser(
-        prog="hermes", description="Hebri - AI assistant with tool-calling capabilities",
+        prog="hebri", description="Hebri - AI assistant with tool-calling capabilities",
         formatter_class=argparse.RawDescriptionHelpFormatter, epilog=_EPILOGUE)
     _add_top_level_flags(parser)
     # metavar keeps the usage line to ``hermes [...] <command>`` instead of the brace list of
-    # every subcommand name; ``hermes --help`` still lists each command with its help row.
+    # every subcommand name; ``hebri --help`` still lists each command with its help row.
     subparsers = parser.add_subparsers(dest="command", help="Command to run", metavar="<command>")
     return parser, subparsers, _build_chat_parser(subparsers)

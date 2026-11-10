@@ -132,7 +132,11 @@ def _install_session_record_factory() -> None:
         # ContextVar is gone; keep the resolved home on the record so a
         # multiplex desktop ticker can route to the job owner's files (#97489).
         try:
-            record.hermes_home = str(get_hermes_home().resolve())  # type: ignore[attr-defined]
+            from agent.secret_scope import is_multiplex_active
+            from hermes_constants import get_hermes_home_override
+            # No task scope in a multiplex process means no attributable owner.
+            record.hermes_home = ("" if is_multiplex_active() and not get_hermes_home_override()
+                                  else str(get_hermes_home().resolve()))  # type: ignore[attr-defined]
         except Exception:
             record.hermes_home = ""  # type: ignore[attr-defined]
         return record
@@ -155,7 +159,7 @@ class _ComponentFilter(logging.Filter):
         return record.name.startswith(self._prefixes)
 
 
-# Logger name prefixes per component; used by _ComponentFilter and ``hermes logs --component``.
+# Logger name prefixes per component; used by _ComponentFilter and ``hebri logs --component``.
 COMPONENT_PREFIXES = {
     # ``plugins.platforms``: messaging adapters that migrated out of
     # ``gateway/platforms/`` into bundled plugins (#41112) are still gateway
@@ -219,7 +223,7 @@ def setup_logging(
     home = hermes_home or get_hermes_home()
     log_dir = mkdir_under_hermes_home(home / "logs")
     # A second Hermes home in a process that already logs for another one — a dashboard or
-    # ``hermes serve`` backend building agents for several profiles, a multiplexed gateway —
+    # ``hebri serve`` backend building agents for several profiles, a multiplexed gateway —
     # gets routed by record home. Stacking another file handler here would hand it EVERY
     # profile's records (the handlers carry no home filter), and a duplicate writer on top of
     # an existing router.
@@ -440,17 +444,37 @@ class _ProfileRoutingFileHandler(logging.Handler):
         self._backup_count = getattr(existing, "backupCount", 0)
         self._profile_handlers: dict[Path, _ManagedRotatingFileHandler] = {}
         self._profile_handlers_lock = threading.RLock()
+        self.unrouted_count = 0
+        self._unrouted_handler = None
         self.setFormatter(existing.formatter)
         for log_filter in existing.filters:
             self.addFilter(log_filter)
 
-    def _home_for_record(self, record: logging.LogRecord) -> Path:
+    def _home_for_record(self, record: logging.LogRecord) -> Path | None:
         raw_home = getattr(record, "hermes_home", "")
+        if not isinstance(raw_home, str) or not raw_home:
+            return None
         try:
             candidate = Path(raw_home).expanduser().resolve()
         except (TypeError, ValueError, OSError):
-            candidate = self._default_home
-        return candidate if candidate in self._profile_homes else self._default_home
+            return None
+        return candidate if candidate in self._profile_homes else None
+
+    def _record_unrouted(self) -> None:
+        self.unrouted_count += 1
+        if self.unrouted_count != 1:
+            return
+        # An unknown owner's text cannot be redacted under a known secret scope.
+        # Keep a diagnostic, never attribute that payload to the launch Bit.
+        path = self._default_home / "logs" / ("unrouted-" + self._filename)
+        self._unrouted_handler = _new_file_handler(
+            path, level=logging.WARNING, max_bytes=self._max_bytes,
+            backup_count=self._backup_count, formatter=self.formatter)
+        diagnostic = logging.LogRecord("hermes_logging", logging.WARNING, __file__, 0,
+            "Unattributed log record withheld; bind a profile scope at the producer. "
+            "Further events are counted in unrouted_count.", (), None)
+        diagnostic.session_tag = ""
+        self._unrouted_handler.handle(diagnostic)
 
     def _handler_for_home(self, home: Path) -> _ManagedRotatingFileHandler:
         with self._profile_handlers_lock:
@@ -464,6 +488,9 @@ class _ProfileRoutingFileHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         try:
             home = self._home_for_record(record)
+            if home is None:
+                self._record_unrouted()
+                return
             handler = self._handler_for_home(home)
             if home == self._default_home:
                 handler.handle(record)
@@ -482,6 +509,9 @@ class _ProfileRoutingFileHandler(logging.Handler):
     def close(self) -> None:
         with self._profile_handlers_lock:
             handlers = list(self._profile_handlers.values())
+            if self._unrouted_handler is not None:
+                handlers.append(self._unrouted_handler)
+                self._unrouted_handler = None
             self._profile_handlers.clear()
         for handler in handlers:
             _quietly(handler.close)

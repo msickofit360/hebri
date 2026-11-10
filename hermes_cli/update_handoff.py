@@ -1,6 +1,6 @@
-"""Post-swap hand-off: finish ``hermes update`` in an interpreter born on the pulled code.
+"""Post-swap hand-off: finish ``hebri update`` in an interpreter born on the pulled code.
 
-``hermes update`` starts in an interpreter that imported the PRE-pull tree. Once ``git merge``
+``hebri update`` starts in an interpreter that imported the PRE-pull tree. Once ``git merge``
 (or the ZIP swap) has replaced the checkout, every later phase — dependency sync, Node/web/
 Desktop builds, maintenance, fleet restart, verification, receipt — used to keep running in
 that stale process and lazily import NEW source into an OLD ``sys.modules`` graph. Any rename
@@ -10,7 +10,7 @@ and their siblings). Module purges and targeted reloads only ever moved the cras
 unpurged module.
 
 The permanent shape: the pre-pull process stops at the swap, writes everything the tail needs
-into a hand-off file and re-executes ``hermes update --post-swap <file>`` under the venv
+into a hand-off file and re-executes ``hebri update --post-swap <file>`` under the venv
 interpreter. The child imports exclusively from the pulled tree, resumes the open receipt and
 owns the rest of the run; the parent relays its exit code. Nothing in the updater runs pulled
 code inside a pre-pull interpreter any more, so there is no stale-symbol class left to isolate.
@@ -187,7 +187,7 @@ def _post_swap_cwd() -> str:
     """Directory the child must start in so a stale editable finder can still import.
 
     ``python -m`` puts the process cwd on ``sys.path[0]``, not the checkout. Invoking
-    ``hermes update`` from elsewhere then resolves new top-level names only through the
+    ``hebri update`` from elsewhere then resolves new top-level names only through the
     installed finder. If that map is stale, the child dies in ``import hermes_cli.main``
     before the dependency sync can refresh it (#119466).
     """

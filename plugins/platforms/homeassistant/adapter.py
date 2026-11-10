@@ -79,7 +79,7 @@ def _connect_error_detail(exc: BaseException) -> str:
             and getattr(os_error, "errno", None) == errno.EHOSTUNREACH):
         return (
             f"{text} — macOS Local Network Privacy is blocking this launchd gateway from the LAN. "
-            "Run `hermes gateway install` to regenerate the launchd job, then `hermes gateway restart`. "
+            "Run `hebri gateway install` to regenerate the launchd job, then `hebri gateway restart`. "
             "https://github.com/NousResearch/hermes-agent/issues/71206"
         )
     return text

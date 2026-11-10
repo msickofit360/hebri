@@ -1559,7 +1559,7 @@ class SlackAdapter(BasePlatformAdapter):
                     "is missing the 'mpim:history' scope and 'message.mpim' event. Add "
                     "'mpim:history' (and 'mpim:read') to bot scopes, add 'message.mpim' to event "
                     "subscriptions, then REINSTALL the app to the workspace. Regenerating the app "
-                    "from `hermes slack` produces a manifest with these already included.",
+                    "from `hebri slack` produces a manifest with these already included.",
                     team_key or "this workspace")
         except Exception:  # pragma: no cover - diagnostics must never break connect
             pass
@@ -1649,11 +1649,11 @@ class SlackAdapter(BasePlatformAdapter):
             logger.debug(
                 "[Slack] Ignoring unhandled event type=%s (no listener registered; subscribed "
                 "events not handled by Hebri can be removed from the Slack app manifest via "
-                "`hermes slack manifest`)",
+                "`hebri slack manifest`)",
                 (event or {}).get("type", (body or {}).get("event", {}).get("type", "unknown")))
 
         # Every COMMAND_REGISTRY command is a native slash via one regex matcher. Commands must
-        # ALSO be declared in the app manifest (`hermes slack manifest`): Socket Mode won't
+        # ALSO be declared in the app manifest (`hebri slack manifest`): Socket Mode won't
         # deliver undeclared commands at all.
         from hermes_cli.commands_platforms import slack_native_slashes
         _slash_names = [name for name, _d, _h in slack_native_slashes()]
@@ -1846,7 +1846,7 @@ class SlackAdapter(BasePlatformAdapter):
             "gateway.", env_name, env_name)
         self._set_fatal_error(
             f"missing_{env_name.lower()}",
-            f"{env_name} not configured. Use `hermes gateway setup` "
+            f"{env_name} not configured. Use `hebri gateway setup` "
             "or add it to your active profile's ~/.hermes/.env file, then restart the gateway.",
             retryable=False)
 
@@ -1867,7 +1867,7 @@ class SlackAdapter(BasePlatformAdapter):
             logger.info(
                 "[Slack] allow_bots=%s — for bot-to-bot interop also ensure: (a) the Slack "
                 "app manifest subscribes to message.channels / message.groups / message.im as "
-                "appropriate (run 'hermes slack manifest' if unsure), and (b) the other bot's "
+                "appropriate (run 'hebri slack manifest' if unsure), and (b) the other bot's "
                 "Slack user id is in SLACK_ALLOWED_USERS or GATEWAY_ALLOW_ALL_USERS=true. "
                 "Without these, bot events are silently dropped upstream of the allow_bots "
                 "gate.", _allow_bots_cfg)
@@ -5942,7 +5942,7 @@ class SlackAdapter(BasePlatformAdapter):
         ``<subcommand> [args]`` via the registry, else free-form text is a regular question."""
         slash_name = (command.get("command") or "").lstrip("/").strip()
         raw_text = str(command.get("text") or "")
-        if slash_name not in {"hermes", ""}:
+        if slash_name not in {"hebri", "hermes", ""}:
             return f"/{slash_name}" if not raw_text else f"/{slash_name} {raw_text}"
         legacy_text = raw_text.strip()
         from hermes_cli.commands_platforms import slack_subcommand_map
@@ -6644,7 +6644,7 @@ def _write_slack_manifest_and_instruct() -> None:
             "→ App Manifest → Edit, then Save.  Slack will prompt to "
             "reinstall if scopes or slash commands changed.")
         print_info(
-            "   Re-run `hermes slack manifest --write` anytime to refresh after "
+            "   Re-run `hebri slack manifest --write` anytime to refresh after "
             "Hebri adds new commands.")
     except Exception as e:
         print_warning(f"Could not write Slack manifest: {e}")
@@ -6663,7 +6663,7 @@ def interactive_setup() -> None:
         # Still offer a manifest refresh so new commands get registered.
         if prompt_yes_no(
             "Regenerate the Slack app manifest with the latest command "
-            "list? (recommended after `hermes update`)", True):
+            "list? (recommended after `hebri update`)", True):
             _write_slack_manifest_and_instruct()
         return
     for line in _SETUP_STEPS:
@@ -6740,7 +6740,7 @@ def register(ctx) -> None:
         ensure_deps_fn=check_slack_requirements,
         is_connected=_is_connected,
         required_env=["SLACK_BOT_TOKEN", "SLACK_APP_TOKEN"],
-        install_hint="Run `hermes setup` to install Slack support.",
+        install_hint="Run `hebri setup` to install Slack support.",
         setup_fn=interactive_setup,
         # YAML→env bridge: config.yaml slack: keys → SLACK_* env vars read via os.getenv().
         # YAML→env config bridge — owns the translation of config.yaml slack: keys (require_mention,

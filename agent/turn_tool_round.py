@@ -161,6 +161,19 @@ def run_tool_round(
         failed = True
         return _verdict("break")
 
+    from agent.delegation_failure_policy import tool_failure_response
+    stopped_response = tool_failure_response(agent)
+    if stopped_response is not None:
+        final_response = stopped_response
+        failed = True
+        _turn_exit_reason = "tool_error"
+        append_message(messages, {"role": "assistant", "content": final_response})
+        if agent.stream_delta_callback:
+            with suppress(Exception):
+                agent.stream_delta_callback(final_response)
+                agent.stream_delta_callback(None)
+        return _verdict("break")
+
     if agent._tool_guardrail_halt_decision is not None:
         decision = agent._tool_guardrail_halt_decision
         _turn_exit_reason = "guardrail_halt"

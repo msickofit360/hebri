@@ -206,7 +206,7 @@ def get_routing_process_hermes_home() -> Path:
 
 # Hermes-managed runtime downloads at the root of a home (GGUF models, llama.cpp runtimes,
 # managed Node): re-downloadable on demand and routinely tens to hundreds of GB. Shared by
-# ``hermes backup`` (excludes them) and ``profile create --clone-all`` (skips them from the
+# ``hebri backup`` (excludes them) and ``profile create --clone-all`` (skips them from the
 # default profile) so the two lists cannot drift apart.
 LOCAL_RUNTIME_ROOT_DIRS: frozenset[str] = frozenset({"models", "runtimes", "node"})
 
@@ -333,7 +333,7 @@ def named_profile_has_servable_identity(profile_home: str | Path) -> bool:
     """Stricter than :func:`named_profile_has_identity`: is this dir a profile a host should change
     its own posture for?
 
-    An EMPTY ``.env`` is all a crashed ``hermes profile create`` leaves behind, and it is enough for
+    An EMPTY ``.env`` is all a crashed ``hebri profile create`` leaves behind, and it is enough for
     ``named_profile_has_identity``. Listing such a shell is harmless; counting it as a second tenant
     is not — it flips the whole host's credential reads fail-closed at the next boot. Every other
     marker, and a non-empty or symlinked ``.env``, still counts.
@@ -584,7 +584,7 @@ def _print_managed_node_in_use_notice() -> None:
     _managed_node_in_use_notice_printed = True
     print(
         "→ Hermes-managed Node.js is in use by a running app; deferring its "
-        "upgrade until the app is closed (re-run `hermes update` afterwards).", flush=True,
+        "upgrade until the app is closed (re-run `hebri update` afterwards).", flush=True,
     )
 
 
@@ -847,7 +847,7 @@ def agent_browser_runnable(path: str | None) -> bool:
 
     A bare presence check (``shutil.which`` / ``Path.exists``) is not enough: agent-browser's npm
     ``postinstall`` re-points a *global* install symlink (e.g. ``/opt/homebrew/bin/agent-browser``) at our
-    local ``node_modules/agent-browser/bin/...`` binary, which then disappears on the next ``hermes update``
+    local ``node_modules/agent-browser/bin/...`` binary, which then disappears on the next ``hebri update``
     — leaving a **dangling symlink** that ``which`` still reports but exec fails on with exit 127 (issue
     #48521). Callers that trust such a path silently break every browser tool.
     """
@@ -1030,6 +1030,10 @@ def get_subprocess_home(env: dict[str, str] | None = None) -> str | None:
 def apply_subprocess_home_env(env: MutableMapping[str, str]) -> None:
     """Apply Hermes' subprocess HOME contract to *env* in-place: ``HOME``/``HERMES_REAL_HOME``
     per the home mode, and the temp vars re-pointed at ``env["HERMES_HOME"]``'s scratch dir."""
+    # Public `hebri` entry points must inherit the served profile, not a stale
+    # launch-profile HEBRI_HOME or an unrelated upstream Hermes installation.
+    if profile_home := _env_get(env, "HERMES_HOME"):
+        env["HEBRI_HOME"] = profile_home
     real_home = get_real_home(env)
     if real_home:
         env["HERMES_REAL_HOME"] = real_home
@@ -1086,7 +1090,7 @@ _LEGACY_MANAGED_SYSTEM = "nixos"
 # detection instead of blocking config writes.
 _IGNORED_MANAGED_VALUES = frozenset({"brew", "homebrew"})
 # Explicit opt-out (``HERMES_MANAGED=false``): without this a bool-shaped value became a package
-# manager literally named "false" and is_managed() blocked `hermes update` (#12864).
+# manager literally named "false" and is_managed() blocked `hebri update` (#12864).
 _MANAGED_FALSE_VALUES = frozenset({"false", "0", "no", "off"})
 
 
@@ -1250,7 +1254,7 @@ def _prune_scratch_dir_once(scratch: Path) -> None:
 
 
 def scratch_dir_usage_bytes(scratch: Path | None = None) -> int:
-    """Total bytes under the scratch dir (for ``hermes doctor``); 0 when unreadable."""
+    """Total bytes under the scratch dir (for ``hebri doctor``); 0 when unreadable."""
     root = scratch if scratch is not None else get_scratch_dir(prune=False)
     total = 0
     for dirpath, _dirnames, filenames in os.walk(root, onerror=lambda _e: None):
@@ -1583,7 +1587,7 @@ def project_venv_dir(project_root) -> Path | None:
     Installers that keep the interpreter out of the checkout (``$HERMES_HOME/venvs/<name>``, the layout the
     shipped Windows launchers assume) have neither, and the ``project_venv_dir(root) or root / "venv"``
     idiom those call sites share then handed ``uv`` a ``VIRTUAL_ENV`` that does not exist: that one invented
-    path skipped the import probe, reclassified every ``hermes tools`` dependency as missing and failed the
+    path skipped the import probe, reclassified every ``hebri tools`` dependency as missing and failed the
     reinstall with interpreter errors (#116148). The interpreter running this module is the only truthful
     answer to "which venv is live", so fall back to it — but only for the checkout it was loaded from. A
     foreign root (test temp dir, another clone) still resolves to ``None``: handing it someone else's venv
@@ -1634,7 +1638,7 @@ def partial_update_hint(exc: BaseException) -> list[str]:
         "This looks like a partially-updated install: one module was refreshed "
         "and a related one was not.",
         "Re-run the update to bring the whole tree to the same version:",
-        "    hermes update",
+        "    hebri update",
         "If that also fails, reinstall: https://github.com/satoshilove/hebri#install",
     ]
 

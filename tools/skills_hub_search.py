@@ -24,11 +24,9 @@ from tools.skills_hub_sources import BrowseShSource, LobeHubSource, UrlSource, W
 # Log-record parity with the origin module.
 logger = logging.getLogger("tools.skills_hub")
 
-# The old upstream index must not be contacted by a Hebri build. Synapsek does
-# not publish an equivalent index yet, so the hub intentionally uses its
-# direct source adapters below. Set this to the real Synapsek endpoint only
-# when that endpoint is deployed and monitored.
-HERMES_INDEX_URL = ""
+# Paired with the Synapsek portal Skills Hub release. Direct adapters and the
+# profile-local stale cache remain available if the public index is unavailable.
+HERMES_INDEX_URL = "https://synapseklabs.org/docs/api/skills-index.json"
 HERMES_INDEX_TTL = 6 * 3600  # 6 hours
 
 
@@ -38,7 +36,7 @@ def _hermes_index_cache_file() -> Path:
 
 
 def _load_hermes_index() -> Optional[dict]:
-    """Fetch the centralized skills index (docs site, rebuilt daily), cached
+    """Fetch the centralized skills index (portal snapshot), cached
     locally for HERMES_INDEX_TTL; on any failure serve the stale cache.
 
     Brotli is deliberately NOT negotiated: the index is tens of MB and httpx's

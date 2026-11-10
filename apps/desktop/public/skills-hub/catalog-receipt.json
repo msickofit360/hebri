@@ -1,0 +1,14 @@
+{
+  "generated_at": "2026-11-06T14:38:43.482495+00:00",
+  "skill_count": 104748,
+  "counts": {
+    "official": 163,
+    "skills.sh": 20000,
+    "github": 1114,
+    "clawhub": 82487,
+    "browse-sh": 479,
+    "lobehub": 505
+  },
+  "sha256": "41755e51fbb039fb55b4ebacc295b3e6192359e962d7462cf8c4762520f2ffd9",
+  "bytes": 44830180
+}

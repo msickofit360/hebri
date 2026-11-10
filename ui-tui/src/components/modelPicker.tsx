@@ -326,7 +326,7 @@ export function ModelPicker({
                         authenticated: false,
                         models: [],
                         total_models: 0,
-                        warning: p.key_env ? `paste ${p.key_env} to activate` : 'run `hermes model` to configure'
+                        warning: p.key_env ? `paste ${p.key_env} to activate` : 'run `hebri model` to configure'
                       }
                     : p
                 )
@@ -450,7 +450,7 @@ export function ModelPicker({
             setFilter('')
           }
 
-          // Other auth types: no-op (warning shown tells them to run hermes model)
+          // Other auth types: no-op (warning shown tells them to run hebri model)
           return
         }
 

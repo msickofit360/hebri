@@ -1,4 +1,4 @@
-"""External-tool checks for hermes doctor: terminal backends, git/rg, Node + agent-browser, npm audit, tool availability.
+"""External-tool checks for hebri doctor: terminal backends, git/rg, Node + agent-browser, npm audit, tool availability.
 Split out of ``hermes_cli/doctor.py``, which re-exports every name so ``hermes_cli.doctor.<name>`` keeps resolving (and monkeypatching)."""
 
 from __future__ import annotations
@@ -120,7 +120,7 @@ def _enabled_cli_toolsets_for_doctor() -> set[str] | None:
 # `requires_env`, so the generic branch would call a missing credential a "system dependency".
 # Name the real fix instead (#9516).
 _TOOLSET_SETUP_HINTS: dict[str, str] = {
-    "image_gen": "(image generation unavailable — check the provider selection and its key or SDK with 'hermes tools')",
+    "image_gen": "(image generation unavailable — check the provider selection and its key or SDK with 'hebri tools')",
 }
 
 
@@ -151,7 +151,7 @@ def _check_docker_backend(terminal_env: str, running_in_container: bool, issues:
     if terminal_env == "docker":
         if not docker_exe:
             _fail_and_issue("Docker or Podman not installed", "(needed for the 'docker' terminal backend)",
-                            "Install Docker or Podman, or run `hermes setup terminal` to switch backend.", issues)
+                            "Install Docker or Podman, or run `hebri setup terminal` to switch backend.", issues)
         else:
             runtime = docker_runtime_name(docker_exe)
             hint = docker_runtime_start_hint(docker_exe)
@@ -163,7 +163,7 @@ def _check_docker_backend(terminal_env: str, running_in_container: bool, issues:
             _require(_run_ok([docker_exe, "version"], timeout=10),
                      (runtime, "(daemon running)" if runtime == "Docker" else "(reachable)"),
                      (unreachable, "(needed for the 'docker' terminal backend)"),
-                     f"{hint[0].upper()}{hint[1:]}, or run `hermes setup terminal` to switch backend.", issues)
+                     f"{hint[0].upper()}{hint[1:]}, or run `hebri setup terminal` to switch backend.", issues)
     elif docker_exe:
         check_ok(docker_runtime_name(docker_exe), "(optional)")
     elif _is_termux():
@@ -176,7 +176,7 @@ def _check_ssh_backend(issues: list[str]) -> None:
     ssh_host = os.getenv("TERMINAL_SSH_HOST")
     if not ssh_host:
         return _fail_and_issue("SSH host not configured", "(needed for the 'ssh' terminal backend)",
-                               "run `hermes setup terminal` and enter the SSH host and user.", issues)
+                               "run `hebri setup terminal` and enter the SSH host and user.", issues)
     ssh_user, ssh_port, ssh_key = (os.getenv(f"TERMINAL_SSH_{k}") for k in ("USER", "PORT", "KEY"))
     cmd = ["ssh", "-o", "ConnectTimeout=5", "-o", "BatchMode=yes"]
     if ssh_port:
@@ -197,7 +197,7 @@ def _require(cond, ok, bad, issue: str, issues: list[str]) -> None:
 def _check_daytona_backend(issues: list[str]) -> None:
     _require(os.getenv("DAYTONA_API_KEY"), ("Daytona API key", "(configured)"),
              ("Daytona API key missing", "(needed for the 'daytona' terminal backend)"),
-             "run `hermes setup terminal` (Daytona) to enter it.", issues)
+             "run `hebri setup terminal` (Daytona) to enter it.", issues)
     try:
         from daytona import Daytona  # noqa: F401 — SDK presence check
         check_ok("daytona SDK", "(installed)")
@@ -286,7 +286,7 @@ def _check_agent_browser(should_fix: bool) -> bool:
     if resolved and _is_npx_agent_browser_sentinel(resolved):
         check_ok("agent-browser", "(resolves via npx on first use)")
         if should_fix:
-            # Can't tell whether npx's cache is warm — fire the same warm-up `hermes update` does.
+            # Can't tell whether npx's cache is warm — fire the same warm-up `hebri update` does.
             from tools.browser_tool_install import warm_agent_browser_npx_cache
             check_info("  Warmed npx cache for agent-browser" if warm_agent_browser_npx_cache()
                        else "  Could not warm npx cache (offline or npx unavailable)")
@@ -295,7 +295,7 @@ def _check_agent_browser(should_fix: bool) -> bool:
         check_ok("agent-browser", "(browser automation)")
         return True
     if resolved:
-        # Almost always a dangling global symlink left by npm postinstall after `hermes update` wiped node_modules.
+        # Almost always a dangling global symlink left by npm postinstall after `hebri update` wiped node_modules.
         check_warn("agent-browser found but not runnable", f"(broken symlink at {resolved}? run: npx agent-browser --version)")
     elif _is_termux():
         _termux_browser_hints("agent-browser is not installed (expected in the tested Termux path)",
@@ -352,7 +352,7 @@ def _check_lightpanda() -> None:
         used, reason = False, f"status check failed: {e}"
     if not used:
         check_warn("browser.engine=lightpanda is shadowed", f"({reason})")
-        check_info("Fix: pick Lightpanda in `hermes tools` → Browser Automation, or set browser.engine: auto")
+        check_info("Fix: pick Lightpanda in `hebri tools` → Browser Automation, or set browser.engine: auto")
     elif not check_bool(find_lightpanda_binary(), ("Lightpanda", f"({reason})"),
                         ("Lightpanda selected but binary not found", "(browser tools will fail until it is installed)")):
         check_info(LIGHTPANDA_INSTALL_HINT)
@@ -382,7 +382,7 @@ def _audit_one(npm_bin: str, npm_dir, label: str, audit_extra: list[str], issues
 
     Every row here audits a tree whose versions come from a COMMITTED lockfile
     (`npm ci` in `_run_npm_install_deterministic` reifies exactly that state on
-    every `hermes update`), so a local `npm audit fix` never persists — the next
+    every `hebri update`), so a local `npm audit fix` never persists — the next
     update's deterministic install restores the pinned (vulnerable) versions and
     the finding reappears. The durable remedy in every case is a lockfile bump
     on main (update `package-lock.json` and ship it); the doctor therefore never
@@ -403,7 +403,7 @@ def _audit_one(npm_bin: str, npm_dir, label: str, audit_extra: list[str], issues
         elif critical > 0 or high > 0:
             detail = "build-time tooling" if workspace_scoped else "runtime dependency tree"
             remedy = ("fix is an upstream lockfile bump — a local manual fix does not persist"
-                      " (the next `hermes update` reinstalls from the committed lockfile)")
+                      " (the next `hebri update` reinstalls from the committed lockfile)")
             check_warn(f"{label} deps", f"({critical} critical, {high} high, {moderate} moderate — {remedy})")
             if workspace_scoped:
                 check_info("  ^ build-time tooling (not runtime); if manual npm remediation "
@@ -481,4 +481,4 @@ def _check_tool_availability(should_fix: bool, f: Finding) -> None:
     # disabled toolsets may warn above but must not pollute it.
     api_disabled = _missing_api_key_toolsets_for_summary(unavailable)
     if api_disabled or any(status != "ok" for status, _, _ in web_rows):
-        f.issues.append("Run 'hermes setup' to configure missing API keys for full tool access")
+        f.issues.append("Run 'hebri setup' to configure missing API keys for full tool access")

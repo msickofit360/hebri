@@ -1,8 +1,8 @@
 import { useStore } from '@nanostores/react'
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router'
 
 import type { ProfileScope } from '@/hermes'
-import { openFreeTierSignIn } from '@/store/free-tier-sign-in'
 
 import type { McpServersController } from '../mcp/use-mcp-servers'
 
@@ -14,7 +14,6 @@ import {
   accountOperationFor,
   clearAccountOperation
 } from './data/account-operations'
-import { openConnectorsAdmin } from './data/portal'
 import { type HostedConnectorsView, useConnectorTools } from './data/queries'
 import { localServerName } from './derive'
 import { ConnectorDialogMenu } from './dialog-menu'
@@ -62,6 +61,7 @@ export function HostedConnectorDialog({
   profile,
   togglePending
 }: HostedConnectorDialogProps) {
+  const navigate = useNavigate()
   const tools = useConnectorTools(profile, card.slug, hosted.listSlugs.has(card.slug))
   const operation = accountOperationFor(useStore($accountOperations), card.slug)
   const inUse = wayInUse(card.ways)
@@ -83,9 +83,9 @@ export function HostedConnectorDialog({
       disabledTools={card.ways.hosted?.disabledTools}
       onDisconnect={onDisconnect}
       onRetryRules={hosted.retryRules}
-      onSignIn={() => openFreeTierSignIn()}
+      onSignIn={() => navigate('/settings?tab=billing')}
       policy={hosted.policy}
-      readOnly={hosted.rulesFailed}
+      readOnly
       rulesSignedOut={hosted.rulesSignedOut}
       scope={profile}
       tools={tools}
@@ -117,7 +117,7 @@ export function HostedConnectorDialog({
       onConnect={onConnect}
       onDisconnect={onDisconnect}
       onInstall={onInstall}
-      onOpenAdmin={() => void openConnectorsAdmin()}
+      onOpenAdmin={onReconnect}
       onOpenChange={next => {
         if (!next) {
           if (operation?.settled) {
@@ -134,7 +134,7 @@ export function HostedConnectorDialog({
       onWayChange={local ? setWay : undefined}
       open
       orgDisabledCount={orgDisabledCount(hosted.policy, card.slug, tools.tools)}
-      rulesReadOnly={hosted.rulesFailed}
+      rulesReadOnly
       togglePending={togglePending}
       tools={
         way === 'local' && local?.installed === true ? (

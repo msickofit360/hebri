@@ -28,9 +28,9 @@ from gateway.run_shutdown import _log_suppressed, _notice_target_key, _send_erro
 logger = logging.getLogger("gateway.run")
 
 # A failed /update leaves the previous version running; the full pip/git log stays on the host
-# (`hermes update` re-runs it in the terminal) and only a short tail is quoted in chat.
+# (`hebri update` re-runs it in the terminal) and only a short tail is quoted in chat.
 _UPDATE_FAILED_NOTICE = (
-    "❌ Hebri update failed; the previous version is still running. Run `hermes update` on the "
+    "❌ Hebri update failed; the previous version is still running. Run `hebri update` on the "
     "host to see the full error, or try /update again later.")
 
 # An update's completion notice waits for its target platform adapter to (re)connect before it
@@ -118,7 +118,7 @@ class GatewayNotificationsMixin:
 
     @dataclasses.dataclass
     class _UpdatePaths:
-        """Marker files ``hermes update --gateway`` and its watcher exchange under HERMES_HOME."""
+        """Marker files ``hebri update --gateway`` and its watcher exchange under HERMES_HOME."""
 
         pending: Path
         claimed: Path
@@ -649,7 +649,7 @@ class GatewayNotificationsMixin:
     async def _watch_update_progress(
         self, poll_interval: float = 2.0, stream_interval: float = 4.0, timeout: float = 1800.0
     ) -> None:
-        """Watch ``hermes update --gateway``, streaming output + forwarding prompts.
+        """Watch ``hebri update --gateway``, streaming output + forwarding prompts.
 
         Polls ``.update_output.txt`` for new content and sends chunks to the user periodically;
         detects ``.update_prompt.json`` (written when the update process needs input) and forwards it.

@@ -289,7 +289,7 @@ export function migrateActiveProfileIfMissing(desktopProfileConfigPath: string, 
   )
 
   // Same as the heuristic rung: pinning `default` into active-profile.json
-  // launches `hermes --profile default` and is worse than writing nothing
+  // launches `hebri --profile default` and is worse than writing nothing
   // (legacy sticky / implicit default). Covers a lone default gateway.pid.
   if (!decision || decision.profile === 'default') {
     if (existing?.migrated) {

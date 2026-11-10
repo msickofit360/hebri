@@ -33,7 +33,7 @@ export const accountCopy: Record<Locale, Copy> = {
     remove: 'Rimuovi solo la sessione locale',
     removeNotice: 'La rimozione della sessione locale non la revoca sul server.',
     error:
-      'Impossibile completare l’operazione. Sblocca l’archivio credenziali del sistema operativo e riprova. Se non riesci a uscire, riprova quando il servizio è disponibile.'
+      'Impossibile completare la richiesta. Aggiorna l’account per riprovare. Se una sessione salvata blocca l’accesso, esci prima di riconnetterti.'
   },
   en: {
     unavailable:
@@ -52,7 +52,7 @@ export const accountCopy: Record<Locale, Copy> = {
     remove: 'Remove local session only',
     removeNotice: 'Removing the local session does not revoke it on the server.',
     error:
-      'The account operation could not finish. Unlock your operating system credential store and retry. If sign-out fails, retry it when the service is available.'
+      'The account request could not finish. Refresh to retry. If a saved session blocks sign-in, sign out before reconnecting.'
   },
   de: {
     unavailable:
@@ -71,7 +71,7 @@ export const accountCopy: Record<Locale, Copy> = {
     remove: 'Nur lokale Sitzung entfernen',
     removeNotice: 'Das Entfernen der lokalen Sitzung widerruft sie nicht auf dem Server.',
     error:
-      'Der Vorgang konnte nicht abgeschlossen werden. Entsperre den Anmeldedatenspeicher deines Betriebssystems und versuche es erneut. Falls die Abmeldung fehlschlägt, wiederhole sie, sobald der Dienst verfügbar ist.'
+      'Die Kontoanfrage konnte nicht abgeschlossen werden. Aktualisiere das Konto, um es erneut zu versuchen. Falls eine gespeicherte Sitzung die Anmeldung blockiert, melde dich vor dem erneuten Verbinden ab.'
   },
   es: {
     unavailable:
@@ -89,7 +89,7 @@ export const accountCopy: Record<Locale, Copy> = {
     remove: 'Eliminar solo la sesión local',
     removeNotice: 'Eliminar la sesión local no la revoca en el servidor.',
     error:
-      'No se pudo completar la operación. Desbloquea el almacén de credenciales del sistema y vuelve a intentarlo. Si falla el cierre de sesión, repítelo cuando el servicio esté disponible.'
+      'No se pudo completar la solicitud. Actualiza la cuenta para volver a intentarlo. Si una sesión guardada bloquea el acceso, cierra la sesión antes de volver a conectarte.'
   },
   fr: {
     unavailable:
@@ -108,7 +108,7 @@ export const accountCopy: Record<Locale, Copy> = {
     remove: 'Supprimer uniquement la session locale',
     removeNotice: 'Supprimer la session locale ne la révoque pas sur le serveur.',
     error:
-      'L’opération n’a pas pu aboutir. Déverrouillez le stockage des identifiants du système et réessayez. Si la déconnexion échoue, réessayez lorsque le service est disponible.'
+      'La demande n’a pas pu aboutir. Actualisez le compte pour réessayer. Si une session enregistrée bloque la connexion, déconnectez-vous avant de vous reconnecter.'
   },
   ja: {
     unavailable:
@@ -127,7 +127,7 @@ export const accountCopy: Record<Locale, Copy> = {
     remove: 'ローカルセッションのみ削除',
     removeNotice: 'ローカルセッションを削除してもサーバー側では失効しません。',
     error:
-      '操作を完了できませんでした。OS の認証情報ストアを解除して再試行してください。サインアウトに失敗した場合はサービスの復旧後に再試行してください。'
+      'アカウントのリクエストを完了できませんでした。アカウントを更新して再試行してください。保存されたセッションがサインインを妨げている場合は、サインアウトしてから再接続してください。'
   },
   ru: {
     unavailable:
@@ -145,7 +145,7 @@ export const accountCopy: Record<Locale, Copy> = {
     remove: 'Удалить только локальную сессию',
     removeNotice: 'Удаление локальной сессии не отзывает её на сервере.',
     error:
-      'Не удалось завершить операцию. Разблокируйте хранилище учётных данных системы и повторите попытку. Если выход не удался, повторите его после восстановления сервиса.'
+      'Не удалось выполнить запрос. Обновите аккаунт, чтобы повторить попытку. Если сохранённая сессия мешает входу, выйдите перед повторным подключением.'
   },
   ar: {
     unavailable:
@@ -163,7 +163,7 @@ export const accountCopy: Record<Locale, Copy> = {
     remove: 'إزالة الجلسة المحلية فقط',
     removeNotice: 'إزالة الجلسة المحلية لا تلغيها على الخادم.',
     error:
-      'تعذّر إكمال العملية. افتح مخزن بيانات الاعتماد في نظام التشغيل وحاول مجددًا. إذا فشل تسجيل الخروج، أعد المحاولة عند توفر الخدمة.'
+      'تعذّر إكمال طلب الحساب. حدّث الحساب للمحاولة مجددًا. إذا كانت جلسة محفوظة تمنع تسجيل الدخول، فسجّل الخروج قبل إعادة الاتصال.'
   },
   zh: {
     unavailable: '此服务器尚未启用 Synapsek 桌面登录。你可以继续使用自己的模型提供商。',
@@ -178,7 +178,7 @@ export const accountCopy: Record<Locale, Copy> = {
     manage: '在 Synapsek 管理',
     remove: '仅移除本地会话',
     removeNotice: '移除本地会话不会撤销服务器上的会话。',
-    error: '无法完成操作。请解锁操作系统凭据存储后重试。如果退出登录失败，请在服务恢复后重试。'
+    error: '无法完成账户请求。请刷新账户后重试。如果已保存的会话阻止登录，请先退出登录再重新连接。'
   },
   'zh-hant': {
     unavailable: '此伺服器尚未啟用 Synapsek 桌面登入。你可以繼續使用自己的模型供應商。',
@@ -193,6 +193,6 @@ export const accountCopy: Record<Locale, Copy> = {
     manage: '在 Synapsek 管理',
     remove: '僅移除本機工作階段',
     removeNotice: '移除本機工作階段不會撤銷伺服器上的工作階段。',
-    error: '無法完成操作。請解鎖作業系統憑證儲存區後重試。如果登出失敗，請在服務恢復後重試。'
+    error: '無法完成帳戶請求。請重新整理帳戶後重試。如果已儲存的工作階段阻止登入，請先登出再重新連線。'
   }
 }

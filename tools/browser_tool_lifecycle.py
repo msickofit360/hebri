@@ -70,14 +70,14 @@ def _stop_all_lightpanda() -> None:
 
 def _emergency_cleanup_all_sessions():
     """atexit: close this process's sessions, then sweep orphans left by crashed
-    hermes processes — every clean exit reaps accumulated orphans, not only
+    hebri processes — every clean exit reaps accumulated orphans, not only
     processes that used the browser tool."""
     try:
         if _bt._cleanup_done:
             return
         _bt._cleanup_done = True
     except Exception:
-        # Interpreter shutdown (or a half-updated tree mid-`hermes update` where the
+        # Interpreter shutdown (or a half-updated tree mid-`hebri update` where the
         # origin's fresh import fails, e.g. #112437): no resolvable state, nothing to clean.
         return
 
@@ -101,7 +101,7 @@ def _emergency_cleanup_all_sessions():
     # Lightpanda servers we spawned that fell out of ``_active_sessions``.
     _best_effort("Lightpanda cleanup on exit", _stop_all_lightpanda)
     # Safe even if we never used the browser — owner_pid liveness protects daemons
-    # owned by other live hermes processes.
+    # owned by other live hebri processes.
     _best_effort("Orphan reap on exit", _reap_orphaned_browser_sessions)
 
 

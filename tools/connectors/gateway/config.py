@@ -66,17 +66,13 @@ def load_config() -> ConnectorConfig:
 
 
 def managed_tools_rolled_out() -> bool:
-    """The portal has enabled connectors for this account.
+    """A local Synapsek account broker is available; server rollout stays authoritative.
 
-    The gateway answers 404 to every ``/v1/connectors`` route for an account the portal has not
-    enabled, and 404 is indistinguishable from "dark" by design. Paid access or a free tool pool
-    says nothing about that, so entitlement is the wrong predicate here: the portal mints its
-    answer onto the token as ``managed_tools`` and this reads only that. A token minted before
-    the claim existed carries none and reads as not enabled."""
-    from hermes_cli.nous_account import get_nous_portal_account_info
-
-    account_info = get_nous_portal_account_info()
-    return bool(account_info.logged_in) and account_info.managed_tools_rolled_out
+    This check never signs in, refreshes credentials, registers a Bit or adopts a Nous identity.
+    Actual provider grants are checked by the Synapsek gateway on every operation.
+    """
+    from tools.connectors.gateway.synapsek import available
+    return available()
 
 
 def connectors_available(
@@ -85,22 +81,14 @@ def connectors_available(
 ) -> bool:
     """Fail closed so availability failures do not become model-visible errors.
 
-    The one gate for the connectors surface, and the tool's ``check_fn``: outside it the tool is
-    not in the schema at all, so the model never narrates a gateway 404 to a user the portal has
-    not enabled. Free-tier identities are always in; accounts are in only when the portal says so
-    via the token claim."""
+    The tool is offered only with a locally available Synapsek account broker.
+    Account sign-in never grants a connector; server permission checks remain mandatory.
+    """
     try:
         resolved_loader = config_loader or load_config
         if not resolved_loader().enabled:
             return False
         if entitlement_check is None:
-            from hermes_cli.anon_auth import is_guest_state
-            from tools.managed_tool_gateway import _read_nous_provider_state
-
-            # Availability must not mint or refresh an identity.
-            if is_guest_state(_read_nous_provider_state()):
-                return True
-
             entitlement_check = managed_tools_rolled_out
         return bool(entitlement_check())
     except Exception as e:

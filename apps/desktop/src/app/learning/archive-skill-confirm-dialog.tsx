@@ -4,7 +4,7 @@ import { useI18n as useLocaleUpdates } from '@/i18n'
 import { type Translations, useI18n } from '@/i18n'
 import { notify } from '@/store/notifications'
 
-export const ARCHIVE_SKILL_DESCRIPTION = 'The skill is archived and can be restored with `hermes curator restore`.'
+export const ARCHIVE_SKILL_DESCRIPTION = 'The skill is archived and can be restored with `hebri curator restore`.'
 
 export function notifySkillArchived(t: Translations): void {
   notify({ kind: 'success', message: t.skills.skillArchivedMessage, title: t.skills.skillArchivedTitle })

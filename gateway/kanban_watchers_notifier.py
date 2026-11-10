@@ -122,7 +122,7 @@ def _warn_anchorless_thread_sub_once(sub: dict, platform: str) -> None:
     _ANCHORLESS_WARNED.add(key)
     logger.warning(
         "kanban notifier: subscription for %s on %s thread %s has no parent_chat_id anchor and matched no "
-        "profile route; it will not be delivered. Re-subscribe with `hermes kanban notify-subscribe ... "
+        "profile route; it will not be delivered. Re-subscribe with `hebri kanban notify-subscribe ... "
         "--parent-chat-id <channel id> [--guild-id <guild id>]`.",
         sub.get("task_id"), platform, sub.get("chat_id"),
     )
@@ -187,7 +187,7 @@ def _adapter_for_subscription(runner: Any, platform: Any, sub: dict, owner_profi
                     sub, platform,
                     "kanban notifier: subscription for %s on %s chat %s is stamped with profile %s but a "
                     "profile_routes entry pins that chat to profile %s; it will not be delivered. "
-                    "Re-subscribe with `hermes kanban notify-subscribe ... --notifier-profile %s`.",
+                    "Re-subscribe with `hebri kanban notify-subscribe ... --notifier-profile %s`.",
                     profile, route.profile, route.profile)
                 return None
             from gateway.run import _multiplex_profile_homes
@@ -440,8 +440,8 @@ def _fmt_gave_up(ev, n) -> tuple:
     count = f"it failed {int(failures)} times in a row" if failures else "it kept failing"
     last = _clip(ev, "error", " (last: {})", 160)
     return (
-        f"⛔ {n.head} is now blocked: {count}{last}. Fix the cause, then `hermes kanban unblock "
-        f"{n.task_id}` (or `hermes kanban reassign {n.task_id}`). Logs: `hermes kanban log {n.task_id}`.",
+        f"⛔ {n.head} is now blocked: {count}{last}. Fix the cause, then `hebri kanban unblock "
+        f"{n.task_id}` (or `hebri kanban reassign {n.task_id}`). Logs: `hebri kanban log {n.task_id}`.",
         None, None,
     )
 
@@ -594,7 +594,7 @@ class _KanbanNotification:
     def _served_wake_profile(self) -> Optional[str]:
         """The subscription's profile when THIS gateway is a multiplexer serving it, else ``None``.
 
-        ``None`` keeps the historical path: a standalone ``hermes -p <name>`` gateway owns its own
+        ``None`` keeps the historical path: a standalone ``hebri -p <name>`` gateway owns its own
         listener and key, so its api_server wakes keep using the HTTP self-post.
         """
         if not self.sub_profile:

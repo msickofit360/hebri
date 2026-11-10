@@ -36,7 +36,7 @@ def _find_stale_dashboard_pids(*, exclude_pids: set[int] | None = None,
     )
     pids = [pid for pid, _cmd in _scan_dashboard_processes(exclude_pids=exclude_pids)]
     # The argv substring scan also selects the caller's own wrapper shell (``bash -c
-    # 'hermes dashboard --stop'``); killing it takes down the invoking terminal.
+    # 'hebri dashboard --stop'``); killing it takes down the invoking terminal.
     ancestors = _caller_ancestor_pids()
     pids = [pid for pid in pids if not _is_caller_wrapper_shell(pid, ancestors)]
     return _pids_owned_by_hermes_home(pids, scope_home) if scope_home else pids
@@ -44,30 +44,8 @@ def _find_stale_dashboard_pids(*, exclude_pids: set[int] | None = None,
 
 def _parse_dashboard_runtime(command: str) -> tuple[str, str, int] | None:
     """Best-effort parse of a dashboard/server cmdline into mode, host, and port."""
-    mode = None
-    for candidate in ("dashboard", "serve"):
-        patterns = (f"hermes {candidate}", f"hermes_cli.main {candidate}", f"hermes_cli/main.py {candidate}")
-        if any(pattern in command for pattern in patterns):
-            mode = candidate
-            break
-    if mode is None:
-        return None
-
-    port = 9119
-    host = "127.0.0.1"
-
-    port_match = re.search(r"(?:^|\s)--port(?:=|\s+)(\d+)", command)
-    if port_match:
-        try:
-            port = int(port_match.group(1))
-        except ValueError:
-            return None
-
-    host_match = re.search(r"(?:^|\s)--host(?:=|\s+)(\"[^\"]+\"|'[^']+'|\S+)", command)
-    if host_match:
-        host = host_match.group(1).strip("\"'") or "127.0.0.1"
-
-    return mode, host, port
+    from hermes_cli.dashboard_command import dashboard_runtime
+    return dashboard_runtime(command)
 
 
 def _dashboard_probe_host(host: str | None) -> str:
@@ -233,7 +211,7 @@ def _try_restart_systemd_service(svc_name: str, cgroup_path: str | None = None) 
     return False
 
 
-# launchd plist directories that can supervise a ``hermes dashboard`` / ``hermes serve`` backend on
+# launchd plist directories that can supervise a ``hebri dashboard`` / ``hebri serve`` backend on
 # macOS, with the launchctl domain their jobs load into (LaunchAgents: ``gui/<uid>`` or ``user/<uid>``,
 # probed per label like the gateway helpers; LaunchDaemons: ``system``). Both LaunchAgents dirs are
 # per-user domains, so they share the ``agent`` kind.
@@ -249,7 +227,7 @@ def _loaded_launchd_backend_jobs(
     plist_dirs: list[tuple[str, Path]] | None = None,
 ) -> list[tuple[str, str, list[str], int | None]]:
     """``(domain, label, program_arguments, live_pid)`` for every LOADED launchd job whose
-    ``ProgramArguments`` is a ``hermes dashboard`` / ``hermes serve`` backend. macOS only (empty
+    ``ProgramArguments`` is a ``hebri dashboard`` / ``hebri serve`` backend. macOS only (empty
     elsewhere). Reads the plists (unreadable/malformed ones are skipped) and asks ``launchctl print``
     per candidate label — a job that is not loaded in any domain is not returned, so an operator's
     stale plist never claims a process."""
@@ -362,7 +340,7 @@ def _dashboard_cmdline_for_pid(pid: int) -> list[str] | None:
 
 
 def _respawn_dashboard_processes(commands: list[list[str]]) -> list[list[str]]:
-    """Respawn manually-started dashboards after ``hermes update``, detached, logging to
+    """Respawn manually-started dashboards after ``hebri update``, detached, logging to
     ``logs/dashboard-restart.log``; returns the argvs that failed to spawn. Callers pre-filter via
     ``_filter_dashboard_respawn_candidates`` (no Desktop ``--port 0`` backends, capped per profile).
 
@@ -397,7 +375,7 @@ def _respawn_dashboard_processes(commands: list[list[str]]) -> list[list[str]]:
 
 
 class _UpdateOutputStream:
-    """stdout/stderr wrapper for ``hermes update``: mirrors to ``logs/update.log`` and, once the
+    """stdout/stderr wrapper for ``hebri update``: mirrors to ``logs/update.log`` and, once the
     terminal vanishes (BrokenPipe/OSError/ValueError), drops screen output instead of the update."""
 
     _BROKEN = (BrokenPipeError, OSError, ValueError)
@@ -473,7 +451,7 @@ def _install_hangup_protection(gateway_mode: bool = False):
         import datetime as _dt
 
         stage = "continued on the pulled code" if os.environ.get("HERMES_UPDATE_POST_SWAP") == "1" else "started"
-        log_file.write(f"\n=== hermes update {stage} {_dt.datetime.now().isoformat(timespec='seconds')} ===\n")
+        log_file.write(f"\n=== hebri update {stage} {_dt.datetime.now().isoformat(timespec='seconds')} ===\n")
 
         state["log_file"] = log_file
         sys.stdout = _UpdateOutputStream(state["prev_stdout"], log_file)
@@ -523,10 +501,10 @@ def _report_dashboard_status() -> int:
         live.append((pid, command, mode))
 
     if not live:
-        print("No hermes dashboard or serve processes running.")
+        print("No hebri dashboard or serve processes running.")
         return 0
 
-    print(f"{len(live)} hermes dashboard/serve process(es) running:")
+    print(f"{len(live)} hebri dashboard/serve process(es) running:")
     for pid, command, mode in live:
         print(f"    PID {pid} [{mode}]: {command}")
     return len(live)
@@ -582,7 +560,7 @@ def _maybe_setup_dashboard_auth_interactively(args) -> None:
     print()
     print("  How do you want to authenticate the dashboard?")
     print("    [1] Username & password (quickest; for a trusted LAN / VPN)")
-    print("    [2] OAuth via Nous Portal (run `hermes dashboard register`)\n    [3] Cancel\n")
+    print("    [2] OAuth via Nous Portal (run `hebri dashboard register`)\n    [3] Cancel\n")
 
     try:
         choice = input("  Choice [1]: ").strip() or "1"
@@ -594,7 +572,7 @@ def _maybe_setup_dashboard_auth_interactively(args) -> None:
         print(
             "  Run this on the host where the dashboard lives, then start "
             "the dashboard again:\n"
-            "    hermes dashboard register\n"
+            "    hebri dashboard register\n"
             "  It provisions a Nous Portal OAuth client and writes "
             "HERMES_DASHBOARD_OAUTH_CLIENT_ID into ~/.hermes/.env for you.\n"
             "  Docs: https://synapseklabs.org/docs/"
@@ -749,7 +727,7 @@ def _read_ssh_session_token_file(path: str) -> str:
 def _is_electron_packaged_web_dist(path: str) -> bool:
     """True when *path* is an Electron-packaged renderer dist (``app.asar[.unpacked]/dist``).
 
-    A standalone ``hermes dashboard`` inheriting that ``HERMES_WEB_DIST`` would
+    A standalone ``hebri dashboard`` inheriting that ``HERMES_WEB_DIST`` would
     serve the desktop frontend in the browser ("Desktop IPC bridge is unavailable").
     """
     if not path:
@@ -813,7 +791,7 @@ def _endpoint_conflict(args, record, typed: set) -> str:
 
 
 def _attach_to_host_backend(args, headless_backend: bool) -> None:
-    """Multiplex-only: a second `hermes serve`/`dashboard` attaches to the host backend.
+    """Multiplex-only: a second `hebri serve`/`dashboard` attaches to the host backend.
 
     Exactly ONE backend runs per host and multiplexes every profile, so a second invocation —
     for ANY profile, the default included — reports the live one and exits 0 instead of binding
@@ -824,13 +802,13 @@ def _attach_to_host_backend(args, headless_backend: bool) -> None:
 
     * the owner must ANSWER on its recorded port and identify itself (a record alone cannot see a
       graceful-shutdown window or a foreign listener that inherited the port) — a supervisor or
-      `hermes update` relaunch landing in that window would otherwise exit 0 with NOTHING
+      `hebri update` relaunch landing in that window would otherwise exit 0 with NOTHING
       listening, reporting success for a dead service;
     * an explicitly typed ``--port``/``--host`` the owner cannot serve is a REFUSAL naming the
       owner, never a silent redirect. It exits 78 (EX_CONFIG), the deliberate-refusal code
       ``RestartPreventExitStatus=78`` parks on: exit 1 under ``Restart=always`` was an infinite
       restart loop with nothing listening on the ingress port (#119824);
-    * a `hermes dashboard` user is never handed a headless backend's URL (no SPA behind it).
+    * a `hebri dashboard` user is never handed a headless backend's URL (no SPA behind it).
 
     Returns normally — leaving the caller to BIND — when no owner answers.
     """
@@ -859,8 +837,8 @@ def _attach_to_host_backend(args, headless_backend: bool) -> None:
 
     if not headless_backend and not identity.get("servesSpa"):
         print(f"Refusing to start: this host is already served by {hr.describe(record)}, "
-              "which is a headless `hermes serve` backend with no dashboard UI.")
-        print("  Stop it and run `hermes dashboard`, or use --isolated for a dedicated server.")
+              "which is a headless `hebri serve` backend with no dashboard UI.")
+        print("  Stop it and run `hebri dashboard`, or use --isolated for a dedicated server.")
         sys.exit(GATEWAY_FATAL_CONFIG_EXIT_CODE)
 
     try:

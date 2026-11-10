@@ -1,10 +1,10 @@
-"""Home scoping for ``hermes update``'s fleet restart (#93349).
+"""Home scoping for ``hebri update``'s fleet restart (#93349).
 
 The restart phase enumerates ``hebri-gateway*``/``hebri-serve*`` units, ``com.synapsek.hebri.gateway*``
 LaunchAgents and every ``gateway run`` process on the host. Those are HOST-wide namespaces: a
 second Hermes install (another ``HERMES_HOME`` root under the same account, its own checkout and
 venv) shares them, and the update used to restart that install's gateway too — including the
-account's real ``hebri-gateway.service`` when a scratch home ran ``hermes update``.
+account's real ``hebri-gateway.service`` when a scratch home ran ``hebri update``.
 
 The fleet an update owns is the set of homes its plan inventories: the updating root plus every
 ``<root>/profiles/<name>``. Ownership is judged from what a runtime actually runs on — the live

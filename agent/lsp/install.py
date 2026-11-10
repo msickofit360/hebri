@@ -3,7 +3,7 @@
 Installs go to a Hermes-owned staging dir, ``<HERMES_HOME>/lsp/bin/``, so the
 user's global toolchain stays untouched.  Strategies: ``auto`` (install with
 the best available package manager), ``manual`` / ``off`` (probe only; a
-missing binary skips the server and ``hermes lsp status`` reports it).
+missing binary skips the server and ``hebri lsp status`` reports it).
 Installs run synchronously the first time a server is needed, serialized
 per-package; every failure path returns ``None`` so the tool layer falls
 back to its in-process syntax checker.
@@ -68,7 +68,7 @@ INSTALL_RECIPES: Dict[str, Dict[str, Any]] = {
     # laravel-lsp ships via composer (`composer global require laravel/lsp`), not npm.
     "laravel-lsp": _manual("laravel-lsp"),
     # PowerShellEditorServices is a release-zip bundle driven by pwsh; we probe
-    # the host so `hermes lsp status` reports its presence.
+    # the host so `hebri lsp status` reports its presence.
     "powershell": _manual("pwsh"),
 }
 
@@ -302,7 +302,7 @@ _INSTALLERS: Dict[str, Callable[[Dict[str, Any], str], Optional[str]]] = {
 
 
 def detect_status(pkg: str) -> str:
-    """Return ``installed``, ``missing``, or ``manual-only`` (for ``hermes lsp status``; spawns nothing)."""
+    """Return ``installed``, ``missing``, or ``manual-only`` (for ``hebri lsp status``; spawns nothing)."""
     recipe = INSTALL_RECIPES.get(pkg)
     if _existing_binary(recipe.get("bin", pkg) if recipe else pkg):
         return "installed"

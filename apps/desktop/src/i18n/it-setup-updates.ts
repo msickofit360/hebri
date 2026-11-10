@@ -2,6 +2,14 @@ import type { TranslationOverrides } from './define-locale'
 
 export const itSetupUpdates = {
   updates: {
+    releaseInstalled: 'Aggiornamento installato',
+    quitToInstall: 'Esci e installa',
+    releaseReady: 'Download completato',
+    releaseReadyBody:
+      'Salva il lavoro, esci completamente da Hebri per installare l’aggiornamento, poi riapri Hebri. L’app in esecuzione non è ancora cambiata. Su Windows, segui la procedura di installazione visibile e attendi che termini prima di riaprire.',
+    releaseVerifying: 'Verifica del download…',
+    releaseDownloadBody: 'Download dell’aggiornamento di Hebri desktop. Il lavoro in corso rimane aperto.',
+    releaseDownloadFooter: 'Il download verrà verificato prima di essere pronto per l’installazione.',
     availableBodyBackend: 'È pronta per l’installazione una versione più recente del backend Hebri collegato.',
     availableBodyNoChangelog:
       'È pronta una versione più recente. Le note di rilascio non sono disponibili per questo tipo di installazione.',

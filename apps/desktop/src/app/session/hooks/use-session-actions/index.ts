@@ -1023,6 +1023,15 @@ export function useSessionActions({
         selectedStoredSessionIdRef.current === storedSessionId &&
         getRouteToken() === routeToken
 
+      // Direct callers (/resume, the picker) also own navigation. Commit only
+      // after hydration so our route change cannot invalidate its own reads;
+      // a superseded request must never reclaim the foreground.
+      const publishResumeRoute = () => {
+        if (isCurrentResume() && getRoutedStoredSessionId() !== storedSessionId) {
+          navigate(sessionRoute(storedSessionId), { replace: replaceRoute })
+        }
+      }
+
       // A reconnect re-resumes the runtime this view is streaming. Let its
       // replay land while that runtime still owns the view. Otherwise the REST
       // read paints the finished turn first and the replayed rows are then
@@ -1681,6 +1690,10 @@ export function useSessionActions({
             dropSessionState(cachedRuntimeId)
           } finally {
             releaseTranscriptView()
+
+            if (runtimeIdByStoredSessionIdRef.current.get(storedSessionId) === cachedRuntimeId) {
+              publishResumeRoute()
+            }
           }
         }
       }
@@ -2278,6 +2291,7 @@ export function useSessionActions({
           busyRef.current = resumedRunning
           setBusy(resumedRunning)
           setAwaitingResponse(resumedRunning && !recoveredInFlightTail)
+          publishResumeRoute()
         }
       }
     },
@@ -2286,7 +2300,9 @@ export function useSessionActions({
       busyRef,
       copy,
       getRouteToken,
+      getRoutedStoredSessionId,
       holdSessionTranscriptView,
+      navigate,
       requestGateway,
       resetViewSync,
       runtimeIdByStoredSessionIdRef,

@@ -82,7 +82,7 @@ TOOLSETS = {
         "Search X (Twitter) posts and threads via xAI's built-in x_search Responses "
         "tool. Read-only public X discovery; use the xurl skill for authenticated X "
         "API reads and account actions. Available when xAI credentials are configured "
-        "(SuperGrok OAuth or XAI_API_KEY). Off by default; enable in `hermes tools` → "
+        "(SuperGrok OAuth or XAI_API_KEY). Off by default; enable in `hebri tools` → "
         "X (Twitter) Search.",
         ["x_search"],
     ),
@@ -93,7 +93,7 @@ TOOLSETS = {
         "Video generation tools. Single ``video_generate`` tool covers text-to-video "
         "(prompt only) and image-to-video (prompt + image_url), plus "
         "reference-to-video. Provider-specific edit/extend workflows may appear as "
-        "separate tools. Configure via ``hermes tools`` → Video Generation.",
+        "separate tools. Configure via ``hebri tools`` → Video Generation.",
         ["video_generate", "xai_video_edit", "xai_video_extend"],
     ),
     "computer_use": _ts(
@@ -149,7 +149,7 @@ TOOLSETS = {
     # Enabled per SESSION whose PROFILE carries ``role: setup`` in its backend-written
     # profile.yaml (tui_gateway/server.py::_load_enabled_toolsets); stripped from every
     # other profile's selection whatever the config, env pin or client asked for
-    # (model_tools._select_tool_names). Never configurable, never in `hermes tools`.
+    # (model_tools._select_tool_names). Never configurable, never in `hebri tools`.
     "setup": _ts(
         "Onboarding-only surface for the setup profile: catalog plugin/skill install "
         "requests through the approval card",
@@ -212,9 +212,9 @@ TOOLSETS = {
     ),
     "hermes-cli": _bundle("Full interactive CLI toolset - all default tools plus cronjob management"),
 
-    # Mirrors hermes-cli; `hermes tools` platform config filters it down and
+    # Mirrors hermes-cli; `hebri tools` platform config filters it down and
     # _get_platform_tools() drops _DEFAULT_OFF_TOOLSETS unless user-enabled.
-    "hermes-cron": _bundle("Default cron toolset - same core tools as hermes-cli; gated by `hermes tools`"),
+    "hermes-cron": _bundle("Default cron toolset - same core tools as hermes-cli; gated by `hebri tools`"),
     "hermes-telegram": _bundle("Telegram bot toolset - full access for personal use (terminal has safety checks)"),
     "hermes-discord": _bundle(
         "Discord bot toolset - full access (terminal has safety checks via dangerous "

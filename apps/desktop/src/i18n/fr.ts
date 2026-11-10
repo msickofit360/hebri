@@ -129,14 +129,14 @@ export const fr = defineLocale({
       showAllMatches: 'Afficher tous les résultats',
       segmentNoMatch: (segment: string) => `Aucun résultat dans ${segment} : tous les résultats sont affichés.`,
       freeTierNote: 'Les connexions restent sur cet ordinateur jusqu’à ce que vous vous connectiez.',
-      signInLine: 'Connectez-vous à Nous pour utiliser les applications gérées.',
+      signInLine: 'Connectez-vous à Synapsek pour utiliser les applications gérées.',
       signIn: 'Se connecter',
       managedUnavailable: 'Les applications gérées ne sont pas encore disponibles pour ce compte.',
       writeFailed: 'Cette modification n’a pas été enregistrée.',
       refreshFailed: 'La liste des outils n’a pas été actualisée.',
       disconnectNoAccount: 'Hebri n’a aucun compte à déconnecter ici. Actualisez la page et réessayez.',
       disconnectRefused:
-        'Nous ne peut pas supprimer cette connexion pour le moment. Désactivez plutôt l’application avec l’interrupteur, ou réessayez plus tard.'
+        'Synapsek ne peut pas supprimer cette connexion pour le moment. Désactivez plutôt l’application avec l’interrupteur, ou réessayez plus tard.'
     },
     add: {
       action: 'Ajouter le vôtre',
@@ -187,7 +187,7 @@ export const fr = defineLocale({
       turnOffLocal: 'Désactiver le serveur local',
       providedByPlugin: (plugin: string) => `Fourni par le plugin ${plugin}`,
       openPlugins: "Ouvrir l'onglet Plugins",
-      nousLine: 'Les applications Nous suivent votre compte, pas le profil.',
+      nousLine: 'Les accès Synapsek sont accordés séparément à chaque Bit.',
       rulesReadOnly: 'Les règles ne peuvent pas être modifiées pour le moment.',
       rulesAppOff: (name: string) => `Activez ${name} pour modifier ses outils.`,
       rulesSignIn: 'Connectez-vous pour modifier ce que Hebri peut faire ici.',
@@ -241,7 +241,7 @@ export const fr = defineLocale({
       remove: 'Supprimer',
       offTitle: (name: string) => `${name} est désactivé.`,
       offBody: "Activez-le avec l'interrupteur ci-dessus pour lire les outils qu'il apporte.",
-      signedOutTitle: 'Connectez-vous à Nous pour lire la liste des outils.',
+      signedOutTitle: 'Connectez-vous à Synapsek pour lire la liste des outils.',
       signedOutBody: 'Vos serveurs sur cet ordinateur ne sont pas affectés.',
       conflictTitle: "Quelqu'un a modifié cette règle pendant que vous l'éditiez.",
       conflictBody: (theyOff: number, theyOn: number) => {
@@ -361,7 +361,7 @@ export const fr = defineLocale({
     connect: 'Connecter',
     connecting: 'Connexion',
     continue: 'Continuer',
-    bots: 'Bots',
+    bots: 'Bits',
     copied: 'Copié',
     copy: 'Copier',
     copyFailed: 'Échec de la copie',
@@ -768,7 +768,7 @@ export const fr = defineLocale({
       appearanceTypography: 'Typographie',
       appearanceWindowLayout: 'Fenêtre et disposition',
       appearanceChatDisplay: 'Affichage des conversations',
-      appearancePet: 'Compagnon',
+      appearancePet: 'Hebits',
       appearanceGeneral: 'Général',
       modelMain: 'Modèle principal',
       modelAuxiliary: 'Modèles auxiliaires',
@@ -1212,7 +1212,7 @@ export const fr = defineLocale({
       removeTheme: 'Supprimer le thème',
       importedBadge: 'Importé',
       pet: {
-        title: 'Animal de compagnie',
+        title: 'Hebits',
         intro:
           "Adoptez une mascotte petdex animée qui flotte au-dessus de l'application et réagit aux actions de Hebri — court pendant l'exécution des outils, fête les réussites, boude les erreurs.",
         restartHint:
@@ -2800,7 +2800,7 @@ export const fr = defineLocale({
     edit: 'Modifier',
     archive: 'Archiver',
     skillArchivedTitle: 'Skill archivé',
-    skillArchivedMessage: 'Restaurable via hermes curator restore.',
+    skillArchivedMessage: 'Restaurable via hebri curator restore.',
     tabPlugins: 'Plugins',
     plugins: {
       agentTitle: "Plugins de l'agent",
@@ -2843,11 +2843,18 @@ export const fr = defineLocale({
         missing_app: 'application manquante',
         unknown: 'état inconnu'
       },
+      catalogSearch: 'Rechercher des plugins',
+      catalogNotice:
+        'Catalogue intégré. Les extensions tierces ne sont pas une garantie de sécurité ou de compatibilité de Synapsek. Vérifiez le code et les prérequis avant installation.',
+      catalogEmpty: 'Aucun plugin correspondant.',
+      catalogRuntime: 'Environnement amont',
+      catalogReview: 'Examiner',
+      catalogMore: 'Afficher plus',
       catalogTitle: 'Catalogue de plugins',
       catalogBrowse: 'Parcourir',
       catalogHide: 'Masquer le catalogue',
       catalogHint:
-        'Utilisez « + Ajouter à cet agent » sur un plugin : les entrées vérifiées sont installées depuis leur commit épinglé dans le profil sélectionné.',
+        'Examiner ouvre la fenêtre d’installation du Bit sélectionné. Rien ne sera installé sans confirmation.',
       alreadyInstalled: (name: string) => `${name} est déjà installé dans ce profil.`,
       catalogProvenance: (sha: string) =>
         `Installé depuis le catalogue Hebri${sha ? ` au commit épinglé ${sha}` : ''}.`,
@@ -3044,7 +3051,7 @@ export const fr = defineLocale({
     changeTheme: 'Changer le thème',
     changeColorMode: 'Changer le mode couleur…',
     pets: {
-      title: 'Animaux de compagnie',
+      title: 'Hebits',
       placeholder: 'Rechercher des animaux…',
       loading: 'Chargement de la galerie petdex…',
       error: "Impossible d'atteindre la galerie petdex…",
@@ -3163,7 +3170,7 @@ export const fr = defineLocale({
     noSessions: 'Aucune session pour le moment.',
     gatewayRunning: 'Gateway de messagerie en cours',
     gatewayStopped: 'Gateway de messagerie arrêté',
-    hermesActiveSessions: (version, count) => `Hebri ${version} · Sessions actives ${count}`,
+    hermesActiveSessions: (version, count) => `Backend Hebri ${version} · Sessions actives ${count}`,
     restartGateway: 'Redémarrer le gateway',
     openBrowser: 'Ouvrir le navigateur',
     gatewayRestartFailed: 'Échec du redémarrage du gateway.',
@@ -4533,6 +4540,14 @@ export const fr = defineLocale({
     }
   },
   updates: {
+    releaseInstalled: 'Mise à jour installée',
+    quitToInstall: 'Quitter et installer',
+    releaseReady: 'Téléchargement terminé',
+    releaseReadyBody:
+      'Enregistrez votre travail, quittez complètement Hebri pour installer la mise à jour, puis rouvrez Hebri. L’application en cours n’a pas encore changé. Sous Windows, suis les étapes du programme d’installation et attends la fin avant de rouvrir Hebri.',
+    releaseVerifying: 'Vérification du téléchargement…',
+    releaseDownloadBody: 'Téléchargement de la mise à jour de Hebri. Votre travail reste ouvert.',
+    releaseDownloadFooter: 'Le téléchargement sera vérifié avant de pouvoir être installé.',
     stages: {
       idle: 'Préparation…',
       prepare: 'Préparation…',
@@ -5953,7 +5968,7 @@ export const fr = defineLocale({
       success: platform => `Transféré vers ${platform}. Reprenez ici à tout moment.`,
       systemNote: platform => `↻ Transféré vers ${platform} — reprenez ici à tout moment.`,
       failed: error => `Échec du transfert : ${error}`,
-      timedOut: "Délai d'expiration en attendant la Gateway. `hermes gateway` est-il en cours d'exécution ?",
+      timedOut: "Délai d'expiration en attendant la Gateway. `hebri gateway` est-il en cours d'exécution ?",
       startMessaging: 'Démarrer la messagerie'
     }
   },

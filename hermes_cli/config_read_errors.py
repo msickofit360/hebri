@@ -33,10 +33,10 @@ _PARSE_FAILURE_FALLBACK_MSG = {
     "refuse-write": "Nothing was written, so the existing file is preserved."}
 _PARSE_FAILURE_DEFAULTS_MSG = (
     "Hebri is running on default settings until it is fixed, so none of your saved settings are applied.")
-_PARSE_FAILURE_REPAIR_MSG = "Open it with `hermes config edit`, fix {where}, then run `hermes config check`."
+_PARSE_FAILURE_REPAIR_MSG = "Open it with `hebri config edit`, fix {where}, then run `hebri config check`."
 _FIX_PERMS = "Fix the file permissions or move it aside first."
 _FIX_YAML = (
-    "Fix it with `hermes config edit` and check with `hermes config check`, or copy the newest good "
+    "Fix it with `hebri config edit` and check with `hebri config check`, or copy the newest good "
     "file from {backups} over config.yaml.")
 
 
@@ -93,7 +93,7 @@ def _warn_config_parse_failure(
         msg += f" A copy of the broken file was saved to {backup_path}."
     logger.warning("%s Details: %s", msg, _yaml_error_details(exc))
     try:
-        sys.stderr.write(f"⚠️  hermes config: {msg}\n    Details: {_yaml_error_details(exc)}\n")
+        sys.stderr.write(f"⚠️  hebri config: {msg}\n    Details: {_yaml_error_details(exc)}\n")
         sys.stderr.flush()
     except Exception:
         pass
@@ -125,7 +125,7 @@ class FailedConfigRead(dict):
 
 def _read_error_fix(exc: OSError) -> str:
     return _FIX_PERMS if isinstance(exc, PermissionError) else (
-        "Try again; run `hermes config check` if it keeps failing.")
+        "Try again; run `hebri config check` if it keeps failing.")
 
 
 def _refuse_failed_read(config_path: Path, data: Any) -> None:

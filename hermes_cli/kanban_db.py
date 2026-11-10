@@ -537,7 +537,7 @@ def task_attachments_dir(task_id: str, board: Optional[str] = None) -> Path:
 
 
 def worker_logs_dir(board: Optional[str] = None) -> Path:
-    """Per-board worker log dir (logs follow the board so ``hermes kanban log``
+    """Per-board worker log dir (logs follow the board so ``hebri kanban log``
     is unambiguous when two boards share a task id)."""
     return _board_path(None, board, ("kanban", "logs"), "logs")
 
@@ -1516,7 +1516,7 @@ def get_task(conn: sqlite3.Connection, task_id: str) -> Optional[Task]:
     return Task.from_row(row) if row else None
 
 
-# Canonical sort-order mappings for ``hermes kanban list --sort``.
+# Canonical sort-order mappings for ``hebri kanban list --sort``.
 # Each value is a raw SQL fragment appended after ``ORDER BY``.
 VALID_SORT_ORDERS: dict[str, str] = {
     "created": "created_at ASC, id ASC",
@@ -1744,7 +1744,7 @@ def _linked_ids(conn: sqlite3.Connection, want: str, where: str, task_id: str) -
 
 # Dependency edge removed — re-evaluate promotion eligibility for the child immediately. Matches the
 # contract of complete_task and unblock_task; without this the child stays stuck in todo until the next
-# dispatcher tick or a manual `hermes kanban recompute` (issue #22459).
+# dispatcher tick or a manual `hebri kanban recompute` (issue #22459).
 def parent_ids(conn: sqlite3.Connection, task_id: str) -> list[str]:
     return _linked_ids(conn, "parent_id", "child_id", task_id)
 
@@ -3613,7 +3613,7 @@ def promote_task(
             f"unsatisfied parent dependencies: {', '.join(unsatisfied)} "
             f"(the ready -> running claim re-checks parents, so promotion cannot "
             f"bypass them; complete the parents or drop the link with "
-            f"`hermes kanban unlink <parent_id> {task_id}`)"
+            f"`hebri kanban unlink <parent_id> {task_id}`)"
         )
 
     if dry_run:

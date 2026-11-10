@@ -161,7 +161,7 @@ def describe_suppression(results: Iterable[Optional["DispatchResult"]]) -> str:
     memory_pressure=critical`` — the respawn-guard reasons counted per task
     plus the tick-level holds. Feeds the "dispatcher stuck" warnings of the
     CLI daemon and the embedded gateway dispatcher, which otherwise report a
-    bare zero-spawn count while ``hermes kanban tail`` is the only place the
+    bare zero-spawn count while ``hebri kanban tail`` is the only place the
     guard reason is written (#111910).
     """
     counts: dict[str, int] = {}
@@ -188,7 +188,7 @@ def describe_suppression(results: Iterable[Optional["DispatchResult"]]) -> str:
 # task. Entry: ``pid -> (raw_wait_status, reaped_at_epoch)``; raw status kept so
 # both WIFEXITED/WEXITSTATUS and WIFSIGNALED can be consulted. Trimmed by age
 # plus a total size cap. Process-local by nature (``waitpid`` only reaps our own
-# children): a per-tick ``hermes kanban dispatch`` process finds it empty, so
+# children): a per-tick ``hebri kanban dispatch`` process finds it empty, so
 # ``_classify_dead_worker_exit`` falls back to the exit trailer the worker
 # leaves in its own log (``KANBAN_WORKER_EXIT_TRAILER``).
 _RECENT_WORKER_EXIT_TTL_SECONDS = 600
@@ -1316,7 +1316,7 @@ def detect_crashed_workers(conn: sqlite3.Connection, board: Optional[str] = None
                 # task mutation. Cost rule: every call site short-circuits on has_hook(), so when nothing
                 # subscribes no payload is built and the hot paths (each dispatcher tick, each task write)
                 # pay one dict probe. WHICH PROCESS: worker spawn/exit/stale-claim and the dispatch tick
-                # fire in the DISPATCHER process (gateway-embedded dispatcher or ``hermes kanban
+                # fire in the DISPATCHER process (gateway-embedded dispatcher or ``hebri kanban
                 # dispatch``); on_kanban_task_updated fires in whichever process committed the mutation
                 # (CLI, worker, or the gateway-embedded dashboard API). Common kwargs (task-scoped hooks):
                 # task_id: str, profile_name: str, board: str | None, assignee: str | None, run_id: int |
@@ -1710,7 +1710,7 @@ def _dispatch_profile_allowlist(normalize_profile_name) -> Optional[frozenset]:
 def dispatch_profile_allowlist_summary() -> str:
     """Human-readable resolution of ``kanban.dispatch_profiles`` for this home.
 
-    Surfaced by ``hermes kanban diagnostics`` so an operator on a shared board
+    Surfaced by ``hebri kanban diagnostics`` so an operator on a shared board
     can see what a home believes it may claim (#113620): ``any`` (key absent),
     the sorted allowed names, or ``none (fail-closed: ...)``.
     """
@@ -2009,7 +2009,7 @@ def _dispatch_lane_task(
     """
     task_id = row["id"]
     # Non-profile assignees (control-plane lanes that pull via ``claim_task``)
-    # would fail ``hermes -p <assignee>`` at startup and loop ready→crash→ready
+    # would fail ``hebri -p <assignee>`` at startup and loop ready→crash→ready
     # forever. Bucketed apart from skipped_unassigned: the operator cannot fix
     # it by assigning a profile, and health telemetry suppresses "stuck" for it.
     profile_exists = _profile_exists_fn()
@@ -2026,7 +2026,7 @@ def _dispatch_lane_task(
     guard_reason = check_respawn_guard(conn, task_id, lane=lane)
     if guard_reason is not None:
         result.respawn_guarded.append((task_id, guard_reason))
-        # Event so ``hermes kanban tail`` shows why the task looks stuck.
+        # Event so ``hebri kanban tail`` shows why the task looks stuck.
         # Honour kanban.default_assignee: when the dispatcher hits an unassigned ready task and an
         # operator-configured fallback exists, persist the assignment and proceed. This removes the
         # dashboard footgun where a task created without an assignee parks in 'ready' forever even though
@@ -2536,7 +2536,7 @@ def _resolve_hermes_argv() -> list[str]:
     except Exception:
         pass
 
-    hermes_bin = _safe_which_no_cwd("hermes") if _kb._IS_WINDOWS else shutil.which("hermes")
+    hermes_bin = _safe_which_no_cwd("hebri") if _kb._IS_WINDOWS else shutil.which("hebri")
     if hermes_bin:
         return _hermes_path_argv(hermes_bin)
     return _module_hermes_argv()
@@ -2674,7 +2674,7 @@ def _retag_legacy_worker_sessions(workspaces_root_path: str) -> None:
 
 
 def _worker_argv(task: Task, profile_arg: str, hermes_home: Optional[str]) -> list[str]:
-    """Build the ``hermes -p <profile> --cli ... chat -q ...`` worker command."""
+    """Build the ``hebri -p <profile> --cli ... chat -q ...`` worker command."""
     cmd = [
         *_resolve_hermes_argv(),
         "-p", profile_arg,
@@ -2713,7 +2713,7 @@ def _worker_argv(task: Task, profile_arg: str, hermes_home: Optional[str]) -> li
 def _open_worker_log(task: Task, board: Optional[str]):
     """Append-mode per-task log (a re-run on unblock appends, never overwrites),
     rotated first. Anchored at the board root (not the shared kanban root) so
-    `hermes kanban log` reads its own file and boards sharing task ids don't
+    `hebri kanban log` reads its own file and boards sharing task ids don't
     collide."""
     log_dir = _kb.worker_logs_dir(board=board)
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -2762,7 +2762,7 @@ def _restart_safe_worker_argv(task: Task, command: list[str]) -> list[str]:
 
 
 def _default_spawn(task: Task, workspace: str, *, board: Optional[str] = None) -> Optional[int]:
-    """Fire-and-forget ``hermes -p <profile> chat -q ...`` subprocess.
+    """Fire-and-forget ``hebri -p <profile> chat -q ...`` subprocess.
 
     Returns the child's PID so the dispatcher can detect crashes before the
     claim TTL expires; completion is still observed via the worker's own
@@ -2809,7 +2809,7 @@ def _default_spawn(task: Task, workspace: str, *, board: Optional[str] = None) -
 
     # Inject HERMES_HOME so the worker reads the profile-scoped config.yaml:
     # without it the child's get_hermes_home() falls back to the DEFAULT
-    # profile root because `hermes -p` applies its override before
+    # profile root because `hebri -p` applies its override before
     # hermes_constants is imported.
     if profile_home:
         env["HERMES_HOME"] = profile_home
@@ -2853,7 +2853,7 @@ def _default_spawn(task: Task, workspace: str, *, board: Optional[str] = None) -
         if override is not None:
             env[var] = override
     # Pin the board DB + workspaces root so the worker's kanban paths still
-    # match after `hermes -p` rewrites HERMES_HOME (symlink / Docker layouts).
+    # match after `hebri -p` rewrites HERMES_HOME (symlink / Docker layouts).
     env["HERMES_KANBAN_DB"] = str(_kb.kanban_db_path(board=board))
     env["HERMES_KANBAN_WORKSPACES_ROOT"] = str(_kb.workspaces_root(board=board))
     _retag_legacy_worker_sessions(env["HERMES_KANBAN_WORKSPACES_ROOT"])
@@ -2919,7 +2919,7 @@ def run_daemon(
     Calls :func:`dispatch_once` every ``interval`` seconds; exits cleanly on
     SIGINT / SIGTERM so it is systemd-friendly. ``stop_event`` and ``on_tick``
     are test hooks. Each tick resolves ``kanban.max_in_progress`` exactly like
-    the gateway dispatcher and ``hermes kanban dispatch`` — the standalone
+    the gateway dispatcher and ``hebri kanban dispatch`` — the standalone
     daemon must not be the one uncapped entry point.
     """
     import threading

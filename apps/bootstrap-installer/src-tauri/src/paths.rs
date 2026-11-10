@@ -3,10 +3,10 @@
 //! Mirrors `hermes_constants.get_hermes_home()` from the Python CLI:
 //!   Windows: %LOCALAPPDATA%\hebri
 //!   macOS:   ~/.hebri
-//!   Linux:   ~/.hebri  (override via $HERMES_HOME)
+//!   Linux:   ~/.hebri  (override via $HEBRI_HOME)
 //!
 //! NOTE (macOS): Python's get_hermes_home(), scripts/install.sh, and the
-//! Electron desktop's resolveHermesHome() ALL use ~/.hermes on macOS — there
+//! Electron desktop's resolveHermesHome() ALL use ~/.hebri on macOS — there
 //! is no ~/Library/Application Support branch anywhere else. An earlier
 //! version of this file used Application Support, which drifted from every
 //! other component: the installer wrote the install to one dir and the
@@ -21,9 +21,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use tracing_appender::non_blocking::WorkerGuard;
 
-/// Returns the canonical Hermes home directory, respecting $HERMES_HOME if set.
+/// Returns the canonical Hebri home directory, respecting $HEBRI_HOME if set.
 pub fn hermes_home() -> PathBuf {
-    if let Ok(override_path) = std::env::var("HERMES_HOME") {
+    if let Ok(override_path) = std::env::var("HEBRI_HOME") {
         if !override_path.trim().is_empty() {
             return PathBuf::from(override_path);
         }
@@ -57,7 +57,7 @@ pub fn log_path() -> PathBuf {
 }
 
 pub fn bootstrap_cache_dir() -> PathBuf {
-    hermes_home().join("bootstrap-cache")
+    hermes_home().join("bootstrap-cache").join("hebri")
 }
 
 /// Stable location the installer copies itself to after a successful install.
@@ -213,4 +213,34 @@ pub fn open_log_dir(app: tauri::AppHandle) -> Result<(), String> {
     app.opener()
         .open_path(path.to_string_lossy(), None::<&str>)
         .map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn home_override_ignores_foreign_hermes_home() {
+        if let Ok(expected) = std::env::var("HEBRI_HOME_TEST_EXPECTED") {
+            assert_eq!(hermes_home(), PathBuf::from(expected));
+            assert!(bootstrap_cache_dir().ends_with(Path::new("bootstrap-cache/hebri")));
+            return;
+        }
+        let default_home = if cfg!(windows) {
+            dirs::data_local_dir().unwrap().join("hebri")
+        } else {
+            dirs::home_dir().unwrap().join(".hebri")
+        };
+        for override_path in [Some("owned-profile-a"), Some("owned-profile-b"), Some("owned-profile-a"), None] {
+            let expected = override_path.map(PathBuf::from).unwrap_or_else(|| default_home.clone());
+            let mut child = std::process::Command::new(std::env::current_exe().unwrap());
+            child.args(["--exact", "paths::tests::home_override_ignores_foreign_hermes_home"])
+                .env("HERMES_HOME", "foreign-hermes-profile")
+                .env("HEBRI_HOME_TEST_EXPECTED", expected);
+            if let Some(value) = override_path { child.env("HEBRI_HOME", value); }
+            else { child.env_remove("HEBRI_HOME"); }
+            let output = child.output().unwrap();
+            assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stdout));
+        }
+    }
 }

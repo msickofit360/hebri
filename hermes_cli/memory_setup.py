@@ -1,4 +1,4 @@
-"""hermes memory setup|status — configure memory provider plugins."""
+"""hebri memory setup|status — configure memory provider plugins."""
 
 from __future__ import annotations
 
@@ -63,11 +63,11 @@ def _install_dependencies(provider_name: str, *, force: bool = False) -> None:
     """Install pip dependencies declared in ``plugin.yaml``.
 
     With ``force`` every declared dependency goes to the installer even if it imports (the resolver
-    no-ops when nothing drifted) — how ``hermes update`` heals a provider after a venv rebuild.
+    no-ops when nothing drifted) — how ``hebri update`` heals a provider after a venv rebuild.
 
     When ``force`` is true, every declared dependency is handed to the installer even if its import
     currently succeeds — the resolver then reinstalls anything missing or version-drifted and no-ops on
-    satisfied ranges. This is how ``hermes update`` heals the active memory provider after a venv
+    satisfied ranges. This is how ``hebri update`` heals the active memory provider after a venv
     rebuild/sync removed or downgraded its bridge packages (#53272, #70636).
     """
     import subprocess
@@ -198,7 +198,7 @@ def cmd_setup_provider(provider_name: str) -> None:
     match = _find_provider(_get_available_providers(), provider_name)
     if not match:
         print(f"\n  Memory provider '{provider_name}' not found.")
-        print("  Run 'hermes memory setup' to see available providers.\n")
+        print("  Run 'hebri memory setup' to see available providers.\n")
         return
     name, _, provider = match
 

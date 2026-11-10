@@ -1,3 +1,6 @@
+import { useState } from 'react'
+
+import { connectorVendorSite } from '@/lib/connector-vendor-sites'
 import { brandFor } from '@/lib/mcp-brands'
 import { cn } from '@/lib/utils'
 
@@ -23,7 +26,16 @@ const NOT_A_LOGO =
   /(^|\.)(github\.com|githubusercontent\.com|gitlab\.com|bitbucket\.org|npmjs\.com|pypi\.org|readthedocs\.io)$/
 
 const isLoopback = (host: string) =>
-  host === 'localhost' || host === '::1' || /^127\./.test(host) || /^(10|192\.168)\./.test(host)
+  host === 'localhost' ||
+  host.endsWith('.localhost') ||
+  host.endsWith('.local') ||
+  host === '::1' ||
+  host.startsWith('[') ||
+  !host.includes('.') ||
+  /^(127|10|0)\./.test(host) ||
+  /^192\.168\./.test(host) ||
+  /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
+  /^169\.254\./.test(host)
 
 /**
  * Where to read this subject's mark from.
@@ -35,15 +47,15 @@ const isLoopback = (host: string) =>
  * and asking would announce an internal hostname.
  */
 export function connectorLogoSource(subject: ConnectorLogoSubject): string {
-  for (const candidate of [subject.homepage, subject.url, subject.docs]) {
+  for (const candidate of [connectorVendorSite(subject.name), subject.homepage, subject.url, subject.docs]) {
     if (!candidate) {
       continue
     }
 
     try {
-      const { hostname, origin } = new URL(candidate)
+      const { hostname, origin, protocol, username, password } = new URL(candidate)
 
-      if (!NOT_A_LOGO.test(hostname) && !isLoopback(hostname)) {
+      if (protocol === 'https:' && !username && !password && !NOT_A_LOGO.test(hostname) && !isLoopback(hostname)) {
         // The origin, never the path: the icon lives on the site, and this
         // way a not-yet-connected endpoint is never fetched just to draw a
         // logo.
@@ -72,8 +84,10 @@ export function connectorLogoSource(subject: ConnectorLogoSubject): string {
  */
 export function ConnectorLogo({ className, connector }: { className?: string; connector: ConnectorLogoSubject }) {
   const label = connector.title || connector.name
+  const [failedIcon, setFailedIcon] = useState('')
   const brand = brandFor(connector.name)
-  const icon = brand ? '' : (connector.iconUrl ?? '')
+  const vendorSite = connectorVendorSite(connector.name)
+  const icon = brand || vendorSite || connector.iconUrl === failedIcon ? '' : (connector.iconUrl ?? '')
   const site = brand || icon ? '' : connectorLogoSource(connector)
 
   return (
@@ -84,7 +98,14 @@ export function ConnectorLogo({ className, connector }: { className?: string; co
       title={connector.title}
     >
       {icon ? (
-        <img alt="" aria-hidden className="size-full object-contain" src={icon} />
+        <img
+          alt=""
+          aria-hidden
+          className="size-full object-contain"
+          src={icon}
+          referrerPolicy="no-referrer"
+          onError={() => setFailedIcon(icon)}
+        />
       ) : site ? (
         <Favicon fallback={monogramFor(label)} url={site} />
       ) : undefined}

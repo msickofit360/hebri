@@ -78,6 +78,7 @@ class ConnectorClient:
         endpoint_resolver: Optional[Callable[[], Optional[str]]] = None,
         header_provider: Optional[Callable[[str], dict]] = None,
     ) -> None:
+        self._synapsek = transport is None and endpoint_resolver is None and header_provider is None
         self._transport = transport or _default_transport()
         self._endpoint_resolver = endpoint_resolver or _default_endpoint_resolver
         self._header_provider = header_provider or _default_header_provider
@@ -203,6 +204,9 @@ class ConnectorClient:
         idempotency_key: Optional[str] = None,
         retries: int = _MAX_RETRIES,
     ) -> Any:
+        if self._synapsek:
+            from tools.connectors.gateway.synapsek import request
+            return request(method, path, body, timeout=timeout)
         origin = self._endpoint_resolver()
         if not origin:
             raise GatewayUnavailable(

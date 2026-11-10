@@ -32,8 +32,8 @@ def read_only_db_uri(db_path) -> str:
 logger = logging.getLogger(__name__)
 
 _IS_WINDOWS = sys.platform == "win32"
-_HERMES_EXECUTABLES = frozenset({"hermes", "hermes-agent", "hermes-acp"})
-_HERMES_PYTHON_MODULES = frozenset({"acp_adapter", "hermes_cli.main"})
+_HERMES_EXECUTABLES = frozenset({"hebri", "hebri-agent", "hebri-acp", "hermes", "hermes-agent", "hermes-acp"})
+_HERMES_PYTHON_MODULES = frozenset({"acp_adapter", "hermes_cli.main", "hermes_cli.hebri"})
 _HERMES_PYTHON_SCRIPTS = frozenset({"hermes_cli/main.py", "run_agent.py"})
 _PYTHON_SHORT_OPTIONS_WITH_OPERANDS = frozenset({"Q", "W", "X"})
 _PYTHON_LONG_OPTIONS_WITH_OPERANDS = frozenset(
@@ -57,7 +57,7 @@ def _read_proc_argv(pid: int) -> Optional[List[str]]:
 
 
 def describe_holder_pid(pid: int) -> str:
-    """``PID 123 (hermes gateway run)`` for operator-facing holder lists; /proc argv first, psutil elsewhere."""
+    """``PID 123 (hebri gateway run)`` for operator-facing holder lists; /proc argv first, psutil elsewhere."""
     argv = _read_proc_argv(pid)
     if argv is None and psutil is not None:
         try:
@@ -482,7 +482,7 @@ def held_store_refusal(db_path: Path, *, command: str, force_hint: Optional[str]
     """Operator-facing refusal for structural maintenance (VACUUM, index rebuild, bulk delete) while another
     process holds ``db_path`` or a WAL sidecar; ``None`` when the store is provably quiet.
 
-    Running ``hermes sessions optimize-storage`` underneath a fleet of live gateways put every agent into
+    Running ``hebri sessions optimize-storage`` underneath a fleet of live gateways put every agent into
     the retired-WAL refusal until all writers were stopped (#110054). Same fail-closed scan doctor and
     repair use: an incomplete scan refuses too, it never reads as an all-clear.
     """
@@ -499,7 +499,7 @@ def held_store_refusal(db_path: Path, *, command: str, force_hint: Optional[str]
             unknown.append(target)
         else:
             by_pid.setdefault(pid, set()).add(Path(target.removesuffix(" (deleted)")).name)
-    lines = [f"Refusing `hermes sessions {command}`: another process is using {db_path}."]
+    lines = [f"Refusing `hebri sessions {command}`: another process is using {db_path}."]
     lines += [f"  {describe_holder_pid(pid)}: {', '.join(sorted(by_pid[pid]))}" for pid in sorted(by_pid)]
     if unknown:
         lines.append(f"  cannot prove the database is quiet (holder scan incomplete: {unknown[0][:120]})")

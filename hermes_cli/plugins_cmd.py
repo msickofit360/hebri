@@ -1,4 +1,4 @@
-"""``hermes plugins`` CLI subcommand — install, update, remove, and list plugins."""
+"""``hebri plugins`` CLI subcommand — install, update, remove, and list plugins."""
 
 from __future__ import annotations
 
@@ -368,7 +368,7 @@ def _refuse_conflicting_python_deps(tmp_target: Path, plugin_name: str) -> None:
         raise PluginOperationError(
             f"Plugin '{plugin_name}' was not installed: {exc}\n"
             "The plugin author should relax that requirement. To install the plugin anyway and manage "
-            "its Python packages yourself: hermes plugins install <identifier> --no-deps") from exc
+            "its Python packages yourself: hebri plugins install <identifier> --no-deps") from exc
     except ValueError as exc:
         raise PluginOperationError(f"Plugin '{plugin_name}' was not installed: {exc}") from exc
 
@@ -455,7 +455,7 @@ def _clone_failure_message(git_url: str, git_error: str) -> str:
     not parsed as markup."""
     from rich.markup import escape
     return (f"Could not download the plugin from {git_url}. Check the address (browse the catalog "
-            "with `hermes plugins search`), check your internet connection, or, if the repository "
+            "with `hebri plugins search`), check your internet connection, or, if the repository "
             "is private, sign in first with `gh auth login` (or set GITHUB_TOKEN in your .env).\n"
             f"Details: {escape(git_error.strip())}")
 
@@ -475,9 +475,9 @@ def _unknown_plugin_message(name: str, *, downloaded_only: bool = False) -> str:
     """``No plugin named ...`` with the exact-name rule and the two commands that resolve it."""
     scope = (" This command only works on downloaded plugins; bundled ones can only be enabled or disabled."
              if downloaded_only else " Bundled plugins can only be enabled or disabled.")
-    return (f"[red]No plugin named '{name}'.[/red] Run `hermes plugins list` to see the exact names "
+    return (f"[red]No plugin named '{name}'.[/red] Run `hebri plugins list` to see the exact names "
             f"(nested plugins use their full key, e.g. web/firecrawl).{scope} "
-            "To add one: `hermes plugins install <owner/repo>`.")
+            "To add one: `hebri plugins install <owner/repo>`.")
 
 
 # ── Install metadata + git plumbing ─────────────────────────────────────────────────────────
@@ -889,7 +889,7 @@ def _install_plugin_core(
         if target.exists() and not force:
             raise PluginOperationError(
                 f"Plugin '{plugin_name}' already exists. Use force reinstall "
-                f"or run `hermes plugins update {plugin_name}`.")
+                f"or run `hebri plugins update {plugin_name}`.")
         prior = old_metadata.get(plugin_name)
         if target.exists() and requested_revision is None and isinstance(prior, dict) and prior.get("pinned") is True:
             raise PluginOperationError(
@@ -991,7 +991,7 @@ def cmd_install(
     else:
         console.print(
             f"[dim]Plugin installed but not enabled. "
-            f"Run `hermes plugins enable {installed_name}` to activate.[/dim]")
+            f"Run `hebri plugins enable {installed_name}` to activate.[/dim]")
 
     # Non-interactive installs and declines leave declared capabilities ungranted (fail closed).
     declared_caps = _declared_capabilities_from_manifest(installed_manifest, installed_name)
@@ -1064,7 +1064,7 @@ def cmd_update(name: str) -> None:
             target,
             lambda rec: (
                 f"Plugin '{name}' is pinned to {rec.get('revision')}. To move it, run "
-                f"`hermes plugins install {escape(str(rec.get('source', '<source>')))} --force "
+                f"`hebri plugins install {escape(str(rec.get('source', '<source>')))} --force "
                 "--ref <40-character commit SHA>`."),
             lambda: f"Plugin '{name}' was not installed from git (no .git directory). Cannot update.",
             before_pull=lambda: console.print(f"[dim]Updating {name}...[/dim]"))
@@ -1110,7 +1110,7 @@ def _rescan_after_update(target: Path, name: str, console) -> None:
             _set_plugin_enabled(name, enable=False)
         console.print(
             f"[red]Plugin '{name}' has been disabled.[/red] Review the "
-            f"findings, then re-enable with `hermes plugins enable {name}` "
+            f"findings, then re-enable with `hebri plugins enable {name}` "
             f"if you trust them.")
 
 
@@ -1160,7 +1160,7 @@ def cmd_remove(name: str) -> None:
     console.print(f"[red]✗[/red] Plugin [bold]{name}[/bold] removed from {plugins_dir}")
     if result.get("cleared_memory_provider"):
         console.print("[yellow]memory.provider pointed at this plugin and was reset; "
-                      "run `hermes memory setup` to pick another.[/yellow]")
+                      "run `hebri memory setup` to pick another.[/yellow]")
     console.print()
 
 
@@ -1209,7 +1209,7 @@ _BASIC_AUTH_PLUGIN_KEYS = frozenset({"basic", "dashboard_auth/basic"})
 def ensure_basic_auth_plugin_enabled_in_config(cfg: dict) -> bool:
     """Drop the bundled basic dashboard-auth plugin from ``plugins.disabled`` in *cfg*.
 
-    ``hermes setup`` / ``hermes plugins disable basic`` can park it there while
+    ``hebri setup`` / ``hebri plugins disable basic`` can park it there while
     ``dashboard.basic_auth`` is configured, and password auth then silently fails.
     Returns True when modified.
     """
@@ -1435,8 +1435,8 @@ def _run_capability_consent(console, plugin_id: str, declared: list, *, context:
         console.print(
             "  [yellow]Non-interactive session: capabilities NOT granted "
             "(fail closed).[/yellow] Run "
-            f"`hermes plugins capabilities {plugin_id}` to review and "
-            f"`hermes plugins enable {plugin_id}` to grant interactively.")
+            f"`hebri plugins capabilities {plugin_id}` to review and "
+            f"`hebri plugins enable {plugin_id}` to grant interactively.")
         return False
 
     if _ask_yes("  Grant these capabilities? [y/N] ", console.input):
@@ -1449,12 +1449,12 @@ def _run_capability_consent(console, plugin_id: str, declared: list, *, context:
     console.print(
         f"  [dim]Declined. {plugin_id} stays enabled with these capabilities "
         "off; it should degrade gracefully (ctx.has_capability()). Re-run "
-        f"`hermes plugins enable {plugin_id}` to grant later.[/dim]")
+        f"`hebri plugins enable {plugin_id}` to grant later.[/dim]")
     return False
 
 
 def cmd_capabilities(name: Optional[str] = None) -> None:
-    """``hermes plugins capabilities [<id>]`` — declared vs granted."""
+    """``hebri plugins capabilities [<id>]`` — declared vs granted."""
     from hermes_cli.plugin_capabilities import (
         CAPABILITY_REGISTRY,
         granted_capabilities,
@@ -1517,7 +1517,7 @@ def _resolve_tool_override_grant(console, key: str, allow_tool_override: Optiona
     else:
         console.print(
             f"[dim]{key} may not override built-in tools. Re-run "
-            f"`hermes plugins enable {key} --allow-tool-override` to grant "
+            f"`hebri plugins enable {key} --allow-tool-override` to grant "
             "this later.[/dim]")
 
 
@@ -1652,7 +1652,7 @@ def _plugin_status(name: str, enabled: set, disabled: set, key: str = "", *, sou
 
 
 def _filter_plugin_entries(entries: list, args: Any, enabled: set, disabled: set) -> list:
-    """Apply ``hermes plugins list`` CLI filters."""
+    """Apply ``hebri plugins list`` CLI filters."""
     filtered = entries
     if getattr(args, "no_bundled", False) or getattr(args, "user", False):
         filtered = [entry for entry in filtered if entry[3] != "bundled"]
@@ -1675,7 +1675,7 @@ def cmd_list(args: Any | None = None) -> None:
     entries = _discover_all_plugins()
     if not entries:
         console.print("[dim]No plugins installed.[/dim]")
-        console.print("[dim]Install with:[/dim] hermes plugins install owner/repo")
+        console.print("[dim]Install with:[/dim] hebri plugins install owner/repo")
         return
 
     enabled = _get_enabled_set()
@@ -1726,9 +1726,9 @@ def cmd_list(args: Any | None = None) -> None:
     for line in removed_lines:
         console.print(line)
     console.print()
-    console.print("[dim]Compact view:[/dim] hermes plugins list --plain --no-bundled")
-    console.print("[dim]Interactive toggle:[/dim] hermes plugins")
-    console.print("[dim]Enable/disable:[/dim] hermes plugins enable/disable <name>")
+    console.print("[dim]Compact view:[/dim] hebri plugins list --plain --no-bundled")
+    console.print("[dim]Interactive toggle:[/dim] hebri plugins")
+    console.print("[dim]Enable/disable:[/dim] hebri plugins enable/disable <name>")
     console.print("[dim]Plugins are opt-in by default — only 'enabled' plugins load.[/dim]")
 
 
@@ -1817,7 +1817,7 @@ def cmd_show(name: str) -> None:
     match = _find_plugin_entry(name)
     if match is None:
         console.print(f"[red]Plugin '{name}' not found.[/red]")
-        _fail(console, "[dim]List installed plugins:[/dim] hermes plugins list")
+        _fail(console, "[dim]List installed plugins:[/dim] hebri plugins list")
 
     pname, version, description, source, dir_path, key = match
     manifest = _read_manifest(Path(dir_path)) if dir_path else {}
@@ -2172,7 +2172,7 @@ def _toggle_plugin_toolset(name: str, *, enable: bool) -> None:
     platform_toolsets = _child_dict(config, "platform_toolsets")
     changed = False
     for platform, raw in list(platform_toolsets.items()):
-        # A list-literal string (older `hermes config set`) is the user's real selection; toggling
+        # A list-literal string (older `hebri config set`) is the user's real selection; toggling
         # it re-saves the entry as a proper list so the string never persists.
         ts_list = parse_platform_toolsets_value(raw)
         if ts_list is not None and enable != (toolset_key in ts_list):
@@ -2241,7 +2241,7 @@ def dashboard_update_user_plugin(name: str, *, accept_capabilities: bool = False
             target,
             lambda rec: (
                 f"Plugin '{name}' is pinned to {rec.get('revision')}; "
-                f"run `hermes plugins install {rec.get('source', '<source>')} --force "
+                f"run `hebri plugins install {rec.get('source', '<source>')} --force "
                 "--ref <40-character commit SHA>` to move it."),
             lambda: f"Plugin '{name}' is not a git checkout; cannot pull updates.")
     except catalog.RepinConsentRequired as exc:
@@ -2427,7 +2427,7 @@ def _action_pack(args):
 
 
 def cmd_compat(args: Any | None = None) -> None:
-    """``hermes plugins compat`` — which installed plugins import paths scheduled for removal, and where."""
+    """``hebri plugins compat`` — which installed plugins import paths scheduled for removal, and where."""
     import sys
     from pathlib import Path
     from hermes_cli.plugin_compat import (
@@ -2497,7 +2497,7 @@ _PLUGIN_ACTIONS = {
 
 
 def plugins_command(args) -> None:
-    """Dispatch hermes plugins subcommands."""
+    """Dispatch hebri plugins subcommands."""
     action = getattr(args, "plugins_action", None)
     handler = _PLUGIN_ACTIONS.get(action)
     if handler is None:

@@ -86,7 +86,7 @@ declare global {
         sessionId: string,
         opts?: { profile?: null | string; watch?: boolean }
       ) => Promise<{ ok: boolean; error?: string }>
-      // Resume this session in the user's own terminal emulator (`hermes --tui
+      // Resume this session in the user's own terminal emulator (`hebri --tui
       // --resume <id>`) — the external terminal, not the in-app pane.
       openSessionInTerminal: (
         sessionId: string,
@@ -248,7 +248,7 @@ declare global {
         // Drain/update/restore one Desktop-managed SSH install. External URL
         // and cloud sources are refused without touching their processes.
         updateManaged?: (id: string) => Promise<DesktopManagedConnectionUpdateResult>
-        // Fan out `hermes update` to every eligible registered connection;
+        // Fan out `hebri update` to every eligible registered connection;
         // cloud entries are skipped (platform-managed), each row independent.
         // excludeIds skips connections the caller updates through another
         // path (the everything-update flow's active backend + local client).
@@ -612,6 +612,7 @@ declare global {
       relaunchApp?: () => Promise<void>
       getRemoteDisplayReason?: () => Promise<string | null>
       updates: {
+        quitToInstall?: () => Promise<{ ok: boolean }>
         check: (opts?: { force?: boolean }) => Promise<DesktopUpdateStatus>
         apply: (opts?: DesktopUpdateApplyOptions) => Promise<DesktopUpdateApplyResult>
         getBranch: () => Promise<{ branch: string }>
@@ -749,6 +750,7 @@ export interface DesktopUpdateCommit {
 }
 
 export interface DesktopUpdateStatus {
+  progress?: DesktopUpdateProgress
   source?: 'release'
   releaseVersion?: string
   supported: boolean
@@ -791,13 +793,14 @@ export interface DesktopUpdateApplyOptions {
 }
 
 export interface DesktopUpdateApplyResult {
+  releaseVersion?: string
   ok: boolean
   branch?: string
   error?: string
   message?: string
   blockers?: DesktopUpdateBlocker[]
   /** True when no staged updater exists (CLI install) and the user should run
-   *  `hermes update` themselves. `command` is the exact line to run. */
+   *  `hebri update` themselves. `command` is the exact line to run. */
   manual?: boolean
   command?: string
   hermesRoot?: string
@@ -842,6 +845,11 @@ export type DesktopUpdateStage =
   | 'error'
 
 export interface DesktopUpdateProgress {
+  releasePhase?: 'checking' | 'downloading' | 'verifying' | 'ready'
+  releaseVersion?: string
+  transferred?: number
+  total?: number
+  bytesPerSecond?: number
   stage: DesktopUpdateStage
   message: string
   percent: number | null

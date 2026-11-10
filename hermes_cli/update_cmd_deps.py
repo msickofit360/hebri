@@ -1,4 +1,4 @@
-"""Post-``hermes update`` dependency sync: venv preflight, editable reinstall, lazy refresh,
+"""Post-``hebri update`` dependency sync: venv preflight, editable reinstall, lazy refresh,
 npm/Desktop rebuilds, self-lock deferral. Names are re-imported by ``update_cmd`` (so
 ``hermes_cli.update_cmd.<name>`` resolves/monkeypatches); origin helpers are imported lazily."""
 
@@ -149,7 +149,7 @@ def _critical_module_import_failures(
         # Importing hermes_cli.main runs the startup dotenv load, which pulls external secret
         # sources (op/bws/command helpers, up to 120s each) unless argv says ``update``. The
         # probe only checks importability, so it inherits the updater's own argv contract.
-        "sys.argv = ['hermes', 'update']\n"
+        "sys.argv = ['hebri', 'update']\n"
         "failures = []\n"
         "for name in %r:\n"
         "    try:\n"
@@ -293,7 +293,7 @@ def _capture_active_lazy_features() -> list[str]:
 
 
 def _capture_active_tool_dependencies() -> list[str]:
-    """Snapshot Python dependencies installed explicitly through ``hermes tools``."""
+    """Snapshot Python dependencies installed explicitly through ``hebri tools``."""
     try:
         from hermes_cli import tools_config
         return tools_config.active_restorable_python_tool_dependencies()
@@ -319,7 +319,7 @@ def _module_importable_in(target_python, module_name: str, env) -> bool:
 def _restore_active_tool_dependencies(
     dependencies: list[str], install_cmd_prefix: list[str], *, env: dict[str, str] | None = None
 ) -> None:
-    """Restore allowlisted ``hermes tools`` dependencies (from a pre-rebuild probe) into a rebuilt
+    """Restore allowlisted ``hebri tools`` dependencies (from a pre-rebuild probe) into a rebuilt
     venv. Never raises: a failed optional tool must not block the update, but must be reported."""
     from hermes_cli.update_cmd import _m
     if not dependencies:
@@ -430,7 +430,7 @@ def _refresh_active_lazy_features(
         print(f"  ⚠ {feature} failed to refresh: {_clip(status.split(': ', 1)[-1])}")
 
     if install_cmd_prefix is None:
-        print("  ⚠ Lazy refresh failed; rerun `hermes update` once resolved.")
+        print("  ⚠ Lazy refresh failed; rerun `hebri update` once resolved.")
         return False
 
     # Import-based recovery: metadata-only verifiers miss dist-info intact but import files
@@ -442,7 +442,7 @@ def _refresh_active_lazy_features(
         return True
     if status == "healthy":
         print("  Lazy backend(s) keep their previous version; probed packages look intact.")
-        print("  Rerun `hermes update` once the upstream issue is resolved.")
+        print("  Rerun `hebri update` once the upstream issue is resolved.")
         return True
     if status == "indeterminate":
         print("  ⚠ Leaving `.lazy-refresh-incomplete` until import probes can confirm health.")
@@ -522,7 +522,7 @@ def _reapply_plugin_python_dependencies() -> None:
         print(f"  ✓ Plugin Python dependencies re-applied: {', '.join(report.installed)}")
     for name, reason in report.dropped:
         print(f"  ✗ Plugin '{name}' DISABLED: {reason}. Fix the plugin's declared dependencies, "
-              f"then `hermes plugins enable {name}`.")
+              f"then `hebri plugins enable {name}`.")
     if report.failed:
         print(f"  ⚠ Plugin Python dependencies not re-applied: {report.failed}")
     _migrate_removed_memory_providers()
@@ -698,7 +698,7 @@ def _repair_node_deps_on_current_checkout(
     node_failures = _update_node_dependencies()
     if node_failures:
         print(f"  ⚠ Node.js refresh failed for: {', '.join(node_failures)}")
-        print("    Fix npm and re-run `hermes update`.")
+        print("    Fix npm and re-run `hebri update`.")
         print_completion("⚠ Checkout is current, but Node.js dependencies could not be repaired.")
         return False
     # Pair with the web build like every other call site; it staleness-checks internally.
@@ -747,7 +747,7 @@ def _update_node_dependencies() -> list[str]:
             print("→ Updating Node.js dependencies...")
             print("  ⚠ Skipped: only a Windows npm is reachable from this WSL shell.")
             print("    Install Node.js inside the WSL distro (nvm, or your distro's")
-            print("    package manager), then re-run `hermes update`.")
+            print("    package manager), then re-run `hebri update`.")
             has_workspace = any(
                 (_m().PROJECT_ROOT / ws / "package.json").exists() for ws in ("ui-tui", "web"))
             return ["ui-tui, web workspaces"] if has_workspace else []
@@ -759,7 +759,7 @@ def _update_node_dependencies() -> list[str]:
 
     # Best-effort npx cache warm before the lockfile-unchanged early return. Can block
     # ~11s on a cold cache — print first so it doesn't look like a hang.
-    # Runs before the lockfile-unchanged early return below since that's the common `hermes update` case.
+    # Runs before the lockfile-unchanged early return below since that's the common `hebri update` case.
     # See #43564.
     print("→ Warming npx cache for agent-browser...")
     with suppress(Exception):
@@ -786,7 +786,7 @@ def _update_node_dependencies() -> list[str]:
 
     # capture_output=False is deliberate: postinstall scripts print download progress and
     # capturing makes a long download look hung.
-    # The chatty npm-deprecation noise during `hermes update` comes from the *desktop* build, not this step;
+    # The chatty npm-deprecation noise during `hebri update` comes from the *desktop* build, not this step;
     # that one is captured to update.log. See #18840.
     _clear_npm_lockfile_hash(shared_hermes_root)
     result = _m()._run_npm_install_deterministic(
@@ -802,7 +802,7 @@ def _update_node_dependencies() -> list[str]:
     print()
     print("  ⚠ Node.js dependency refresh did not complete cleanly; the")
     print("    installation may be in a mixed state (updated code, stale Node")
-    print("    deps). Fix npm and re-run `hermes update`.")
+    print("    deps). Fix npm and re-run `hebri update`.")
     return ["ui-tui, web workspaces"]
 
 
@@ -1127,7 +1127,7 @@ def _rebuild_desktop_after_update(
         if build_result.returncode == 0:
             break
     if build_result.returncode != 0:
-        print("  ⚠ Desktop build failed (run `hermes desktop` to retry)")
+        print("  ⚠ Desktop build failed (run `hebri desktop` to retry)")
         tail = "\n".join((build_result.stdout or "").strip().splitlines()[-15:])
         if tail:
             print(tail)
@@ -1156,7 +1156,7 @@ def _venv_foreign_owned_paths(venv_root, limit: int = 5) -> list:
     ``[]`` on Windows and as root; ``[]`` on any surprise — must NEVER raise or add latency.
 
     See #83529.
-    A later normal ``hermes update`` then dies mid-mutation inside ``uv pip install -e .`` ("Permission
+    A later normal ``hebri update`` then dies mid-mutation inside ``uv pip install -e .`` ("Permission
     denied (os error 13)") with ``venv/bin/hermes`` already deleted — the CLI is bricked. Same philosophy as
     the contended-venv gate (#87331): a venv we cannot safely mutate is never mutated at all.
     """
@@ -1230,7 +1230,7 @@ def _refuse_update_if_venv_foreign_owned(project_root) -> None:
         print(f"    - {p} (owner uid {uid})")
     print("\n  Fix ownership, then re-run the update:")
     print(f"    sudo chown -R $(id -un): {project_root}")
-    print("    hermes update")
+    print("    hebri update")
     print("\n  Nothing in the venv was modified.")
     sys.exit(1)
 
@@ -1324,5 +1324,5 @@ def _sync_python_dependencies_after_pull(
         print()
         print(f"  ⚠ {failing_module} still fails to import after updating:")
         print(f"      {import_error}")
-        print("    Run `hermes update` again — if it persists, reinstall:")
+        print("    Run `hebri update` again — if it persists, reinstall:")
         print("    https://github.com/satoshilove/hebri")

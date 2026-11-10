@@ -13,7 +13,7 @@
 # 2. Creates a Python 3.11 virtual environment
 # 3. Installs the appropriate dependency set for the platform
 # 4. Creates .env from template (if not exists)
-# 5. Symlinks the 'hermes' CLI command into a user-facing bin dir
+# 5. Symlinks the 'hebri' CLI command into a user-facing bin dir
 # 6. Runs the setup wizard (optional)
 # ============================================================================
 
@@ -28,6 +28,8 @@ NC='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
+export HEBRI_HOME="${HEBRI_HOME:-$HOME/.hebri}"
+export HERMES_HOME="$HEBRI_HOME"
 
 # Prevent uv from discovering config files (uv.toml, pyproject.toml) from the
 # wrong user's home directory when running under sudo -u <user>.  See #21269.
@@ -87,8 +89,8 @@ else
         # full, etc.) instead of "✗ Failed to install uv" with zero
         # diagnostic.  Two-stage to avoid `curl | sh` masking curl
         # failures (sh exits 0 on empty stdin under no pipefail).
-        _uv_log="$(mktemp 2>/dev/null || echo "${TMPDIR:-${HERMES_HOME:-$HOME/.hermes}}/hermes-uv-install.$$.log")"
-        _uv_installer="$(mktemp 2>/dev/null || echo "${TMPDIR:-${HERMES_HOME:-$HOME/.hermes}}/hermes-uv-installer.$$.sh")"
+        _uv_log="$(mktemp 2>/dev/null || echo "${TMPDIR:-${HERMES_HOME:-$HOME/.hebri}}/hermes-uv-install.$$.log")"
+        _uv_installer="$(mktemp 2>/dev/null || echo "${TMPDIR:-${HERMES_HOME:-$HOME/.hebri}}/hermes-uv-installer.$$.sh")"
         if ! curl -LsSf https://astral.sh/uv/install.sh -o "$_uv_installer" 2>"$_uv_log"; then
             echo -e "${RED}✗${NC} Failed to download uv installer."
             sed 's/^/    /' "$_uv_log" >&2
@@ -379,17 +381,17 @@ else
 fi
 
 # ============================================================================
-# PATH setup — symlink hermes into a user-facing bin dir
+# PATH setup — symlink hebri into a user-facing bin dir
 # ============================================================================
 
-echo -e "${CYAN}→${NC} Setting up hermes command..."
+echo -e "${CYAN}→${NC} Setting up hebri command..."
 
-HERMES_BIN="$SCRIPT_DIR/venv/bin/hermes"
+HERMES_BIN="$SCRIPT_DIR/venv/bin/hebri"
 COMMAND_LINK_DIR="$(get_command_link_dir)"
 COMMAND_LINK_DISPLAY_DIR="$(get_command_link_display_dir)"
 mkdir -p "$COMMAND_LINK_DIR"
-ln -sf "$HERMES_BIN" "$COMMAND_LINK_DIR/hermes"
-echo -e "${GREEN}✓${NC} Symlinked hermes → $COMMAND_LINK_DISPLAY_DIR/hermes"
+ln -sf "$HERMES_BIN" "$COMMAND_LINK_DIR/hebri"
+echo -e "${GREEN}✓${NC} Symlinked hebri → $COMMAND_LINK_DISPLAY_DIR/hebri"
 
 if is_termux; then
     export PATH="$COMMAND_LINK_DIR:$PATH"
@@ -433,14 +435,14 @@ else
 fi
 
 # ============================================================================
-# Seed bundled skills into ~/.hermes/skills/
+# Seed bundled skills into ~/.hebri/skills/
 # ============================================================================
 
-HERMES_SKILLS_DIR="${HERMES_HOME:-$HOME/.hermes}/skills"
+HERMES_SKILLS_DIR="${HERMES_HOME:-$HOME/.hebri}/skills"
 mkdir -p "$HERMES_SKILLS_DIR"
 
 echo ""
-echo "Syncing bundled skills to ~/.hermes/skills/ ..."
+echo "Syncing bundled skills to ~/.hebri/skills/ ..."
 if "$SCRIPT_DIR/venv/bin/python" "$SCRIPT_DIR/tools/skills_sync.py" 2>/dev/null; then
     echo -e "${GREEN}✓${NC} Skills synced"
 else
@@ -462,31 +464,31 @@ echo "Next steps:"
 echo ""
 if is_termux; then
     echo "  1. Run the setup wizard to configure API keys:"
-    echo "     hermes setup"
+    echo "     hebri setup"
     echo ""
     echo "  2. Start chatting:"
-    echo "     hermes"
+    echo "     hebri"
     echo ""
 else
     echo "  1. Reload your shell:"
     echo "     source $SHELL_CONFIG"
     echo ""
     echo "  2. Run the setup wizard to configure API keys:"
-    echo "     hermes setup"
+    echo "     hebri setup"
     echo ""
     echo "  3. Start chatting:"
-    echo "     hermes"
+    echo "     hebri"
     echo ""
 fi
 echo "Other commands:"
-echo "  hermes status        # Check configuration"
+echo "  hebri status        # Check configuration"
 if is_termux; then
-    echo "  hermes gateway       # Run gateway in foreground"
+    echo "  hebri gateway       # Run gateway in foreground"
 else
-    echo "  hermes gateway install # Install gateway service (messaging + cron)"
+    echo "  hebri gateway install # Install gateway service (messaging + cron)"
 fi
-echo "  hermes cron list     # View scheduled jobs"
-echo "  hermes doctor        # Diagnose issues"
+echo "  hebri cron list     # View scheduled jobs"
+echo "  hebri doctor        # Diagnose issues"
 echo ""
 
 # Ask if they want to run setup wizard now

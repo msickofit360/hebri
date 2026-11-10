@@ -73,9 +73,9 @@ def _warn_if_gateway_not_running() -> None:
     if _builtin_gateway_liveness() is not False:
         return
     print(color("  ⚠  Scheduler is not ready: no gateway or no fresh profile heartbeat.", Colors.YELLOW))
-    print(color("     If no gateway is running: hermes gateway install\n"
-                "                    sudo hermes gateway install --system  # Linux servers\n"
-                "     Check status:  hermes cron status", Colors.DIM))
+    print(color("     If no gateway is running: hebri gateway install\n"
+                "                    sudo hebri gateway install --system  # Linux servers\n"
+                "     Check status:  hebri cron status", Colors.DIM))
 
 
 def _format_lateness(seconds: float) -> str:
@@ -176,7 +176,7 @@ def cron_list(show_all: bool = False):
         ]
 
     if not jobs:
-        print(color("No scheduled jobs.\nCreate one with 'hermes cron create ...' "
+        print(color("No scheduled jobs.\nCreate one with 'hebri cron create ...' "
                     "or the /cron command in chat.", Colors.DIM))
         return
 
@@ -257,14 +257,14 @@ def _short_reason(text: Any, limit: int = 120) -> str:
 
 
 def _delivery_fix_hint(job: Dict[str, Any]) -> str:
-    return (f"Check the target with `hermes cron status` or change it with "
-            f"`hermes cron edit {job.get('id', '<id>')} --deliver <target>`.")
+    return (f"Check the target with `hebri cron status` or change it with "
+            f"`hebri cron edit {job.get('id', '<id>')} --deliver <target>`.")
 
 
 def _missed_fire_issue(job: Dict[str, Any], fire_err: Dict[str, Any]) -> str:
     return (f"missed scheduled fire at {fire_err.get('at', '?')}: {_short_reason(fire_err['detail'])}. "
-            "The messaging gateway was unreachable. Run `hermes gateway restart`, then "
-            f"`hermes cron run {job.get('id', '<id>')}` to run it now.")
+            "The messaging gateway was unreachable. Run `hebri gateway restart`, then "
+            f"`hebri cron run {job.get('id', '<id>')}` to run it now.")
 
 
 def _job_warnings(job: Dict[str, Any]) -> List[str]:
@@ -302,7 +302,7 @@ def cron_tick():
         # For the one-shot CLI surface, report cleanly instead of dumping a traceback; the gateway ticker
         # loop handles its own retry. See #87644.
         print(color(f"✗ Cron tick failed: {exc}", Colors.RED))
-        print("  Check `hermes cron status` and the gateway log for details.")
+        print("  Check `hebri cron status` and the gateway log for details.")
         return 1
     return 0
 
@@ -336,7 +336,7 @@ def cron_incidents(args) -> int:
     if action == "ack":
         incident_id = getattr(args, "incident_id", None)
         if not incident_id:
-            print(color("✗ Incident ID required: hermes cron incidents ack <incident_id>", Colors.RED))
+            print(color("✗ Incident ID required: hebri cron incidents ack <incident_id>", Colors.RED))
             return 1
         if ack_incident(incident_id):
             print(color(f"✓ Incident {incident_id} acknowledged (closed).", Colors.GREEN))
@@ -367,13 +367,13 @@ def cron_incidents(args) -> int:
             if label != "Output" or value:
                 print(f"    {label + ':':<12}{value}")
         print()
-    print(color(f"  {len(incidents)} incident(s)  |  ack one with: hermes cron incidents ack <id>",
+    print(color(f"  {len(incidents)} incident(s)  |  ack one with: hebri cron incidents ack <id>",
                 Colors.DIM))
     return 0
 
 
 _PERMISSION_HINT = ("  Hint: jobs.json may be owned by another user (e.g. rewritten by a root "
-                    "`docker exec hermes hermes cron ...`). Fix ownership to match the gateway "
+                    "`docker exec hermes hebri cron ...`). Fix ownership to match the gateway "
                     "user, and prefer `docker exec -u <uid>:<gid>`.")
 _FD_EXHAUSTION_HINT = ("  Hint: the ticker hit file-descriptor exhaustion (EMFILE). The scheduler "
                        "now retries with backoff and attempts fd reclamation, but if the leak "
@@ -385,7 +385,7 @@ def _ticker_age_is_fresh(age: Optional[float]) -> bool:
     return age is not None and age <= TICKER_INTERVAL_SECONDS * 3 + 20
 
 
-def _print_ticker_health(pids: list, restart_command: str = "hermes gateway restart") -> None:
+def _print_ticker_health(pids: list, restart_command: str = "hebri gateway restart") -> None:
     """Report builtin-ticker liveness for a gateway process known to be alive.
 
     The ticker THREAD can die silently or stay alive while every tick fails, so check both
@@ -410,14 +410,14 @@ def _print_ticker_health(pids: list, restart_command: str = "hermes gateway rest
         # Ticker never started (non-cron profile, gateway just started, or a config issue).
         _warn("⚠ Gateway is running but the cron ticker has not reported a heartbeat.")
         print("  Cron jobs will NOT fire until the ticker writes its first heartbeat.\n"
-              "  If the gateway just started, wait ~60s and re-run `hermes cron status`.\n"
+              "  If the gateway just started, wait ~60s and re-run `hebri cron status`.\n"
               f"  If heartbeat never appears, restart: {restart_command}")
     elif not _ticker_age_is_fresh(hb_age):  # ticker thread is gone
         _warn("⚠ Gateway is running but the cron ticker looks STALLED — "
               f"no heartbeat for {int(hb_age)}s (expected every ~60s).")
         print(f"  Cron jobs may NOT be firing. Restart: {restart_command}")
     elif (skew := stale_code_yield_labels(last_error)) is not None:
-        # `hermes update` moved the checkout under a running gateway: its ticker yields every
+        # `hebri update` moved the checkout under a running gateway: its ticker yields every
         # tick (heartbeat stays fresh, nothing dispatches) until the process is restarted (#117275).
         _warn("⚠ Gateway is running STALE code — its cron ticker yields every tick and "
               "fires NOTHING.")
@@ -491,13 +491,13 @@ def cron_status():
                 served_by_multiplexer = named_profile_served_by_running_multiplexer()
         if host is not None:
             print(f"  Scheduler host: {host.describe()}")
-            # `hermes gateway restart` exits 78 for a served NAMED profile
+            # `hebri gateway restart` exits 78 for a served NAMED profile
             # (_guard_named_profile_under_multiplexer): the one host process is the default's.
-            _print_ticker_health([host.pid], restart_command="hermes --profile default gateway restart")
+            _print_ticker_health([host.pid], restart_command="hebri --profile default gateway restart")
         elif pids or gateway_alive_via_lock or served_by_multiplexer:
             if served_by_multiplexer:
                 print("  Scheduler host: the host gateway (multiplexing this profile)")
-                _print_ticker_health([], restart_command="hermes --profile default gateway restart")
+                _print_ticker_health([], restart_command="hebri --profile default gateway restart")
             else:
                 _print_ticker_health(pids)
         else:
@@ -512,15 +512,15 @@ def cron_status():
                                 f"{_format_lateness(hb_age)} ago — jobs that came due "
                                 "since then have not fired.", Colors.YELLOW))
             print("\n  Start the ONE host gateway (it multiplexes every profile, this one included):\n"
-                  "    hermes --profile default gateway install   # user service\n"
-                  "    sudo hermes --profile default gateway install --system  # Linux servers: boot-time service\n"
-                  "    hermes --profile default gateway run       # Or run in foreground")
+                  "    hebri --profile default gateway install   # user service\n"
+                  "    sudo hebri --profile default gateway install --system  # Linux servers: boot-time service\n"
+                  "    hebri --profile default gateway run       # Or run in foreground")
             if active not in ("default", "custom"):
                 print("\n  It serves this profile automatically. If a per-profile service or gateway\n"
                       "  from an older release is still installed, fold it in (preflight + dry run):\n"
-                      "      hermes --profile default gateway migrate --multiplex --dry-run\n"
-                      "      hermes --profile default gateway migrate --multiplex\n"
-                      "  Check: hermes cron status from this profile should show its ticker heartbeat.\n")
+                      "      hebri --profile default gateway migrate --multiplex --dry-run\n"
+                      "      hebri --profile default gateway migrate --multiplex\n"
+                      "  Check: hebri cron status from this profile should show its ticker heartbeat.\n")
 
     print()
     _print_active_jobs_summary(list_jobs(include_disabled=False))
@@ -663,7 +663,7 @@ def cron_doctor() -> int:
         for issue in issues:
             print(f"    - {issue}")
     print()
-    print(color("Review the findings above, then run `hermes cron doctor` again.", Colors.DIM))
+    print(color("Review the findings above, then run `hebri cron doctor` again.", Colors.DIM))
     return 1
 
 
@@ -833,7 +833,7 @@ def cron_resume(args) -> int:
 
 
 def cron_notepad(args) -> int:
-    """Handle ``hermes cron notepad <job_id> [get|set|delete|list]`` (per-job durable KV).
+    """Handle ``hebri cron notepad <job_id> [get|set|delete|list]`` (per-job durable KV).
 
     A running cron agent updates its own notepad via its terminal tool; the scheduler injects
     non-empty notepads into the job prompt on each run.
@@ -857,7 +857,7 @@ def cron_notepad(args) -> int:
             return 0
         usage_args = "set <key> <value>" if action == "set" else f"{action} <key>"
         if key is None or (action == "set" and value is None):
-            print(color(f"Usage: hermes cron notepad <job_id> {usage_args}", Colors.RED))
+            print(color(f"Usage: hebri cron notepad <job_id> {usage_args}", Colors.RED))
             return 1
         if action == "set":
             notepad.set_note(job_id, key, value)
@@ -906,5 +906,5 @@ def cron_command(args):
     if handler is not None:
         return handler(args)
     print(f"Unknown cron command: {subcmd}\n"
-          "Usage: hermes cron [list|create|edit|pause|resume|run|remove|status|runs|doctor|tick]")
+          "Usage: hebri cron [list|create|edit|pause|resume|run|remove|status|runs|doctor|tick]")
     sys.exit(1)

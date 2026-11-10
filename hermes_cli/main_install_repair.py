@@ -152,7 +152,7 @@ def _claim_recovery_lock(lock_path: Path) -> bool:
 @contextlib.contextmanager
 def _stdout_to_stderr():
     """Route Python prints AND the fd 1 that pip/uv inherit to stderr: launches whose stdout is
-    a protocol stream (``hermes acp`` speaks JSON-RPC on stdout) must never get install noise."""
+    a protocol stream (``hebri acp`` speaks JSON-RPC on stdout) must never get install noise."""
     saved_stdout_fd = None
     saved_sys_stdout = sys.stdout
     try:
@@ -174,7 +174,7 @@ def _stdout_to_stderr():
 
 
 def _recover_from_interrupted_install() -> None:
-    """Finish update work left half-done by a prior ``hermes update``.
+    """Finish update work left half-done by a prior ``hebri update``.
 
     ``.update-incomplete`` recovers via full quarantined reinstall; ``.lazy-refresh-incomplete``
     via package-only import probes (cleared only when probes confirm healthy/repaired). Never
@@ -252,13 +252,13 @@ def _recover_core_update_marker_locked() -> None:
     max_attempts = _early_recovery_mod._CORE_INSTALL_MAX_ATTEMPTS
     if attempts >= max_attempts:
         print(
-            f"✗ Finishing an interrupted `hermes update` failed {attempts} times; automatic "
+            f"✗ Finishing an interrupted `hebri update` failed {attempts} times; automatic "
             "retries are paused so Hermes stops reinstalling on every launch.")
         for line in _manual_core_recovery_lines(PROJECT_ROOT, marker, windows=_is_windows()):
             print(line)
         return
     print(
-        "⚠ A previous `hermes update` was interrupted mid-install — "
+        "⚠ A previous `hebri update` was interrupted mid-install — "
         "finishing dependency installation now...")
 
     # Windows: a ``hermes.exe`` launch has the launcher as an ancestor; the quarantined full
@@ -422,7 +422,7 @@ def _reexec_dependency_sync_off_windows_shim(gateway_resume: dict | None = None)
     ``Already up to date!`` no-op) and take the prompts along. Waiting on the child deadlocks
     (we hold the handle it needs) and Windows has no exec, so the shell returns; the child keeps
     the console, prints its own result, and ``--gateway`` writes the true exit code to
-    ``.update_exit_code``. The child re-runs ``hermes update`` so the sync and its tail happen
+    ``.update_exit_code``. The child re-runs ``hebri update`` so the sync and its tail happen
     exactly once; ``_UPDATE_REEXEC_ENV`` stops it spawning again and stops the "already up to
     date" early return from swallowing the sync. ``.update-incomplete`` is already written, so
     a child that dies mid-install is finished by the next launch's recovery.
@@ -513,7 +513,7 @@ def _run_install_with_heartbeat(
         # both pipes) only drain the child's stdout, so a full stderr
         # pipe (~64KB) blocks the installer forever. Merged into stdout,
         # the output rides the pipe old hand-offs DO drain. This module
-        # is imported when `hermes update` starts, so an update running
+        # is imported when `hebri update` starts, so an update running
         # from an old base executes the old copy regardless of the git
         # reset — this protects updates initiated from bases that ship
         # it. (managed_uv.py gets the same fix AND is imported lazily
@@ -563,7 +563,7 @@ def _hermes_exe_shims(scripts_dir: Path) -> list[Path]:
     only; POSIX shims are plain scripts replaced atomically."""
     if not _is_windows():
         return []
-    names = set(_load_console_script_names()) or {"hermes", "hermes-agent", "hermes-acp"}
+    names = set(_load_console_script_names()) or {"hebri", "hebri-agent", "hebri-acp", "hermes", "hermes-agent", "hermes-acp"}
     # Not a [project.scripts] entry point, but older update/install paths still
     # rewrite and quarantine it.
     names.update({"hebri-gateway", "hermes-gateway"})
@@ -624,7 +624,7 @@ def _quarantine_running_hermes_exe(
             f"another process is holding it open).")
         print(
             "    Close Hermes Desktop, exit other `hermes` REPLs, stop the "
-            "gateway, or pause AV scanning, then re-run `hermes update`.")
+            "gateway, or pause AV scanning, then re-run `hebri update`.")
         if failed_out is not None:
             failed_out.append(shim.name)
 
@@ -937,7 +937,7 @@ def _repair_venv_via_import_probes(
         print("  ✓ Venv repair succeeded")
         return "repaired"
     manual = " ".join(shlex.quote(s) for s in _lazy_refresh_repair_specs(broken))
-    print("  ⚠ Venv repair incomplete. Run manually, then `hermes update`:")
+    print("  ⚠ Venv repair incomplete. Run manually, then `hebri update`:")
     print(f"    {' '.join(install_cmd_prefix)} install --force-reinstall {manual}")
     return "failed"
 
@@ -1140,8 +1140,8 @@ def _verify_console_scripts_installed(
         env=env, scripts_dir=scripts_dir,
         log_msg="console script verification: repair install failed: %s",
         fail_msg=(
-            "  ⚠ Entry point repair failed; try `hermes update --force` after "
-            "closing other hermes processes.")):
+            "  ⚠ Entry point repair failed; try `hebri update --force` after "
+            "closing other hebri processes.")):
         return
     _report_still_missing(
         _missing(), "Workaround: python -m hermes_cli.main <command>",
@@ -1189,7 +1189,7 @@ def _verify_core_dependencies_installed(
     if not applicable:
         return
     # Probe inside the venv Python — sys.executable may be the outer Python that drove
-    # ``hermes update``; the install prefix/env encode which environment we targeted.
+    # ``hebri update``; the install prefix/env encode which environment we targeted.
     venv_python = _resolve_install_target_python(install_cmd_prefix, env)
     if venv_python is None:
         return
@@ -1216,7 +1216,7 @@ def _verify_core_dependencies_installed(
         _run_quarantined_install, install_cmd_prefix + ["install", "--reinstall", "-e", "."],
         env=env, scripts_dir=scripts_dir,
         log_msg="dep verification: repair install failed: %s",
-        fail_msg="  ⚠ Repair install failed; check `hermes update` output above."):
+        fail_msg="  ⚠ Repair install failed; check `hebri update` output above."):
         return
     still_missing = _missing_deps()
     if not still_missing:
@@ -1233,10 +1233,10 @@ def _verify_core_dependencies_installed(
         log_msg="dep verification: per-package repair failed: %s",
         fail_msg=(
             f"  ⚠ Could not install: {', '.join(still_missing)}. "
-            "Run `hermes update --force` after closing other hermes processes.")):
+            "Run `hebri update --force` after closing other hebri processes.")):
         return
     _report_still_missing(
-        _missing_deps(), "Run `hermes update --force` after closing other hermes processes.",
+        _missing_deps(), "Run `hebri update --force` after closing other hebri processes.",
         ok="  ✓ All declared core dependencies now installed")
 
 

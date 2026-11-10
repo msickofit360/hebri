@@ -290,7 +290,7 @@ contextBridge.exposeInMainWorld('hermesDesktop', {
     setLastUsed: id => ipcRenderer.invoke('hermes:connections:set-last-used', id),
     test: id => ipcRenderer.invoke('hermes:connections:test', id),
     updateManaged: id => ipcRenderer.invoke('hermes:connections:update-managed', id),
-    // Fan out `hermes update` to every eligible registered connection.
+    // Fan out `hebri update` to every eligible registered connection.
     // Optional excludeIds skips rows the caller updates through another path.
     updateAll: options => ipcRenderer.invoke('hermes:connections:update-all', options),
     // Registry lifecycle push (main → renderer): a connection was removed or
@@ -633,6 +633,7 @@ contextBridge.exposeInMainWorld('hermesDesktop', {
     run: mode => ipcRenderer.invoke('hermes:uninstall:run', { mode })
   },
   updates: {
+    quitToInstall: () => ipcRenderer.invoke('hermes:updates:quit-to-install'),
     check: opts => ipcRenderer.invoke('hermes:updates:check', opts),
     apply: opts => ipcRenderer.invoke('hermes:updates:apply', opts),
     getBranch: () => ipcRenderer.invoke('hermes:updates:branch:get'),

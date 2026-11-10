@@ -13,9 +13,9 @@ from __future__ import annotations
 try:
     import hermes_bootstrap  # noqa: F401
 except ModuleNotFoundError:
-    pass  # partial `hermes update` — only skips the Windows UTF-8 stdio setup
+    pass  # partial `hebri update` — only skips the Windows UTF-8 stdio setup
 
-# The `hermes-agent` console script lands here without hermes_cli.main: repair a `hermes update` killed
+# The `hermes-agent` console script lands here without hermes_cli.main: repair a `hebri update` killed
 # while git wrote the new tree before importing anything else from the checkout.
 from hermes_cli import _early_recovery
 

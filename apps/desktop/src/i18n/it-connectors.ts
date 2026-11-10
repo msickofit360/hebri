@@ -67,13 +67,13 @@ export const itConnectors = {
       showAllMatches: 'Mostra tutti i risultati',
       segmentNoMatch: (segment: string) => `Nessun risultato in ${segment}, quindi vengono mostrati tutti i risultati.`,
       freeTierNote: 'Le connessioni restano su questo computer finché non accedi.',
-      signInLine: 'Accedi a Nous per usare le app gestite.',
+      signInLine: 'Accedi a Synapsek per usare le app gestite.',
       managedUnavailable: 'Le app gestite non sono ancora disponibili per questo account.',
       writeFailed: 'La modifica non è stata salvata.',
       refreshFailed: 'L’elenco degli strumenti non è stato aggiornato.',
       disconnectNoAccount: 'Hebri non ha un account da scollegare qui. Aggiorna la pagina e riprova.',
       disconnectRefused:
-        'Nous non è riuscito a rimuovere questo accesso. Disattiva l’app con l’interruttore oppure riprova più tardi.'
+        'Synapsek non è riuscito a rimuovere questo accesso. Disattiva l’app con l’interruttore oppure riprova più tardi.'
     },
     add: {
       action: 'Aggiungi il tuo',
@@ -121,7 +121,7 @@ export const itConnectors = {
       turnOffLocal: 'Disattiva il server locale',
       providedByPlugin: (plugin: string) => `Fornito dal plugin ${plugin}`,
       openPlugins: 'Apri la scheda Plugin',
-      nousLine: 'Le app Nous sono associate al tuo account, non al profilo.',
+      nousLine: 'Gli accessi Synapsek sono concessi separatamente a ogni Bit.',
       rulesReadOnly: 'Al momento non è possibile modificare le regole.',
       rulesAppOff: (name: string) => `Attiva ${name} per modificarne gli strumenti.`,
       rulesSignIn: 'Accedi per modificare ciò che Hebri può fare qui.',
@@ -170,7 +170,7 @@ export const itConnectors = {
       goneBody: 'Hebri non può più usarlo. La voce rimane visibile finché non la rimuovi, così nulla scompare da solo.',
       offTitle: (name: string) => `${name} è disattivato.`,
       offBody: 'Attivalo con l’interruttore qui sopra per vedere gli strumenti che offre.',
-      signedOutTitle: 'Accedi a Nous per leggere l’elenco degli strumenti.',
+      signedOutTitle: 'Accedi a Synapsek per leggere l’elenco degli strumenti.',
       signedOutBody: 'I server su questo computer non sono interessati.',
       conflictTitle: 'Qualcuno ha cambiato questa regola mentre la modificavi.',
       conflictBody: (theyOff: number, theyOn: number) => {

@@ -12,16 +12,16 @@ fails CI if it does).
 
 **What happens to an affected plugin.**
 
-| when | CLI banner / `hermes doctor` / `hermes update` | Desktop | the plugin |
+| when | CLI banner / `hebri doctor` / `hebri update` | Desktop | the plugin |
 |---|---|---|---|
-| before 2026-09-14 | yellow notice naming the plugin, the date, and `hermes plugins compat` | one-time modal (per set of affected plugins) | loads; each old-path resolution emits `HermesPluginCompatWarning` once |
-| from 2026-09-14 | red notice: plugin **DISABLED** | one-time modal | **not loaded**; `hermes plugins list` shows the reason |
+| before 2026-09-14 | yellow notice naming the plugin, the date, and `hebri plugins compat` | one-time modal (per set of affected plugins) | loads; each old-path resolution emits `HermesPluginCompatWarning` once |
+| from 2026-09-14 | red notice: plugin **DISABLED** | one-time modal | **not loaded**; `hebri plugins list` shows the reason |
 | after the revert lands | same | same | not loaded (the old paths no longer exist) |
 
 Escape hatch for users who cannot wait on an author: `plugins.allow_deprecated_imports: true` in
 `config.yaml` keeps affected plugins loading after the date, until the revert actually removes the paths.
 
-**For plugin authors:** run `hermes plugins compat <path-to-your-plugin>` — it prints every `file:line`,
+**For plugin authors:** run `hebri plugins compat <path-to-your-plugin>` — it prints every `file:line`,
 old path → new path, and exits 1 while anything remains. Import from the `new location` column.
 
 **You will see a warning.** The first time a process resolves a name through one of these blocks, Hermes emits a

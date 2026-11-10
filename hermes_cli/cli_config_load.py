@@ -288,7 +288,7 @@ def load_cli_config() -> Dict[str, Any]:
     defaults = _expand_env_vars(defaults)
 
     # Administrator-pinned (managed scope) values overlay LAST; cli.py builds its config
-    # independently of hermes_cli.config, so this keeps parity with `hermes config`. Fail-open.
+    # independently of hermes_cli.config, so this keeps parity with `hebri config`. Fail-open.
     from hermes_cli import managed_scope
 
     defaults = managed_scope.apply_managed_overlay(defaults)

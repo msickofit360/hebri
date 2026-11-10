@@ -842,7 +842,37 @@ export function ContribWiring({ children }: { children: ReactNode }) {
     [activeSessionIdRef, updateSessionState]
   )
 
+  // Electron-main / OS / cross-window integrations: update polling, ⌘W close,
+  // deep links, native-notification nav, preview-shortcut enablement,
+  // remembered-session restore, and cross-window session-list sync.
+  const previewTarget = useStore($previewTarget)
+
+  // display.resume_last_session gates the cold-start restore. `undefined` while
+  // the record is still loading holds the restore latch open; a failed fetch
+  // falls back to the historical behavior (resume).
+  const configRecord = useHermesConfigRecord()
+
+  const resumeLastSession = configRecord.isPending
+    ? undefined
+    : (configRecord.data?.display as { resume_last_session?: unknown } | undefined)?.resume_last_session !== false
+
+  const startupNavigationReady = useDesktopIntegrations({
+    activeProfile: normalizeProfileKey(activeGatewayProfile),
+    chatOpen,
+    hasPreview: Boolean(previewTarget),
+    locationPathname: location.pathname,
+    navigate,
+    profileReady: boot.phase === 'renderer.ready',
+    refreshSessions,
+    resumeLastSession,
+    resumeExhaustedSessionId,
+    routedSessionId,
+    runtimeIdByStoredSessionId: runtimeIdByStoredSessionIdRef,
+    sessions
+  })
+
   useRouteResume({
+    startupNavigationReady,
     activeSessionId,
     activeSessionIdRef,
     creatingSessionRef,
@@ -960,35 +990,6 @@ export function ContribWiring({ children }: { children: ReactNode }) {
     refreshSessions,
     requestGateway,
     updateSessionState
-  })
-
-  // Electron-main / OS / cross-window integrations: update polling, ⌘W close,
-  // deep links, native-notification nav, preview-shortcut enablement,
-  // remembered-session restore, and cross-window session-list sync.
-  const previewTarget = useStore($previewTarget)
-
-  // display.resume_last_session gates the cold-start restore. `undefined` while
-  // the record is still loading holds the restore latch open; a failed fetch
-  // falls back to the historical behavior (resume).
-  const configRecord = useHermesConfigRecord()
-
-  const resumeLastSession = configRecord.isPending
-    ? undefined
-    : (configRecord.data?.display as { resume_last_session?: unknown } | undefined)?.resume_last_session !== false
-
-  useDesktopIntegrations({
-    activeProfile: normalizeProfileKey(activeGatewayProfile),
-    chatOpen,
-    hasPreview: Boolean(previewTarget),
-    locationPathname: location.pathname,
-    navigate,
-    profileReady: boot.phase === 'renderer.ready',
-    refreshSessions,
-    resumeLastSession,
-    resumeExhaustedSessionId,
-    routedSessionId,
-    runtimeIdByStoredSessionId: runtimeIdByStoredSessionIdRef,
-    sessions
   })
 
   // Pin/unpin the selected session (statusbar keybind + chat header) — pinned

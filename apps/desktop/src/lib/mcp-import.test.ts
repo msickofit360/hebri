@@ -3,6 +3,14 @@ import { describe, expect, it } from 'vitest'
 import { parseMcpImport } from './mcp-import'
 
 describe('parseMcpImport', () => {
+  it('imports the public Hebri command and accepts the legacy spelling', () => {
+    for (const launcher of ['hebri', 'hermes']) {
+      expect(parseMcpImport(`${launcher} mcp add fixture --command npx --args -y example-server`)).toEqual([
+        { name: 'fixture', config: { command: 'npx', args: ['-y', 'example-server'] } }
+      ])
+    }
+  })
+
   describe('mcp.json snippets', () => {
     it('parses an mcpServers-wrapped document', () => {
       const text = JSON.stringify({

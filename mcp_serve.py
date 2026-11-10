@@ -1,10 +1,10 @@
 """
-Hermes MCP Server — expose messaging conversations as MCP tools (`hermes mcp serve`).
+Hermes MCP Server — expose messaging conversations as MCP tools (`hebri mcp serve`).
 
 A stdio MCP server letting any MCP client (Claude Code, Cursor, Codex, ...) list
 conversations, read history, send messages, poll live events, and manage approvals.
 Matches OpenClaw's 9-tool channel bridge surface plus the Hermes-specific
-channels_list. Client config: {"mcpServers": {"hermes": {"command": "hermes", "args": ["mcp", "serve"]}}}
+channels_list. Client config: {"mcpServers": {"hermes": {"command": "hebri", "args": ["mcp", "serve"]}}}
 """
 
 from __future__ import annotations

@@ -13,8 +13,8 @@ AI-native cross-session user modeling with multi-pass dialectic reasoning, sessi
 ## Setup
 
 ```bash
-hermes memory setup honcho   # configure Honcho directly (works on a fresh install)
-hermes memory setup          # generic picker, choose Honcho from the list
+hebri memory setup honcho   # configure Honcho directly (works on a fresh install)
+hebri memory setup          # generic picker, choose Honcho from the list
 ```
 
 For cloud, the wizard asks **OAuth, device code, or API key**. OAuth opens a
@@ -26,13 +26,13 @@ a **Connect** link next to the memory-provider dropdown.
 
 Or manually:
 ```bash
-hermes config set memory.provider honcho
+hebri config set memory.provider honcho
 echo "HONCHO_API_KEY=***" >> ~/.hermes/.env
 ```
 
-> `hermes honcho setup` also works, but only **after** Honcho is the active
+> `hebri honcho setup` also works, but only **after** Honcho is the active
 > memory provider — the `honcho` subcommand is registered for the active
-> provider only. On a fresh install, use `hermes memory setup honcho`.
+> provider only. On a fresh install, use `hebri memory setup honcho`.
 
 ## Architecture Overview
 
@@ -58,7 +58,7 @@ Both layers are joined, then truncated to fit `contextTokens` budget via `_trunc
 
 Set `"recallSync": true` in `$HERMES_HOME/honcho.json` (at the root or under
 `hosts.hermes`), or enable **Current-query recall** in the memory settings or
-`hermes honcho setup`. An explicit host-level `false` overrides root-level `true`.
+`hebri honcho setup`. An explicit host-level `false` overrides root-level `true`.
 
 In `context` and `hybrid` modes, due base and dialectic retrievals use the current
 user request before inference. The whole wait, including session initialization,
@@ -95,7 +95,7 @@ generic dialectic prewarm is skipped so it cannot shadow the first user
 message.
 
 **Off by default** — the rewrite adds one auxiliary-model call per dialectic
-cycle (not per pass). Select a fast, inexpensive model under `hermes model`
+cycle (not per pass). Select a fast, inexpensive model under `hebri model`
 -> auxiliary models -> **Memory query rewrite**; its request timeout is
 `auxiliary.memory_query_rewrite.timeout` in config.yaml (default 8s). The
 task and module (`plugins/memory/query_rewrite.py`) are provider-agnostic —
@@ -205,7 +205,7 @@ In gateway deployments (Telegram, Discord, Slack, etc.) each user arrives with a
 
 A dashboard login is a runtime identity too. The desktop passes `<provider>:<user id>` (for example `basic:alice` or `oidc:google-oauth2|1183…`) as the runtime user, so a logged-in session resolves like a gateway user: alias, then prefix, else the raw id. Enabling dashboard login on an install that ran on `peerName` moves new sessions to that peer. Keep the old history with `pinUserPeer: true` or a `userPeerAliases` entry for the login id. Without a login the desktop still uses `peerName`.
 
-> **Deprecated:** `pinPeerName` is a legacy alias for `pinUserPeer`, still read for back-compat (`pinUserPeer` wins where both are set). `hermes honcho setup` migrates it onto `pinUserPeer` on touch and never writes it.
+> **Deprecated:** `pinPeerName` is a legacy alias for `pinUserPeer`, still read for back-compat (`pinUserPeer` wins where both are set). `hebri honcho setup` migrates it onto `pinUserPeer` on touch and never writes it.
 
 **Resolver ladder** (first match wins):
 
@@ -219,13 +219,13 @@ A dashboard login is a runtime identity too. The desktop passes `<provider>:<use
 7. neither                       → session init fails with a one-time notice; no peer is minted
 ```
 
-Step 7 used to derive a peer from the session key (`user-default-<dir>`). That put a desktop or CLI session with no `peerName` on a phantom peer per directory, so its turns and memory never reached the operator's own peer (#93326). Set `peerName` (`hermes honcho peer --user <name>`) or run under a gateway that supplies a user ID.
+Step 7 used to derive a peer from the session key (`user-default-<dir>`). That put a desktop or CLI session with no `peerName` on a phantom peer per directory, so its turns and memory never reached the operator's own peer (#93326). Set `peerName` (`hebri honcho peer --user <name>`) or run under a gateway that supplies a user ID.
 
 **Why no `pinAiPeer`?** The AI peer is already pinned by construction — `aiPeer` is the only AI-side identity setting and the resolver never overrides it. Only the user-side peer has the runtime-vs-config tension that `pinUserPeer` resolves.
 
 **Host vs root semantics.** All three keys are accepted at both root and `hosts.<host>` levels. Host-level wins. For maps and prefixes, host-level *replaces* the root value as a whole (not merge), so a host can intentionally own its identity universe or wipe it with `userPeerAliases: {}` / `runtimePeerPrefix: ""`.
 
-**Setup — gateway identity tree.** `hermes honcho setup` only asks about identity mapping when it detects a connected gateway platform (it inspects the gateway config; off-gateway the step is skipped because these keys do nothing without a runtime user ID). When it runs, it asks *who talks to this gateway?* and derives the keys:
+**Setup — gateway identity tree.** `hebri honcho setup` only asks about identity mapping when it detects a connected gateway platform (it inspects the gateway config; off-gateway the step is skipped because these keys do nothing without a runtime user ID). When it runs, it asks *who talks to this gateway?* and derives the keys:
 
 - **just me** → `pinUserPeer: true`. Every non-agent gateway user collapses to `peerName`; the pin overrides all aliases, so pick this only when no user-side identity needs its own peer. Personal use where you connect Hermes to your own Telegram/Discord/etc. If separate agents reach the gateway and each needs a distinct peer, do **not** pin — leave `pinUserPeer: false` and map them via `userPeerAliases` (the `[e]` editor).
 - **me + other people, pooled** → `pinUserPeer: false` + `userPeerAliases` mapping your runtime IDs to `peerName`. You stay on the shared history; everyone else gets their own peer.
@@ -233,11 +233,11 @@ Step 7 used to derive a peer from the session key (`user-default-<dir>`). That p
 
 Pick **[e]** at the prompt to set the three keys directly instead of going through the tree.
 
-**Interactive mapping — `hermes honcho peers map`.** The setup tree covers the common shapes; `hermes honcho peers map` is the full identity view for a gateway with many users and agents. It joins two sources: the workspace's peers fetched from the Honcho API (labeled from local config — your peer, each profile's AI peer, alias targets, runtime peers of seen accounts, `user-*` fallback peers, honestly `unrecognized` otherwise), and the gateway accounts recorded in the local session store (platform, runtime ID, name, and what each currently resolves to, with `✓` when that peer already exists and `○ new` when it would be created on first message).
+**Interactive mapping — `hebri honcho peers map`.** The setup tree covers the common shapes; `hebri honcho peers map` is the full identity view for a gateway with many users and agents. It joins two sources: the workspace's peers fetched from the Honcho API (labeled from local config — your peer, each profile's AI peer, alias targets, runtime peers of seen accounts, `user-*` fallback peers, honestly `unrecognized` otherwise), and the gateway accounts recorded in the local session store (platform, runtime ID, name, and what each currently resolves to, with `✓` when that peer already exists and `○ new` when it would be created on first message).
 
 Mapping targets are picked from the workspace list (`p3`) rather than typed, so a typo cannot silently create a fresh peer; typing a name stays available for the deliberate new-peer case, and `-` clears an alias. Every assignment states its consequence: aliases move future messages only, and a runtime peer left behind keeps its history. `p<N>` alone peeks at a peer's card. `w` lists every workspace the key can reach — the wrong-workspace fallback when the peers shown aren't yours — and lets you browse one and, on explicit confirmation, repoint the profile's `workspace` at it. For a standalone workspace browser beyond mapping, [honcho-cli](https://pypi.org/project/honcho-cli/) is an optional companion (`uv tool install honcho-cli`).
 
-With multiple profiles: saving a root-cascading map asks whether the edit applies to all profiles (root) or forks this profile's host block; a root write with profiles on other workspaces warns that picked peers may not exist there; and the accounts table marks siblings that resolve the same account to a different peer (`≠ dreamer→bob`). Offline, the command degrades to typed targets over the local account list. `hermes honcho peers` without `map` stays a read-only view.
+With multiple profiles: saving a root-cascading map asks whether the edit applies to all profiles (root) or forks this profile's host block; a root write with profiles on other workspaces warns that picked peers may not exist there; and the accounts table marks siblings that resolve the same account to a different peer (`≠ dreamer→bob`). Offline, the command degrades to typed targets over the local account list. `hebri honcho peers` without `map` stays a read-only view.
 
 **Un-pinning (single → per-user).** Flipping `pinUserPeer` from `true` to `false` does not migrate data. Memory accumulated under `peerName` while pinned stays there; runtime users now resolve to fresh, empty peers. To preserve your own continuity, choose the **pooled** path — alias your runtime IDs back to `peerName` so your turns keep landing on the pooled history while other users get their own peers. The wizard offers this steer automatically when it detects you're un-pinning a previously pinned profile.
 
@@ -330,7 +330,7 @@ Multiple Hermes profiles can share one workspace while maintaining separate AI i
 
 Both profiles see the same user (`yourname`) in the same shared environment (`hermes`), but each AI peer builds its own observations, conclusions, and behavior patterns. The coder's memory stays code-oriented; the main agent's stays broad.
 
-Host key is derived from the active Hermes profile: `hermes` (default) or `hermes_<profile>` (e.g. `hermes -p coder` -> host key `hermes_coder`). Older `hermes.<profile>` host blocks are still read for compatibility and are migrated when the CLI writes profile-scoped Honcho config.
+Host key is derived from the active Hermes profile: `hermes` (default) or `hermes_<profile>` (e.g. `hebri -p coder` -> host key `hermes_coder`). Older `hermes.<profile>` host blocks are still read for compatibility and are migrated when the CLI writes profile-scoped Honcho config.
 
 ### Dialectic & Reasoning
 
@@ -413,17 +413,17 @@ Presets:
 
 | Command | Description |
 |---------|-------------|
-| `hermes memory setup honcho` | Configure Honcho directly — works on a fresh install |
-| `hermes honcho setup` | Interactive setup wizard (only registered once Honcho is the active provider; redirects to `hermes memory setup`) |
-| `hermes honcho status` | Show resolved config for active profile |
-| `hermes honcho enable` / `disable` | Toggle Honcho for active profile |
-| `hermes honcho mode <mode>` | Change recall or observation mode |
-| `hermes honcho peer --user <name>` | Update user peer name |
-| `hermes honcho peer --ai <name>` | Update AI peer name |
-| `hermes honcho tokens --context <N>` | Set context token budget |
-| `hermes honcho tokens --dialectic <N>` | Set dialectic max chars |
-| `hermes honcho map <name>` | Map current directory to a session name |
-| `hermes honcho sync` | Create host blocks for all Hermes profiles |
+| `hebri memory setup honcho` | Configure Honcho directly — works on a fresh install |
+| `hebri honcho setup` | Interactive setup wizard (only registered once Honcho is the active provider; redirects to `hebri memory setup`) |
+| `hebri honcho status` | Show resolved config for active profile |
+| `hebri honcho enable` / `disable` | Toggle Honcho for active profile |
+| `hebri honcho mode <mode>` | Change recall or observation mode |
+| `hebri honcho peer --user <name>` | Update user peer name |
+| `hebri honcho peer --ai <name>` | Update AI peer name |
+| `hebri honcho tokens --context <N>` | Set context token budget |
+| `hebri honcho tokens --dialectic <N>` | Set dialectic max chars |
+| `hebri honcho map <name>` | Map current directory to a session name |
+| `hebri honcho sync` | Create host blocks for all Hermes profiles |
 
 ## Example Config
 

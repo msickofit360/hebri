@@ -4,10 +4,10 @@ A bundled ``plugins/memory/<name>`` that becomes a standalone catalog plugin kee
 name, config section (``memory.<name>``), data directory and tool names, so the migration is only
 "the code now lives under ``HERMES_HOME/plugins/<name>``". Two hooks call :func:`migrate_home`:
 
-* ``hermes update`` — for every profile home that shares the venv (primary; runs where the venv was
+* ``hebri update`` — for every profile home that shares the venv (primary; runs where the venv was
   just rebuilt anyway).
 * agent init — when the configured provider cannot be found at all, once per process (Desktop
-  users update through the app and never run ``hermes update`` by hand).
+  users update through the app and never run ``hebri update`` by hand).
 
 Both install the catalog entry at its reviewed pin through the normal plugin install path (kill
 list, dependency constraints, enable), never a custom source. Offline or absent from the catalog:
@@ -65,7 +65,7 @@ def migrate_home(home: Path, *, install: Callable[[str], dict], say: Callable[[s
         return None
     if catalog_source(name) is None:
         say(f"  ⚠ Memory provider '{name}' is configured but not installed and not in the plugin catalog. "
-            f"Install it with `hermes plugins install <source>` or change memory.provider.")
+            f"Install it with `hebri plugins install <source>` or change memory.provider.")
         return None
     try:
         result = install(name)
@@ -76,7 +76,7 @@ def migrate_home(home: Path, *, install: Callable[[str], dict], say: Callable[[s
             f"(your memory.{name} settings and data are unchanged).")
         return name
     say(f"  ⚠ Memory provider '{name}' moved out of core and could not be installed automatically: "
-        f"{result.get('error') or 'unknown error'}. Run `hermes plugins install {name}`.")
+        f"{result.get('error') or 'unknown error'}. Run `hebri plugins install {name}`.")
     return None
 
 
@@ -93,7 +93,7 @@ def _install_into(home: Path) -> Callable[[str], dict]:
 
 
 def migrate_all_homes(*, say: Callable[[str], None] = print) -> list[str]:
-    """``hermes update`` hook: every profile home sharing this venv. Returns installed plugin names."""
+    """``hebri update`` hook: every profile home sharing this venv. Returns installed plugin names."""
     from hermes_cli.plugin_python_deps import dependency_homes
     installed: list[str] = []
     for home in dependency_homes():
@@ -120,6 +120,6 @@ def recover_at_startup(name: str) -> bool:
     from tools.lazy_deps import _allow_lazy_installs
     if not _allow_lazy_installs():
         logger.warning("Memory provider '%s' is not installed; security.allow_lazy_installs is off — "
-                       "run `hermes plugins install %s`.", name, name)
+                       "run `hebri plugins install %s`.", name, name)
         return False
     return migrate_home(home, install=_install_into(home), say=logger.warning) == name

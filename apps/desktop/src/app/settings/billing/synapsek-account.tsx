@@ -16,9 +16,14 @@ const messages: Record<string, string> = {
   stored_session_unavailable:
     'The saved session cannot be opened. Unlock your operating system credential store and retry.',
   reauthentication_required: 'Your session needs attention. Retry sign-out when the service is available.',
-  sign_out_before_switching: 'Sign out before connecting another account.',
+  sign_out_before_switching: 'A saved account session is blocking sign-in. Choose Sign out before reconnecting.',
   revocation_incomplete: 'Device revocation has not fully completed. Retry sign-out.',
-  callback_unavailable: 'The sign-in callback port is unavailable. Close another sign-in attempt and retry.'
+  callback_unavailable: 'The sign-in callback port is unavailable. Close another sign-in attempt and retry.',
+  service_unavailable: 'Synapsek could not complete the account request. Retry, or sign out before reconnecting.',
+  session_binding_required: 'This device needs fresh account consent. Sign out, then sign in again.',
+  invalid_response: 'The account service returned an unexpected response. Retry without removing your saved session.',
+  invalid_account_response: 'The account details could not be read. Retry without removing your saved session.',
+  forbidden: 'This window could not access the account service. Restart Hebri and retry.'
 }
 
 export function SynapsekAccountSettings() {
@@ -144,13 +149,15 @@ export function SynapsekAccountSettings() {
           {billingText.unavailable}
         </p>
       )}
-      <p className="text-sm text-muted-foreground">
-        {view.account?.managedInferenceEnabled
-          ? view.account.developerAccess
-            ? developerText.usage
-            : usageText.enabled
-          : billingText.disabled}
-      </p>
+      {view.account && (
+        <p className="text-sm text-muted-foreground">
+          {view.account.managedInferenceEnabled
+            ? view.account.developerAccess
+              ? developerText.usage
+              : usageText.enabled
+            : billingText.disabled}
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
         <Button disabled={busy} onClick={() => void run('openBilling')}>
           {billingText.manage}
@@ -175,6 +182,11 @@ export function SynapsekAccountSettings() {
         <Button disabled={busy} onClick={() => void run('status')} variant="outline">
           {copy.refresh}
         </Button>
+        {error && error !== 'not_available' && view.state !== 'signed_in' && (
+          <Button disabled={busy} onClick={() => void run('signOut')} variant="outline">
+            {copy.signOut}
+          </Button>
+        )}
         {error && error !== 'not_available' && (
           <Button disabled={busy} onClick={() => void run('forgetLocal')} variant="outline">
             {copy.remove}

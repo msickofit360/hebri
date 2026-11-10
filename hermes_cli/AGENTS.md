@@ -19,10 +19,10 @@ Moved bodies late-bind cli-level names via `from cli import ...` at call time, s
 handles input + autocomplete; `KawaiiSpinner` (`agent/display.py`) animates API calls and prints
 the `┊` activity feed. `load_cli_config()` in `cli.py` merges CLI defaults + user YAML.
 
-`hermes_cli/gateway.py` is the `hermes gateway` facade (process discovery, systemd backend, command
+`hermes_cli/gateway.py` is the `hebri gateway` facade (process discovery, systemd backend, command
 dispatch); topical siblings re-exported by the facade: `gateway_service_unit.py` (systemd unit
 generation/refresh), `gateway_launchd.py` (macOS LaunchAgent backend), `gateway_setup_wizard.py`
-(`hermes gateway setup`: `_PLATFORMS` registry, status table, per-platform prompts, service offer),
+(`hebri gateway setup`: `_PLATFORMS` registry, status table, per-platform prompts, service offer),
 `gateway_windows*.py`, `gateway_supervised_restart.py`, `gateway_migrate*.py`, `gateway_multiplex_*.py`,
 `gateway_enroll.py`, `gateway_command_errors.py`. Sibling bodies read facade names through `_gw()`
 (late binding on `hermes_cli.gateway`), so monkeypatch on the facade; mutable state such as
@@ -83,7 +83,7 @@ Do not add a surface-specific goal parser. ACP has no goal command or goal loop 
   `{"description", "prompt", "url", "password": True, "category": provider|tool|messaging|setting}`.
   Non-secret settings go in config.yaml; if internal code needs an env mirror, bridge it in code
   (`gateway_timeout`; `terminal.cwd` → `TERMINAL_CWD`). `MESSAGING_CWD` is removed and `TERMINAL_CWD`
-  in `.env` is deprecated — the loader warns; canonical is `terminal.cwd`. `hermes config
+  in `.env` is deprecated — the loader warns; canonical is `terminal.cwd`. `hebri config
   set/get/unset <NAME>` route any bare name registered in `OPTIONAL_ENV_VARS` / `_EXTRA_ENV_KEYS`
   (or carrying a `setup_hidden_env` platform suffix) to `.env` via `config_env_routing.py` — the
   file the platform setup flows write — never to the top level of config.yaml.
@@ -96,9 +96,9 @@ Do not add a surface-specific goal parser. ACP has no goal command or goal loop 
   (CI lint) rejects it, and `tests/hermes_cli/test_config_yaml_comment_preservation.py` guards each
   path (#92554). The commented example blocks are appended only when the file is created.
 - **Three loaders — know which you're in:** `load_cli_config()` (CLI, `cli.py`); `load_config()`
-  (`hermes tools/setup`, most subcommands, `hermes_cli/config.py`, merges `DEFAULT_CONFIG`);
+  (`hebri tools/setup`, most subcommands, `hermes_cli/config.py`, merges `DEFAULT_CONFIG`);
   `hermes_cli/config_effective.py::load_user_config_effective()` (gateway runtime via
-  `gateway/run.py::_load_gateway_config`, TUI gateway `_load_cfg`, cron, `hermes send`, doctor,
+  `gateway/run.py::_load_gateway_config`, TUI gateway `_load_cfg`, cron, `hebri send`, doctor,
   `hermes_time`/`hermes_logging`: user file + managed overlay + `${VAR}` expansion + model-key
   canon, NO defaults — for presence-sensitive readers). If the CLI sees a key and the gateway
   doesn't (or vice versa), you're on the wrong loader — check `DEFAULT_CONFIG` coverage. Never
@@ -123,12 +123,12 @@ thinking_verbs, wings), `tool_prefix`, `tool_emojis`, `branding.*` (agent_name, 
 response_label, prompt_symbol). Consumers: `banner.py`, `display.py`, `cli.py`. Key-by-key table
 and YAML template: `website/docs/user-guide/features/skins.md`.
 
-## Update pipeline (`hermes update`) — transactional; every stage guards a real field failure
+## Update pipeline (`hebri update`) — transactional; every stage guards a real field failure
 
 Fleet-update campaign #91277 (Aug 2026). A PR that weakens a stage must answer for the failure class
 it guards. `plan → snapshot → apply → restart-per-kind → verify → report`
 
-- **Plan** (`update_inventory.py`, `hermes update --plan`): read-only inventory — install kind, all
+- **Plan** (`update_inventory.py`, `hebri update --plan`): read-only inventory — install kind, all
   profiles, every live gateway with supervisor + running code version. Deployment kinds are
   first-class: `git` updates in place; `docker`/`nix`/`apt` are NOT in-place-updatable and the
   updater reports the correct external command instead of fighting the deployment model.
@@ -174,10 +174,10 @@ it guards. `plan → snapshot → apply → restart-per-kind → verify → repo
   `resume_update_receipt` carry it across, so one run still yields exactly one receipt. A write
   failure prints `⚠ Update receipt not written` and logs at WARNING, never debug.
 - **Nothing runs pulled code in the pre-pull interpreter** (`update_handoff.py`). The process that
-  started `hermes update` imported the PRE-pull tree; once git (or the ZIP swap) has replaced the
+  started `hebri update` imported the PRE-pull tree; once git (or the ZIP swap) has replaced the
   checkout it stops, writes the hand-off payload (open receipt, pre-update plan, pre-update
   version/active features, Windows pause token) and re-executes
-  `hermes update <same flags> --post-swap <file>` under the venv interpreter, which imports only the
+  `hebri update <same flags> --post-swap <file>` under the venv interpreter, which imports only the
   pulled tree and owns the tail (deps, Node/web/Desktop, maintenance, config migration, fleet
   restart, verification, receipt); the parent relays the exit code. Every "purge `sys.modules`" /
   "reload this list of modules" / "isolate this one step" fix was a symptom of the old shape and is
@@ -196,7 +196,7 @@ matchers; parser-derived flag sets; never blanket-exclude gateway ancestors, #87
 ## Profiles (multi-instance)
 
 `_apply_profile_override()` in `hermes_cli/main.py` sets `HERMES_HOME` before any module import for
-single-profile commands (`hermes -p x <cmd>`), so there `get_hermes_home()` scopes to the active
+single-profile commands (`hebri -p x <cmd>`), so there `get_hermes_home()` scopes to the active
 profile. The multiplex gateway and the Desktop/dashboard `serve` backend instead bind the active
 profile per activity via a contextvar override while `os.environ["HERMES_HOME"]` keeps the launch
 profile — a module constant or import-time read there freezes to the launch profile (rules in
@@ -228,7 +228,7 @@ tool registry overlays) key on `hermes_constants.hermes_home_key()`, never a sin
 no preflight blocker, migratable host → `True`; else `False` + a logged reason. Explicit values pass
 through. CLI/dashboard readers use `default_gateway_multiplexes` (live `served_profiles` record, then
 the explicit flag) — never the merged default, which would guess a verdict only the gateway makes.
-Migration from per-profile gateways: `hermes_cli/gateway_migrate.py` (`hermes gateway migrate
+Migration from per-profile gateways: `hermes_cli/gateway_migrate.py` (`hebri gateway migrate
 --multiplex`, the only mode — `--standalone` is deleted and a per-profile fleet is not a supported
 target; table-driven `_PREFLIGHT_CHECKS`; manifest `<default>/gateway_migration.json` = UNFINISHED,
 a re-run resumes from it; a named profile's `gateway install|start|run` refuse without `--force` via
@@ -240,7 +240,7 @@ other service domain / UNIX user / HERMES_HOME outside `profiles/` — notices f
 blockers for the hook) and the `gateway.auto_multiplex_migration` opt-out (#109954). Blockers reuse `GatewayRunner._adapter_credential_fingerprint` and `platform_binds_port`;
 "has a `/p/<profile>/` ingress" is the adapter class attribute `serves_profile_prefix` — set it on a
 new HTTP-inbound adapter when it answers the prefix, never extend a list here.
-`hermes gateway restart` for a gateway Hermes did not install (custom launchd agent / unit running
+`hebri gateway restart` for a gateway Hermes did not install (custom launchd agent / unit running
 `gateway run --external-supervisor`): `gateway_supervised_restart.py` — the gateway's SELF-declared
 supervisor (control-socket `identify` answering anything but `manual`, OR the argv marker) decides; hand back via SIGUSR1 and wait
 for a fresh supervised PID, never stop + foreground `run_gateway` (that stamps the CLI's PID and wedges
@@ -283,7 +283,7 @@ what happens when the server had already completed the transfer — the desktop 
 DELETE means "not on this machine"), the gateway passes `False` (a supersede must not discard a
 transfer the user actually approved). `scope` is entered only around the precondition and persist
 blocks, never across a `yield` or a network wait, because `run_in_executor` does not carry
-contextvars. `upgrade_guest` (`hermes auth upgrade`), the CLI `/login` handler and the desktop
+contextvars. `upgrade_guest` (`hebri auth upgrade`), the CLI `/login` handler and the desktop
 promotion poller are renderers over it; a surface that needs the cancel check and the save to be
 atomic passes `persist_guard`. The desktop's plain "connect another Nous account" device-code login
 is a separate path (`_nous_plain_poller`) and must stay one.

@@ -9,7 +9,7 @@
 # the default UID is root (0), and any file the command writes under
 # $HERMES_HOME — auth.json, .env, config.yaml — ends up root-owned and
 # unreadable to the supervised gateway. The most common manifestation: the
-# user runs `docker exec <c> hermes login`, this writes
+# user runs `docker exec <c> hebri login`, this writes
 # /opt/data/auth.json as root:root mode 0600, and from then on the gateway
 # returns "Provider authentication failed: Hermes is not logged into Nous
 # Portal" on every incoming message — even though `docker exec <c> hermes

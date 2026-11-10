@@ -102,7 +102,8 @@ def read_tools(
     now: Callable[[], float] = time.time,
 ) -> ToolsRead:
     validate_slug(slug)
-    member_key = _member_key(client.authorization_token())
+    identity = getattr(client, "cache_identity", lambda: None)()
+    member_key = hashlib.sha256(identity.encode()).hexdigest()[:16] if identity else _member_key(client.authorization_token())
     if member_key is None:
         listing = client.tools(slug)
         if isinstance(listing, NotModified):

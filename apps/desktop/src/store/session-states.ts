@@ -36,6 +36,7 @@ import { stableArray } from '@/lib/stable-array'
 import { readJson, writeJson } from '@/lib/storage'
 import type { SessionInfo } from '@/types/hermes'
 
+import { $botChatScopes, dropBotChatScopes, migrateBotChatScopes } from './bot-chat-scopes'
 import { dropStatusDrawersForProfile, migrateStatusDrawersForProfile } from './composer-status-drawer'
 import { dropPreviewTabsForProfile, migratePreviewTabsForProfile, setPreviewScope } from './preview'
 import { dropPreviewArtifactsForProfile, migratePreviewArtifactsForProfile } from './preview-status'
@@ -1363,18 +1364,18 @@ export const $botChatSessionIds = atom<ReadonlySet<string>>(
   new Set((readJson<unknown>(BOT_CHAT_SCOPE_KEY) as unknown[] | null)?.filter(id => typeof id === 'string') ?? [])
 )
 
-/** The bot-mode scope each stored id was last opened under, for the main tab
- *  (which has no tile to carry one). Window-local: the caption falls back to
- *  the stored title until the chat is opened again. */
-export const $botChatScopes = atom<Readonly<Record<string, SessionTileWorkspaceScope>>>({})
-
 function rememberBotChatScope(storedSessionId: string, scope: SessionTileWorkspaceScope): void {
   const isBotChat = scope.workspaceMode === 'bots'
   const current = $botChatSessionIds.get()
   const { [storedSessionId]: previous, ...rest } = $botChatScopes.get()
 
   const changed = isBotChat
-    ? previous?.workspaceOwnerKey !== scope.workspaceOwnerKey || previous?.workspaceTabTitle !== scope.workspaceTabTitle
+    ? previous?.workspaceOwnerKey !== scope.workspaceOwnerKey || previous?.workspaceTabTitle !== scope.workspaceTabTitle ||
+      previous?.ownerProfile !== scope.ownerProfile ||
+      previous?.ownerRoute?.connectionId !== scope.ownerRoute?.connectionId ||
+      previous?.ownerRoute?.profile !== scope.ownerRoute?.profile ||
+      previous?.ownerRoute?.targetProfile !== scope.ownerRoute?.targetProfile ||
+      previous?.ownerRoute?.mode !== scope.ownerRoute?.mode
     : Boolean(previous)
 
   if (changed) {
@@ -2165,6 +2166,8 @@ export function dropTilesForProfile(
     return (ownerProfile === name || ownerTarget === name) && (ownerConnection || 'local') === 'local'
   }
 
+  dropBotChatScopes(ownerMatches)
+
   // The profile's own sessions bucket (Bot tiles live in the shared bucket
   // and are keyed by ownerRoute, not by bucket).
   delete tilesByProfile[name]
@@ -2239,6 +2242,7 @@ export function migrateTilesForProfile(oldProfile: string, newProfile: string): 
   }
 
   const moved = tilesByProfile[from]
+  migrateBotChatScopes(renamedOwner)
 
   if (moved) {
     delete tilesByProfile[from]

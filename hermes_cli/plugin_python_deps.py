@@ -1,5 +1,5 @@
 """Python dependencies declared by user plugins: read, resolve against Hermes' own ranges, install,
-and re-apply after ``hermes update`` rebuilds the venv.
+and re-apply after ``hebri update`` rebuilds the venv.
 
 A plugin declares deps in its ``pyproject.toml`` (``[project].dependencies``) or, without one, in
 ``plugin.yaml`` ``python_dependencies`` (``pip_dependencies`` is an accepted alias). ``python_runtime:

@@ -385,7 +385,7 @@ def _discover_named_profiles():
 
 def _uninstall_profile(profile) -> None:
     """Fully uninstall a named profile: stop its gateway, remove its alias, wipe its home. Shells
-    out to ``hermes -p <name> gateway stop|uninstall`` because service names / unit paths derive
+    out to ``hebri -p <name> gateway stop|uninstall`` because service names / unit paths derive
     from the current HERMES_HOME and can't be switched in-process."""
     name = profile.name
     log_info(f"Uninstalling profile '{name}'...")
@@ -415,7 +415,7 @@ def _uninstall_profile(profile) -> None:
 
 
 def run_gui_uninstall(args):
-    """``hermes uninstall --gui``: remove the desktop app's built artifacts, packaged bundle
+    """``hebri uninstall --gui``: remove the desktop app's built artifacts, packaged bundle
     (best-effort) and Electron userData — never config/sessions/.env, the agent or its venv."""
     from hermes_cli.gui_uninstall import agent_is_installed, gui_install_summary, uninstall_gui
     hermes_home = get_hermes_home()

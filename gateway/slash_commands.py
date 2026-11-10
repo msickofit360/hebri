@@ -129,7 +129,7 @@ def _restart_notify_payload(event: MessageEvent) -> dict:
 
 
 def _spawn_detached_update(hermes_cmd, output_path, exit_code_path) -> None:
-    """Spawn ``hermes update --gateway`` detached so it survives the gateway restart it may trigger.
+    """Spawn ``hebri update --gateway`` detached so it survives the gateway restart it may trigger.
     setsid is portable (works where ``systemd-run --user`` lacks a D-Bus session); ``--gateway``
     enables file-based IPC so interactive prompts are forwarded; PYTHONUNBUFFERED lets the gateway
     stream output live.  Windows has no setsid: an inline helper runs the updater as a module under
@@ -523,7 +523,7 @@ class GatewaySlashCommandsMixin(
             if paused:
                 return f"{name} is already paused."
             self._pause_failed_platform(platform, reason="paused via /platform pause")
-            return f"✓ {name} paused. Resume with `/platform resume {name}` or `hermes gateway restart` to reset."
+            return f"✓ {name} paused. Resume with `/platform resume {name}` or `hebri gateway restart` to reset."
         if not queued:
             return f"{name} is not in the retry queue — nothing to resume."
         if not paused:
@@ -925,7 +925,7 @@ class GatewaySlashCommandsMixin(
                     "(Search/install are CLI-only.)")
 
         # Chat bubbles can't hold a full skill diff — truncate and point at the pending JSON file
-        # (NOT `hermes skills diff <name>`, which diffs a bundled skill against its stock version).
+        # (NOT `hebri skills diff <name>`, which diffs a bundled skill against its stock version).
         if sub == "diff" and len(out) > 3000:
             pending_id = args[1] if len(args) > 1 else "<id>"
             out = (out[:3000]
@@ -1163,7 +1163,7 @@ class GatewaySlashCommandsMixin(
         bundles = reply.data["bundles"]
         if not bundles:
             return ("No skill bundles installed.\nCreate one on the host with:\n"
-                    "  `hermes bundles create <name> --skill <s1> --skill <s2>`\n"
+                    "  `hebri bundles create <name> --skill <s1> --skill <s2>`\n"
                     f"Directory: `{reply.data['dir']}`")
         lines = [f"**Skill Bundles** ({len(bundles)} installed):", ""]
         for info in bundles:
@@ -1232,7 +1232,7 @@ class GatewaySlashCommandsMixin(
 
     async def _handle_debug_command(self, event: MessageEvent) -> str:
         """Handle /debug — upload ONLY the summary (system info + log tails), never full logs, to
-        protect privacy; ``hermes debug share`` from the CLI does full uploads."""
+        protect privacy; ``hebri debug share`` from the CLI does full uploads."""
         from hermes_cli.debug import (_GATEWAY_PRIVACY_NOTICE, _best_effort_sweep_expired_pastes,
                                       _capture_dump, _is_dpaste_url, _schedule_auto_delete,
                                       collect_debug_report, upload_to_pastebin)
@@ -1261,7 +1261,7 @@ class GatewaySlashCommandsMixin(
         return await self._run_in_executor_with_context(_collect_and_upload)
 
     async def _handle_update_command(self, event: MessageEvent) -> str:
-        """Handle /update — spawn ``hermes update`` detached (``setsid``) so it survives the gateway
+        """Handle /update — spawn ``hebri update`` detached (``setsid``) so it survives the gateway
         restart it may trigger; marker files let this or the next gateway process notify the user."""
         import json
         from gateway.run import _hermes_home, _resolve_hermes_bin

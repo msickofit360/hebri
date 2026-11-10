@@ -184,7 +184,7 @@ def _load_segments_config() -> dict[str, Any]:
     max_turns = 0
     try:
         # Never import gateway.run here: its import-time env setup (_HERMES_GATEWAY, HERMES_QUIET,
-        # TERMINAL_CWD := home) rebinds a CLI/TUI/cron host — hung approvals (#87183), `hermes -z`
+        # TERMINAL_CWD := home) rebinds a CLI/TUI/cron host — hung approvals (#87183), `hebri -z`
         # running in $HOME without the launch dir's AGENTS.md (#95577). Same reader it delegates to.
         from hermes_cli.config_effective import load_user_config_effective
 
@@ -1277,7 +1277,7 @@ def _configured_plugin_inputs(relay: Any) -> tuple[dict[str, Any], list[Any]] | 
         if legacy_vars := configured_legacy_relay_env_vars(os.environ):
             logger.warning(
                 "Legacy NeMo Relay exporter variables are set but no %s was provided — NO traces are being "
-                "exported. %s no longer activate Relay exporters. Run `hermes migrate relay` (or `hermes update`, "
+                "exported. %s no longer activate Relay exporters. Run `hebri migrate relay` (or `hebri update`, "
                 "which runs it for every profile) to generate %s from them and select it in .env.",
                 RELAY_PLUGINS_CONFIG_ENV, ", ".join(legacy_vars),
                 get_hermes_home() / "relay-plugins.toml",

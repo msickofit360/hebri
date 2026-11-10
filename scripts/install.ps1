@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # Hebri Installer for Windows
 # ============================================================================
 # Installation script for Windows (PowerShell).
@@ -78,7 +78,7 @@ param(
     #     on disk and fail. The recursive path omits the flag.
     #   * The canonical CLI one-liner (irm | iex) omits the flag too;
     #     terminal users don't need a desktop binary built for them, and
-    #     `hermes desktop` already builds on demand.
+    #     `hebri desktop` already builds on demand.
     [switch]$IncludeDesktop
 )
 
@@ -397,7 +397,7 @@ $PythonVersion = "3.11"
 # available, in preference order. Only checkout-private uv-managed interpreters
 # are eligible. Single source of truth shared by Test-Python's fallback and
 # Resolve-AvailablePythonVersion.
-$PythonFallbackVersions = @("3.12", "3.13", "3.10")
+$PythonFallbackVersions = @("3.12", "3.13")
 $PythonFindTimeoutMs = 30000
 $NodeVersion = "22"
 # The npm range the root package.json pins in `engines.npm`.  A constant rather
@@ -588,8 +588,7 @@ function Show-NpmCertHint {
     Write-Info "    1. Get the corporate root CA as a .pem/.crt from your IT team."
     Write-Info "    2. setx NODE_EXTRA_CA_CERTS `"C:\path\to\corp-ca.pem`""
     Write-Info "    3. Open a NEW terminal (so the env var takes effect) and re-run the installer."
-    Write-Info "  Quick (less secure) alternative -- disable TLS verification just for the install:"
-    Write-Info "    npm config set strict-ssl false   (re-enable afterwards: npm config set strict-ssl true)"
+    Write-Info "    Keep TLS verification enabled. Ask your administrator for the trusted proxy CA, then configure npm cafile or NODE_EXTRA_CA_CERTS."
     return $true
 }
 
@@ -701,7 +700,7 @@ function Install-AgentBrowser {
 
     # agent-browser itself is intentionally NOT installed here (#43564 /
     # PR #44772 review): it resolves lazily via `npx agent-browser` instead,
-    # which every consumer (tools/browser_tool.py, `hermes update`'s npx
+    # which every consumer (tools/browser_tool.py, `hebri update`'s npx
     # cache warm) already goes through. Eagerly npm-installing a second,
     # separately version-pinned copy here -- only reachable via this
     # explicit -Ensure browser fallback in the first place -- was redundant
@@ -832,11 +831,21 @@ function Resolve-UvShimTarget {
     return $ExePath
 }
 
+# Verify pinned artifacts before any extractor or downloaded executable runs.
+function Get-HebriVerifiedDownload {
+    param([string]$Uri, [string]$Path, [string]$Sha256)
+    if ($Sha256 -notmatch '^[0-9a-fA-F]{64}$') { throw 'No reviewed checksum exists for this platform.' }
+    Invoke-WebRequest -Uri $Uri -OutFile $Path -UseBasicParsing -TimeoutSec 600 -ErrorAction Stop
+    if ((Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash -ne $Sha256) {
+        throw [System.Security.SecurityException]::new("Download integrity check failed: $Uri. Nothing from this download was executed; retry from a trusted connection.")
+    }
+}
+
 function Install-Uv {
     # Hermes owns its own uv at $HermesHome\bin\uv.exe.  Always install there --
     # no PATH probing, no conda guards, no multi-location resolution chains.
     # The runtime update path (hermes_cli/managed_uv.py) looks in the same
-    # place, so install.ps1 and `hermes update` stay in sync.
+    # place, so install.ps1 and `hebri update` stay in sync.
     $managedUv = Join-Path $HermesHome "bin\uv.exe"
 
     if (Test-Path $managedUv) {
@@ -853,41 +862,39 @@ function Install-Uv {
     Write-Info "Installing managed uv into $HermesHome\bin ..."
     New-Item -ItemType Directory -Path (Join-Path $HermesHome "bin") -Force | Out-Null
 
-    # UV_INSTALL_DIR tells the astral installer to place the binary
-    # directly into $HermesHome\bin instead of ~/.local/bin.
+    # Verify the pinned binary archive before copying into the managed bin directory.
     $prevEAP = $ErrorActionPreference
     try {
         $ErrorActionPreference = "Continue"
-        $env:UV_INSTALL_DIR = Join-Path $HermesHome "bin"
-        # Spawn via the resolved host exe (see Get-PowerShellHostExe) rather
-        # than a bare `powershell`, which isn't guaranteed to be on PATH under
-        # PowerShell 7 / pwsh-only setups.
-        $psHostExe = Get-PowerShellHostExe
-
-        # Rungs 1 + 2: run the uv installer -- astral.sh first, then the
-        # byte-identical copy published on GitHub releases.  Corporate
-        # proxies and AV products frequently block astral.sh while
-        # github.com is reachable (issue #69216), so a second source turns
-        # a hard failure into a working install.  Capture the installer
-        # output (Tee-Object) instead of discarding it: when every source
-        # fails, the real error (download blocked, AV quarantine,
-        # permissions) must reach the user instead of only the generic
-        # "installed but not found" message.
         $installerOutput = @()
-        $astralOut = @()
-        & $psHostExe -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex" 2>&1 | Tee-Object -Variable astralOut | Out-Null
-        $installerOutput += "--- uv installer source: astral.sh ---"
-        $installerOutput += @($astralOut | ForEach-Object { "$_" })
-        if (Test-Path $managedUv) {
-            Write-Info "uv installer succeeded via astral.sh"
-        } else {
-            Write-Info "astral.sh uv installer did not produce $managedUv; trying GitHub releases mirror ..."
-            $ghOut = @()
-            & $psHostExe -ExecutionPolicy ByPass -c "irm https://github.com/astral-sh/uv/releases/latest/download/uv-installer.ps1 | iex" 2>&1 | Tee-Object -Variable ghOut | Out-Null
-            $installerOutput += "--- uv installer source: GitHub releases ---"
-            $installerOutput += @($ghOut | ForEach-Object { "$_" })
-            if (Test-Path $managedUv) {
-                Write-Info "uv installer succeeded via GitHub releases"
+        $uvTargets = @{
+            'x64' = @('uv-x86_64-pc-windows-msvc.zip', 'a2a8820d5eea32f08ef467ef3b7f66883a9b076d5737a2fc2fbb5f458d1bb50f')
+            'arm64' = @('uv-aarch64-pc-windows-msvc.zip', 'c2426c0c8e28b53d8c440e47a18d96ad4db51e159866c0e81435b196d7f0081c')
+            'x86' = @('uv-i686-pc-windows-msvc.zip', '32ceb64db231cbedfd499f7654c72e4c0b564f2846f9e76c0a4a7b2d03d7e67c')
+        }
+        $uvTarget = $uvTargets[(Get-WindowsArch)]
+        if (-not $uvTarget) { throw 'No supported uv binary exists for this Windows architecture.' }
+        $uvStage = Join-Path ([IO.Path]::GetTempPath()) ('hebri-uv-' + [Guid]::NewGuid().ToString('N'))
+        New-Item -ItemType Directory -Path $uvStage -Force | Out-Null
+        $uvArchive = Join-Path $uvStage $uvTarget[0]
+        try {
+            Get-HebriVerifiedDownload -Uri ("https://github.com/astral-sh/uv/releases/download/0.13.6/" + $uvTarget[0]) -Path $uvArchive -Sha256 $uvTarget[1]
+            Expand-Archive -LiteralPath $uvArchive -DestinationPath $uvStage -Force -ErrorAction Stop
+            foreach ($binary in @('uv.exe', 'uvx.exe')) {
+                $extracted = Get-ChildItem -LiteralPath $uvStage -Filter $binary -Recurse | Select-Object -First 1
+                if (-not $extracted) { throw "Verified uv archive is missing $binary" }
+                Copy-Item -LiteralPath $extracted.FullName -Destination (Join-Path $HermesHome "bin\$binary") -Force -ErrorAction Stop
+            }
+        } catch {
+            if ($_.Exception -is [System.Security.SecurityException]) { throw }
+            $installerOutput += $_.Exception.Message
+            Write-Info "Pinned uv download failed; checking an existing local uv installation."
+        } finally {
+            # Only remove this invocation's staging directory directly below TEMP.
+            $resolvedStage = [IO.Path]::GetFullPath($uvStage)
+            $resolvedTemp = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\')
+            if ((Split-Path $resolvedStage -Parent) -eq $resolvedTemp -and (Split-Path $resolvedStage -Leaf) -match '^hebri-uv-[0-9a-f]{32}$') {
+                Remove-Item -LiteralPath $resolvedStage -Recurse -Force -ErrorAction SilentlyContinue
             }
         }
 
@@ -1819,7 +1826,11 @@ function Install-Git {
         $gitDir = "$HermesHome\git"
 
         Write-Info "Downloading $assetName (Git for Windows $gitVerTag)..."
-        Invoke-WebRequest -Uri $downloadUrl -OutFile $tmpFile -UseBasicParsing
+        $gitHashes = @{
+            'PortableGit-2.54.0-64-bit.7z.exe' = 'bea006a6cc69673f27b1647e84ab3a68e912fbc175ab6320c5987e012897f311'
+            'PortableGit-2.54.0-arm64.7z.exe' = 'f8e92cd3359fcbb96998cfd606a536ccc6dbfb23c04e12b29042f9ba45b6b0c7'
+        }
+        Get-HebriVerifiedDownload -Uri $downloadUrl -Path $tmpFile -Sha256 $gitHashes[$assetName]
 
         if (Test-Path $gitDir) {
             Write-Info "Removing previous Git install at $gitDir ..."
@@ -2056,16 +2067,20 @@ function Test-Node {
     Write-Info "(no admin rights required; isolated from any system Node install)"
     try {
         $arch = Get-WindowsArch
-        $indexUrl = "https://nodejs.org/dist/latest-v${NodeVersion}.x/"
-        $indexPage = Invoke-WebRequest -Uri $indexUrl -UseBasicParsing
-        $zipName = ($indexPage.Content | Select-String -Pattern "node-v${NodeVersion}\.\d+\.\d+-win-${arch}\.zip" -AllMatches).Matches[0].Value
+        $indexUrl = 'https://nodejs.org/dist/v22.23.4/'
+        $zipName = "node-v22.23.4-win-${arch}.zip"
+        $nodeHashes = @{
+            'x64' = 'cbc74b5e0982c9dbb41525fd8fb5dcd32fbee237863f7829072f4639a1ce5f20'
+            'arm64' = 'a8b8cd79cbbb3062435f449591d98dd63730bbbf30ce2d7cc3a6376c236cb111'
+            'x86' = '7d6c4dce2ecccca46e3c4b3e43c8bebbd1969bd616fdb4fda1e8269171d9ccea'
+        }
 
         if ($zipName) {
             $downloadUrl = "${indexUrl}${zipName}"
             $tmpZip = "$env:TEMP\$zipName"
-            $tmpDir = "$env:TEMP\hermes-node-extract"
+            $tmpDir = Join-Path ([IO.Path]::GetTempPath()) ("hebri-node-extract-" + [Guid]::NewGuid().ToString("N"))
 
-            Invoke-WebRequest -Uri $downloadUrl -OutFile $tmpZip -UseBasicParsing
+            Get-HebriVerifiedDownload -Uri $downloadUrl -Path $tmpZip -Sha256 $nodeHashes[$arch]
             if (Test-Path $tmpDir) { Remove-Item -Recurse -Force $tmpDir }
             Expand-Archive -Path $tmpZip -DestinationPath $tmpDir -Force
 
@@ -2608,13 +2623,13 @@ function Install-Repository {
                     if ($LASTEXITCODE -ne 0) { throw "git checkout $Branch failed (exit $LASTEXITCODE)" }
                     # Managed installs should follow origin/$Branch exactly. If
                     # the checkout has diverged (or has local-only commits),
-                    # ff-only pull cannot succeed -- mirror ``hermes update`` and
+                    # ff-only pull cannot succeed -- mirror ``hebri update`` and
                     # reset to the fetched remote so bootstrap/install can recover.
                     git -c windows.appendAtomically=false pull --ff-only origin $Branch
                     if ($LASTEXITCODE -ne 0) {
                         Write-Warn "Fast-forward not possible; resetting managed install to origin/$Branch..."
                         # Park commits the reset drops behind a rescue ref, same namespace
-                        # as ``hermes update`` (which also prunes these refs).
+                        # as ``hebri update`` (which also prunes these refs).
                         $dropped = 0
                         $droppedText = ((& git -c windows.appendAtomically=false rev-list --count "origin/$Branch..HEAD" 2>$null) | Out-String).Trim()
                         [void][int]::TryParse($droppedText, [ref]$dropped)
@@ -2728,7 +2743,7 @@ function Install-Repository {
             } catch {
                 Write-Err "Could not move $InstallDir aside : $_"
                 Write-Info "Close any programs that might be using files in $InstallDir (editors,"
-                Write-Info "terminals, running hermes processes) and try again."
+                Write-Info "terminals, running hebri processes) and try again."
                 throw
             }
         }
@@ -2866,7 +2881,7 @@ function Install-Repository {
                     # repo's LF text files to CRLF in the working tree during
                     # `checkout -f FETCH_HEAD` -- leaving this freshly-created
                     # managed checkout dirty vs HEAD and aborting the next
-                    # `hermes update` (see the notes at the shared clone-path
+                    # `hebri update` (see the notes at the shared clone-path
                     # config below and install.ps1:1461-1469). The later pin on
                     # the shared path is idempotent and still covers git clones.
                     git -c windows.appendAtomically=false config core.autocrlf false 2>$null
@@ -2925,7 +2940,7 @@ function Install-Repository {
     git -c windows.appendAtomically=false config windows.appendAtomically false 2>$null
     # Pin autocrlf=false on the managed clone so git never renormalizes the
     # repo's LF text files to CRLF in the working tree. Without this, the very
-    # next `hermes update` checkout aborts on a "dirty" tree the user never
+    # next `hebri update` checkout aborts on a "dirty" tree the user never
     # touched (see the update path above).
     git -c windows.appendAtomically=false config core.autocrlf false 2>$null
 
@@ -3029,7 +3044,7 @@ function Install-Venv {
         # gateway into the replacement venv.
         if ($env:OS -eq "Windows_NT") {
             $myPid = $PID
-            Write-Info "Stopping any running hermes processes before recreating venv..."
+            Write-Info "Stopping any running hebri processes before recreating venv..."
             # Disarm the respawner FIRST: the gateway autostart Scheduled Task
             # relaunches a killed gateway within seconds, and losing that race
             # re-locks the venv's .pyd files between our kill sweep and
@@ -3253,7 +3268,7 @@ function Install-Venv {
         # user's gateway autostart in the disabled state. Same function scope,
         # so the list survives even under the stage-per-process bootstrap.
         # Deliberately NOT started here -- dependencies aren't installed yet;
-        # the task fires normally on next logon and `hermes update` / the
+        # the task fires normally on next logon and `hebri update` / the
         # gateway resume path handles the immediate restart.
         if ($gatewayTasksDisabled -and $gatewayTasksDisabled.Count -gt 0) {
             foreach ($tn in $gatewayTasksDisabled) {
@@ -3318,283 +3333,8 @@ function Restore-VenvBackup {
 }
 
 function Install-Dependencies {
-    Write-Info "Installing dependencies..."
-    
-    Push-Location $InstallDir
-    
-    if (-not $NoVenv) {
-        # Tell uv to install into our venv (no activation needed)
-        $env:VIRTUAL_ENV = "$InstallDir\venv"
-    }
-
-    # Re-pin UV_PYTHON to the venv interpreter. Install-Venv already does this,
-    # but the bootstrap runs install stages (venv, python-deps) as separate
-    # processes, so the env var set in Install-Venv does NOT survive into a
-    # separate python-deps invocation. Re-deriving it here covers that path.
-    # Without it, an inherited $env:UV_PYTHON = "3.14" makes the uv sync/pip
-    # tiers below recreate the venv at 3.14 and fail the maturin source build
-    # (no cp314 wheels yet).
-    if (-not $NoVenv) {
-        $venvPythonExe = Join-Path $InstallDir "venv\Scripts\python.exe"
-        if (Test-Path $venvPythonExe) {
-            $env:UV_PYTHON = $venvPythonExe
-        }
-    }
-
-    # Hash-verified install (Tier 0) -- when uv.lock is present, prefer
-    # `uv sync --locked`. The lockfile records SHA256 hashes for every
-    # transitive dependency, so a compromised transitive (different hash
-    # than what we shipped) is REJECTED by the resolver. This is the
-    # *only* path that protects against the "direct dep is fine, but the
-    # dep's dep got worm-poisoned overnight" failure mode. The
-    # `uv pip install` tiers below re-resolve transitives fresh from PyPI
-    # without any hash verification -- they exist to keep installs working
-    # when the lockfile is stale, missing, or out-of-sync with the
-    # current extras spec, NOT because they're equivalent in posture.
-    #
-    # Everything through the baseline-import gate runs inside the venv
-    # transaction opened by Install-Venv (#83149): on any failure the parked
-    # previous venv is restored before the error propagates, and the parked
-    # tree is deleted only after the imports prove the replacement usable.
-    try {
-    if (Test-Path "uv.lock") {
-        Write-Info "Trying tier: hash-verified (uv.lock) ..."
-        # Critical flag choice: `--extra all`, NOT `--all-extras`.
-        #   --all-extras = every [project.optional-dependencies] key,
-        #                  bypassing the curated [all] extra. On Windows
-        #                  that means [matrix] -> python-olm (no wheel,
-        #                  needs `make` to build from sdist) and the
-        #                  install fails.
-        #   --extra all  = just the [all] extra's contents (curated).
-        #
-        # UV_PROJECT_ENVIRONMENT pins the sync target to our venv\.
-        # Without it, modern uv (>=0.5) ignores VIRTUAL_ENV for `sync`
-        # and creates a sibling .venv\ inside the repo -- leaving venv\
-        # empty and producing the broken state where `hermes.exe` exists
-        # in the wrong directory and imports fail with ModuleNotFoundError.
-        # (Mirrors the same flag in scripts/install.sh::install_deps.)
-        $env:UV_PROJECT_ENVIRONMENT = "$InstallDir\venv"
-        Invoke-NativeWithRelaxedErrorAction { & $UvCmd sync --extra all --locked }
-        if ($LASTEXITCODE -eq 0) {
-            Write-Success "Main package installed (hash-verified via uv.lock)"
-            $script:InstalledTier = "hash-verified (uv.lock)"
-            # Skip the rest of the tiered cascade -- we already have a
-            # complete, hash-verified install.
-            $skipPipFallback = $true
-        } else {
-            Write-Warn "uv.lock sync failed (lockfile may be stale), falling back to PyPI resolve..."
-            $skipPipFallback = $false
-        }
-    } else {
-        Write-Info "uv.lock not found -- falling back to PyPI resolve (no hash verification)"
-        $skipPipFallback = $false
-    }
-
-    # Install main package.  Tiered fallback so a single flaky transitive
-    # doesn't silently drop everything.  Each tier's stdout/stderr is
-    # preserved -- no Out-Null swallowing -- so the user can see what failed.
-    #
-    # Tier 1: [all] -- the curated extra in pyproject.toml.
-    # Tier 2: [all] minus the currently-broken extras list ($brokenExtras).
-    #         Edit $brokenExtras below when something on PyPI breaks; this
-    #         lets users keep the rest of [all] when one transitive is
-    #         unavailable. The list of [all]'s contents is parsed from
-    #         pyproject.toml at runtime -- there is NO hand-mirrored copy
-    #         to drift out of sync.
-    # Tier 3: bare `.` -- last-resort so at least the core CLI launches.
-
-    # Currently-broken extras. Edit this list when an upstream package
-    # gets quarantined / yanked / breaks resolution. Empty means everything
-    # in [all] should be installable; populate with the names of extras
-    # whose deps are temporarily unavailable.
-    $brokenExtras = @()
-
-    # Parse [project.optional-dependencies].all from pyproject.toml.
-    # tomllib is stdlib on Python 3.11+ which the bootstrap guarantees.
-    $pythonExeForParse = if (-not $NoVenv) { "$InstallDir\venv\Scripts\python.exe" } else { (& $UvCmd python find $PythonVersion) }
-    $allExtras = @()
-    if (Test-Path $pythonExeForParse) {
-        $parsed = & $pythonExeForParse -c @"
-import re, sys, tomllib
-try:
-    with open('pyproject.toml', 'rb') as fh:
-        data = tomllib.load(fh)
-    specs = data['project']['optional-dependencies']['all']
-    out = []
-    for s in specs:
-        m = re.search(r'hermes-agent\[([\w-]+)\]', s)
-        if m: out.append(m.group(1))
-    print(','.join(out))
-except Exception:
-    sys.exit(1)
-"@ 2>$null
-        if ($LASTEXITCODE -eq 0 -and $parsed) {
-            $allExtras = $parsed.Trim().Split(',')
-        }
-    }
-    if (-not $allExtras -or $allExtras.Count -eq 0) {
-        Write-Warn "Could not parse [all] from pyproject.toml; Tier 2 will be a no-op."
-        $safeAll = "all"
-    } else {
-        $safeAll = ($allExtras | Where-Object { $brokenExtras -notcontains $_ }) -join ","
-    }
-    $brokenLabel = if ($brokenExtras) { ($brokenExtras -join ", ") } else { "none" }
-
-    $installTiers = @(
-        @{ Name = "all"; Spec = ".[all]" },
-        @{ Name = "all minus known-broken ($brokenLabel)"; Spec = ".[$safeAll]" },
-        @{ Name = "core only (no extras)"; Spec = "." }
-    )
-    $installed = $skipPipFallback
-    if (-not $skipPipFallback) {
-        foreach ($tier in $installTiers) {
-        Write-Info "Trying tier: $($tier.Name) ..."
-        Invoke-NativeWithRelaxedErrorAction { & $UvCmd pip install -e $tier.Spec }
-        if ($LASTEXITCODE -eq 0) {
-            Write-Success "Main package installed ($($tier.Name))"
-            $script:InstalledTier = $tier.Name
-            $installed = $true
-            break
-        }
-        Write-Warn "Tier '$($tier.Name)' failed (exit $LASTEXITCODE). Trying next tier..."
-        }
-    }
-    if (-not $installed) {
-        throw "Failed to install hermes-agent package even with no extras. Inspect the uv pip install output above."
-    }
-
-    # Baseline-import gate. Even if a tier reported success above, the
-    # actual deps may have landed somewhere other than $InstallDir\venv\
-    # (e.g. uv 0.5+ syncing into a sibling .venv\ when UV_PROJECT_ENVIRONMENT
-    # isn't set, leaving venv\ empty and hermes.exe broken with
-    # `ModuleNotFoundError: No module named 'dotenv'` on first run).
-    # We probe via the venv's own python so a misdirected sync is caught
-    # here, not 30 seconds later when the user runs `hermes`.
-    if (-not $NoVenv) {
-        $venvPython = "$InstallDir\venv\Scripts\python.exe"
-        if (-not (Test-Path $venvPython)) {
-            throw "Install reported success but $venvPython does not exist. The dependency sync likely landed in a sibling .venv\ directory. Re-run the installer; if it persists, close Hebri processes and preserve existing venv directories before retrying. Do not delete venv in place."
-        }
-        # Relax EAP=Stop while running the import probe.  Python writes
-        # deprecation warnings and import-system info to stderr; under
-        # EAP=Stop the 2>&1 merge wraps those as ErrorRecord objects and
-        # throws even when the imports succeed.  $LASTEXITCODE is the
-        # reliable signal (it's 0 iff the python invocation exited 0,
-        # regardless of what was written to stderr).
-        $prevEAP = $ErrorActionPreference
-        $ErrorActionPreference = "Continue"
-        & $venvPython -c "import dotenv, openai, rich, prompt_toolkit" 2>&1 | Out-Null
-        $importExitCode = $LASTEXITCODE
-        $ErrorActionPreference = $prevEAP
-        if ($importExitCode -ne 0) {
-            $sibling = "$InstallDir\.venv"
-            $hint = if (Test-Path $sibling) {
-                "Detected sibling .venv\ at $sibling -- uv synced there instead of venv\. Close Hebri processes, preserve the existing venv, and rerun the installer so the transactional recovery path can move directories safely."
-            } else {
-                "Recover with: cd '$InstallDir'; `$env:UV_PROJECT_ENVIRONMENT='$InstallDir\venv'; uv sync --extra all --locked"
-            }
-            throw "Baseline imports failed in $InstallDir\venv (dotenv/openai/rich/prompt_toolkit). The install completed but dependencies are not in the venv. $hint"
-        }
-        Write-Success "Baseline imports verified in venv"
-    }
-
-    # Commit the venv transaction: the dependency install completed and the
-    # baseline imports passed, so the previous venv is no longer needed as a
-    # rollback source (#83149).
-    Complete-VenvTransaction
-    } catch {
-        # Dependency install or import validation failed: restore the previous
-        # working venv (parked by Install-Venv) before surfacing the error, so
-        # a failed update leaves Hermes and its blocker probe usable.
-        Restore-VenvBackup
-        Pop-Location
-        throw
-    }
-
-    if (-not $NoVenv) {
-        # uv on Windows can register hermes.exe in dist-info/RECORD but fail to
-        # materialise the .exe (file lock during self-update, distlib edge case).
-        # Catch it here so a fresh install/update does not finish with a broken
-        # `hermes` command while hermes-agent.exe / hermes-acp.exe exist
-        $scriptsDir = Join-Path $InstallDir "venv\Scripts"
-        $pythonExe = Join-Path $scriptsDir "python.exe"
-        if ((Test-Path $scriptsDir) -and (Test-Path $pythonExe)) {
-            $scriptNames = & $pythonExe -c @"
-import tomllib
-with open('pyproject.toml', 'rb') as fh:
-    scripts = tomllib.load(fh).get('project', {}).get('scripts', {}) or {}
-print(','.join(scripts))
-"@ 2>$null
-            if ($LASTEXITCODE -eq 0 -and $scriptNames) {
-                $expected = @($scriptNames.Trim().Split(',') | Where-Object { $_ })
-                $missing = @()
-                foreach ($name in $expected) {
-                    $exe = Join-Path $scriptsDir "$name.exe"
-                    if (-not (Test-Path $exe)) { $missing += "$name.exe" }
-                }
-                if ($missing.Count -gt 0) {
-                    Write-Warn "Console entry point(s) missing: $($missing -join ', ')"
-                    Write-Info "Reinstalling entry points..."
-                    $env:UV_PROJECT_ENVIRONMENT = "$InstallDir\venv"
-                    Invoke-NativeWithRelaxedErrorAction { & $UvCmd pip install --reinstall -e . }
-                    $stillMissing = @()
-                    foreach ($name in $expected) {
-                        $exe = Join-Path $scriptsDir "$name.exe"
-                        if (-not (Test-Path $exe)) { $stillMissing += "$name.exe" }
-                    }
-                    if ($stillMissing.Count -gt 0) {
-                        Write-Warn "Entry points still missing after repair: $($stillMissing -join ', ')"
-                        Write-Info "Workaround: `"$pythonExe`" -m hermes_cli.main <command>"
-                    } else {
-                        Write-Success "Console entry points restored"
-                    }
-                }
-            }
-        }
-    }
-
-    # Verify the dashboard deps specifically -- they're the most common thing
-    # users hit and lazy-import errors from `hermes dashboard` are confusing.
-    # If tier 1 failed (the common case), [web] was still picked up by tiers
-    # 2-3; only tier 4 leaves you without it.
-    $pythonExe = if (-not $NoVenv) { "$InstallDir\venv\Scripts\python.exe" } else { (& $UvCmd python find $PythonVersion) }
-    if (Test-Path $pythonExe) {
-        $webOk = $false
-        $webServerSyntaxOk = $false
-        # Relax EAP=Stop while running the import probe; see the matching
-        # comment on the baseline-imports check above.  Python writes
-        # deprecation warnings to stderr and we don't want those wrapped
-        # as ErrorRecords that silently force the "not importable" path
-        # even when fastapi/uvicorn are actually installed.
-        $prevEAP = $ErrorActionPreference
-        $ErrorActionPreference = "Continue"
-        try {
-            & $pythonExe -c "import fastapi, uvicorn" 2>&1 | Out-Null
-            if ($LASTEXITCODE -eq 0) { $webOk = $true }
-        } catch { }
-        try {
-            & $pythonExe -m py_compile "$InstallDir\hermes_cli\web_server.py" 2>&1 | Out-Null
-            if ($LASTEXITCODE -eq 0) { $webServerSyntaxOk = $true }
-        } catch { }
-        $ErrorActionPreference = $prevEAP
-        if (-not $webOk) {
-            Write-Warn "fastapi/uvicorn not importable -- `hermes dashboard` will not work."
-            Write-Info "Attempting targeted install of [web] extra as last resort..."
-            & $UvCmd pip install -e ".[web]"
-            if ($LASTEXITCODE -eq 0) {
-                Write-Success "[web] extra installed; `hermes dashboard` should now work."
-            } else {
-                Write-Warn "Could not install [web] extra. Run manually: uv pip install --python `"$pythonExe`" `"fastapi>=0.104,<1`" `"uvicorn[standard]>=0.24,<1`""
-            }
-        }
-        if (-not $webServerSyntaxOk) {
-            throw "dashboard backend source failed syntax check: hermes_cli/web_server.py"
-        }
-    }
-    
-    Pop-Location
-    
-    Write-Success "All dependencies installed"
+    . (Join-Path $InstallDir 'scripts\lib\install-dependencies.ps1')
+    Invoke-HebriDependencyInstall
 }
 
 function Install-HermesCommandLaunchers {
@@ -3675,7 +3415,7 @@ function Set-PathVariable {
         $hermesBin = "$InstallDir"
     } else {
         # $HermesHome\bin is the managed binary dir (shared with the managed
-        # uv), OUTSIDE the git checkout: `hermes update`'s autostash
+        # uv), OUTSIDE the git checkout: `hebri update`'s autostash
         # (git stash push --include-untracked) deletes untracked files from
         # the working tree, which silently removed the launchers an earlier
         # installer staged under hermes-agent\bin. No git operation can ever
@@ -3749,7 +3489,7 @@ function Write-BootstrapMarker {
     # Hermes-Setup.exe) or fall back to whatever git resolves in the
     # checkout. The desktop validates schemaVersion + pinnedCommit
     # length but doesn't enforce that HEAD matches the pin (users
-    # update via `hermes update` which moves HEAD legitimately).
+    # update via `hebri update` which moves HEAD legitimately).
     if (-not (Test-Path $InstallDir)) {
         Write-Warn "Skipping bootstrap marker: $InstallDir doesn't exist"
         return
@@ -3973,395 +3713,8 @@ function _Invoke-NativeWithTimeout(
 }
 
 function Install-NodeDeps {
-    if (-not $HasNode) {
-        # Cross-process driver mode (Hermes-Setup.exe runs each -Stage NAME
-        # in a fresh powershell.exe) means $script:HasNode set by Stage-Node
-        # in the previous process isn't visible here. Re-probe rather than
-        # trust the stale global -- Stage-Node already ran successfully or
-        # the bootstrap would've aborted, so npm is reachable.
-        if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
-            Write-Info "Skipping Node.js dependencies (Node not installed)"
-            return
-        }
-    }
-
-    # npm lifecycle scripts need node.exe on the PATH visible to child
-    # cmd.exe processes.  Stage-Node may have run in a prior process, so
-    # re-apply here before any npm install (regression #48130).
-    Ensure-NodeExeOnPath | Out-Null
-
-    # Resolve npm explicitly to npm.cmd, NOT npm.ps1.  Node.js on Windows
-    # ships BOTH npm.cmd (a batch shim) and npm.ps1 (a PowerShell shim).
-    # Get-Command's default ordering picks whichever comes first in PATHEXT,
-    # and on many systems that's .ps1 -- but .ps1 requires scripts to be
-    # enabled in PowerShell's execution policy, which most Windows users
-    # don't have (the Restricted / RemoteSigned default blocks unsigned
-    # .ps1 files).  .cmd has no such restriction and works on every box.
-    #
-    # Strategy: look next to the npm shim we found and prefer npm.cmd if
-    # it exists in the same directory.  Fall back to whatever Get-Command
-    # returned if we can't find a .cmd sibling.
-    $npmCmd = Get-Command npm -ErrorAction SilentlyContinue
-    if (-not $npmCmd) {
-        Write-Warn "npm not found on PATH -- skipping Node.js dependencies."
-        Write-Info "Open a new PowerShell window and re-run 'hermes setup tools' later."
-        return
-    }
-    $npmExe = $npmCmd.Source
-    if ($npmExe -like "*.ps1") {
-        $npmCmdSibling = Join-Path (Split-Path $npmExe -Parent) "npm.cmd"
-        if (Test-Path $npmCmdSibling) {
-            Write-Info "Using npm.cmd (PowerShell execution policy blocks npm.ps1)"
-            $npmExe = $npmCmdSibling
-        } else {
-            Write-Warn "Only npm.ps1 available -- install may fail if script execution is disabled."
-            Write-Info "  If it fails, either enable PS script execution or install Node via winget."
-        }
-    }
-
-    # Wall-clock ceiling for each npm / Playwright invocation in this stage.
-    # scripts/install.sh has time-boxed the same work with
-    # ``run_with_timeout "$NODE_DEPS_TIMEOUT"`` (600s default) since #39219;
-    # Windows never got the guard, so a stalled registry fetch or a wedged
-    # Chromium extraction (#76222, #84614) froze the installer forever -- one
-    # user left it running 12+ hours overnight.  Same env override as bash
-    # for very slow links.
-    $nodeDepsTimeoutSec = 600
-    if ($env:NODE_DEPS_TIMEOUT -match '^\d+$') {
-        $nodeDepsTimeoutSec = [int]$env:NODE_DEPS_TIMEOUT
-    }
-
-    # Helper: run "npm install" in a given directory and surface the real
-    # error when it fails.  Returns $true on success.
-    function _Run-NpmInstall([string]$label, [string]$installDir, [string]$logPath, [string]$npmPath) {
-        Push-Location $installDir
-        # Capture EAP outside the try block so the catch's restore call always
-        # has a meaningful value (see Install-Uv for the full rationale).
-        $prevEAP = $ErrorActionPreference
-        try {
-            # The helper streams npm's output to BOTH the console and the log
-            # file, so the user watches real progress instead of a frozen
-            # "Installing..." line (on a fresh VM the install is 1-3 minutes;
-            # total silence is indistinguishable from a hang) -- and the
-            # wall-clock ceiling turns a genuinely stalled install (#76222
-            # class) into a diagnosable failure instead of an overnight freeze.
-            #
-            # Relax EAP around the invocation: with EAP=Stop (set at the top
-            # of this script), PowerShell can wrap stray stderr from the
-            # launcher plumbing as ErrorRecord objects and throw even though
-            # npm exited 0.  This is the same issue Test-Python and Install-Uv
-            # work around for uv's stderr-emitting installer.  Check success
-            # via the returned exit code, which is reliable regardless of
-            # stderr noise.
-            $ErrorActionPreference = "Continue"
-            $code = _Invoke-NativeWithTimeout $npmPath "install --silent" `
-                $installDir $logPath $nodeDepsTimeoutSec
-            $ErrorActionPreference = $prevEAP
-            if ($code -eq 0) {
-                Write-Success "$label dependencies installed"
-                Remove-Item -Force $logPath -ErrorAction SilentlyContinue
-                return $true
-            }
-            if ($code -eq 124) {
-                Write-Warn "$label npm install timed out after $([math]::Round($nodeDepsTimeoutSec / 60)) minutes -- a stalled download, wedged extraction, or file lock is the usual cause."
-                Write-Info "  Re-run the installer to retry (completed stages are skipped)."
-                Write-Info "  Slow connection? Raise the ceiling: set NODE_DEPS_TIMEOUT to seconds (default 600)."
-            } else {
-                Write-Warn "$label npm install failed -- exit code $code"
-            }
-            if (Test-Path $logPath) {
-                $errText = (Get-Content $logPath -Raw -ErrorAction SilentlyContinue)
-                if ($errText) {
-                    $snippet = if ($errText.Length -gt 1200) { $errText.Substring(0, 1200) + "..." } else { $errText }
-                    Write-Info "  npm output:"
-                    foreach ($line in $snippet -split "`n") {
-                        Write-Host "    $line" -ForegroundColor DarkGray
-                    }
-                    Write-Info "  Full log: $logPath"
-                    Show-NpmCertHint $errText | Out-Null
-                    Write-NpmDebugLogTail -NpmOutput $errText
-                }
-            }
-            Write-Info "Run manually later: cd `"$installDir`"; npm install"
-            return $false
-        } catch {
-            if ($prevEAP) { $ErrorActionPreference = $prevEAP }
-            Write-Warn "$label npm install could not be launched: $_"
-            return $false
-        } finally {
-            Pop-Location
-        }
-    }
-
-    # Browser tools
-    if (Test-Path "$InstallDir\package.json") {
-        Write-Info "Installing Node.js dependencies (browser tools)..."
-        $browserLog = "$env:TEMP\hermes-npm-browser-$(Get-Random).log"
-        $browserNpmOk = _Run-NpmInstall "Browser tools" $InstallDir $browserLog $npmExe
-
-        # Install Playwright Chromium (mirrors scripts/install.sh behaviour for
-        # Linux).  Without this, tools/browser_tool.py::check_browser_requirements
-        # returns False (no Chromium under %LOCALAPPDATA%\ms-playwright), and the
-        # browser_* tools are silently filtered out of the agent's tool schema.
-        # System Chrome at "C:\Program Files\Google\Chrome\..." is NOT used by
-        # agent-browser -- it expects a Playwright-managed Chromium.
-        if ($browserNpmOk) {
-            Write-Info "Installing browser engine (Playwright Chromium)..."
-            # npx lives next to npm in the same bin dir.  Prefer .cmd to dodge
-            # the same execution-policy gotcha that affects npm.ps1 (see above).
-            $npmDir = Split-Path $npmExe -Parent
-            $npxExe = $null
-            foreach ($cand in @("npx.cmd", "npx.exe", "npx")) {
-                $try = Join-Path $npmDir $cand
-                if (Test-Path $try) { $npxExe = $try; break }
-            }
-            if (-not $npxExe) {
-                $npxCmd = Get-Command npx -ErrorAction SilentlyContinue
-                if ($npxCmd) { $npxExe = $npxCmd.Source }
-            }
-            if (-not $npxExe) {
-                Write-Warn "npx not found -- cannot install Playwright Chromium."
-                Write-Info "Run manually later: cd `"$InstallDir`"; npx playwright install chromium"
-            } else {
-                $pwLog = "$env:TEMP\hermes-playwright-install-$(Get-Random).log"
-                Push-Location $InstallDir
-                # Capture EAP outside the try block so the catch's restore call
-                # always has a meaningful value (see Install-Uv for the full
-                # rationale).
-                $prevEAP = $ErrorActionPreference
-                try {
-                    # Playwright Chromium is ~170MB compressed and the
-                    # download regularly takes 3-10 minutes on a fresh
-                    # VM.  Tee the output to console + log so the user
-                    # sees download progress in real time instead of
-                    # staring at a silent prompt that looks hung.  See
-                    # _Run-NpmInstall above for the same pattern and
-                    # the rationale behind 2>&1 before the pipe.
-                    Write-Info "(this can take several minutes -- streaming progress below)"
-                    # --yes auto-accepts npx's "Need to install playwright@X.Y.Z"
-                    # confirmation prompt.  Without it, npx 7+ blocks on stdin
-                    # waiting for a y/N answer that never comes when this is
-                    # invoked through a pipeline (Tee-Object disconnects stdin
-                    # from the user's TTY), and the install hangs indefinitely
-                    # after printing "Need to install the following packages:
-                    # playwright@X.Y.Z".
-                    #
-                    # Relax EAP around the playwright invocation: playwright
-                    # emits a "Chromium downloaded to ..." success banner to
-                    # stderr after a successful install.  The launcher merges
-                    # stderr into the log natively, but keep EAP relaxed so
-                    # stray plumbing stderr can't fire the catch block with a
-                    # mangled banner even though the install succeeded.  Check
-                    # the returned exit code instead, which is the reliable
-                    # signal.
-                    #
-                    # The wall-clock ceiling is the #76222 / #84614 fix: the
-                    # Chromium download reaches 100% and the extraction wedges
-                    # (or the registry fetch stalls), and without a bound the
-                    # installer sits on this line forever.  bash has carried
-                    # the same 600s guard via run_playwright_install since
-                    # #39219.
-                    $ErrorActionPreference = "Continue"
-                    $pwCode = _Invoke-NativeWithTimeout $npxExe "--yes playwright install chromium" `
-                        $InstallDir $pwLog $nodeDepsTimeoutSec
-                    $ErrorActionPreference = $prevEAP
-                    if ($pwCode -eq 0) {
-                        Write-Success "Playwright Chromium installed (browser tools ready)"
-                        Remove-Item -Force $pwLog -ErrorAction SilentlyContinue
-                    } elseif ($pwCode -eq 124) {
-                        Write-Warn "Playwright Chromium install timed out after $([math]::Round($nodeDepsTimeoutSec / 60)) minutes."
-                        Write-Warn "This usually means a stalled download or a wedged archive extraction (a locked previous browser version can also cause it)."
-                        Write-Warn "Browser tools will not work until Chromium is installed."
-                        if (Test-Path $pwLog) { Write-Info "  Partial log: $pwLog" }
-                        Write-Info "Run manually later: cd `"$InstallDir`"; npx playwright install chromium"
-                    } else {
-                        Write-Warn "Playwright Chromium install failed -- exit code $pwCode"
-                        Write-Warn "Browser tools will not work until Chromium is installed."
-                        if (Test-Path $pwLog) {
-                            $pwErr = Get-Content $pwLog -Raw -ErrorAction SilentlyContinue
-                            if ($pwErr) {
-                                $snippet = if ($pwErr.Length -gt 1200) { $pwErr.Substring(0, 1200) + "..." } else { $pwErr }
-                                Write-Info "  playwright output:"
-                                foreach ($line in $snippet -split "`n") {
-                                    Write-Host "    $line" -ForegroundColor DarkGray
-                                }
-                                Write-Info "  Full log: $pwLog"
-                            }
-                        }
-                        Write-Info "Run manually later: cd `"$InstallDir`"; npx playwright install chromium"
-                    }
-                } catch {
-                    if ($prevEAP) { $ErrorActionPreference = $prevEAP }
-                    Write-Warn "Playwright Chromium install could not be launched: $_"
-                    Write-Info "Run manually later: cd `"$InstallDir`"; npx playwright install chromium"
-                } finally {
-                    Pop-Location
-                }
-            }
-        }
-    }
-
-    # TUI
-    $tuiDir = "$InstallDir\ui-tui"
-    if (Test-Path "$tuiDir\package.json") {
-        Write-Info "Installing TUI dependencies..."
-        $tuiLog = "$env:TEMP\hermes-npm-tui-$(Get-Random).log"
-        [void](_Run-NpmInstall "TUI" $tuiDir $tuiLog $npmExe)
-    }
-
-    Install-BrowserUseCli
-    Install-CuaDriver
-}
-
-# The Browser Use CLI is the default browser backend when it is runnable
-# (tools/browser_use_cli.py). Provision it at install time so fresh installs
-# don't silently fall back to the built-in browser tools. Best-effort: any
-# failure is non-fatal (browser_exec can still run via uvx, and `hermes tools`
-# can install it later).
-function Install-BrowserUseCli {
-    if (-not $script:UvCmd) { Resolve-UvCmd }
-    if (-not $script:UvCmd) {
-        Write-Info "Skipping Browser Use CLI install (uv unavailable)"
-        return
-    }
-    $managedBin = Join-Path $HermesHome "bin"
-    $managedBu = Join-Path $managedBin "browser-use.exe"
-    # MANAGED-FIRST: only Hermes' managed copy short-circuits. A browser-use
-    # on the user's PATH is a side install -- resolution prefers the managed
-    # copy, so it must be provisioned regardless.
-    if (Test-Path $managedBu) {
-        Write-Success "Browser Use CLI already installed"
-        return
-    }
-
-    Write-Info "Installing Browser Use CLI (default browser backend)..."
-    $prevEAP = $ErrorActionPreference
-    $ErrorActionPreference = "Continue"
-    try {
-        # UV_TOOL_BIN_DIR keeps the binary inside Hermes' managed bin dir,
-        # where the browser tool resolves it -- no reliance on the user PATH.
-        $env:UV_TOOL_BIN_DIR = $managedBin
-        $env:UV_NO_CONFIG = "1"
-        & $script:UvCmd tool install browser-use 2>&1 | Out-Null
-        if ($LASTEXITCODE -eq 0) {
-            Write-Success "Browser Use CLI installed"
-        } else {
-            Write-Warn "Browser Use CLI install failed (exit $LASTEXITCODE) -- browser automation falls back to built-in tools."
-            Write-Info "Install later with: uv tool install browser-use  (or via 'hermes tools')"
-        }
-    } catch {
-        Write-Warn "Browser Use CLI install failed: $_"
-    } finally {
-        $ErrorActionPreference = $prevEAP
-        Remove-Item Env:\UV_TOOL_BIN_DIR -ErrorAction SilentlyContinue
-        Remove-Item Env:\UV_NO_CONFIG -ErrorAction SilentlyContinue
-    }
-}
-
-function Test-CuaDriverRuntimeContract {
-    param([Parameter(Mandatory = $true)][string]$DriverPath)
-
-    try {
-        $versionOutput = (& $DriverPath --version 2>$null | Out-String).Trim()
-        if ($LASTEXITCODE -ne 0) {
-            return $false
-        }
-        $versionMatch = [regex]::Match($versionOutput, '(\d+\.\d+\.\d+)')
-        if (-not $versionMatch.Success) {
-            return $false
-        }
-        if ([version]($versionMatch.Groups[1].Value) -lt [version]'0.20.0') {
-            return $false
-        }
-
-        $manifestOutput = (& $DriverPath manifest 2>$null | Out-String).Trim()
-        if ($LASTEXITCODE -ne 0 -or -not $manifestOutput) {
-            return $false
-        }
-        $manifest = $manifestOutput | ConvertFrom-Json
-        if (-not $manifest.mcp_invocation.args) {
-            return $false
-        }
-
-        $required = @{
-            mcp = @('--socket', '--grant')
-            serve = @(
-                '--socket', '--permission-mode', '--capability-manifest',
-                '--approve-capability-manifest', '--embedded'
-            )
-            stop = @('--socket')
-        }
-        foreach ($commandName in $required.Keys) {
-            $command = $manifest.subcommands | Where-Object { $_.name -eq $commandName }
-            if (-not $command) {
-                return $false
-            }
-            $argNames = @($command.args | ForEach-Object { $_.name })
-            foreach ($requiredArg in $required[$commandName]) {
-                if ($requiredArg -notin $argNames) {
-                    return $false
-                }
-            }
-        }
-        return $true
-    } catch {
-        return $false
-    }
-}
-
-# cua-driver powers the computer_use toolset (background desktop control).
-# Provision it at install time so enabling the tool later -- via `hermes
-# tools`, the dashboard, or the desktop app -- is a config flip, not a
-# surprise multi-minute binary fetch. Best-effort and non-fatal: the enable
-# paths still lazy-install via install_cua_driver() (hermes_cli/tools_config)
-# when this step was skipped or failed.
-function Install-CuaDriver {
-    if ($SkipComputerUse) {
-        Write-Info "Skipping Computer Use (cua-driver) install (-SkipComputerUse)"
-        return
-    }
-    $existingCuaDriver = Get-Command cua-driver -ErrorAction SilentlyContinue
-    if ($existingCuaDriver) {
-        if (Test-CuaDriverRuntimeContract -DriverPath $existingCuaDriver.Source) {
-            Write-Success "Computer Use driver (cua-driver) already installed and compatible"
-            return
-        }
-        Write-Warn "Existing cua-driver is old or incomplete; repairing it"
-    }
-
-    Write-Info "Installing Computer Use driver (cua-driver)..."
-    $prevEAP = $ErrorActionPreference
-    $ErrorActionPreference = "Continue"
-    try {
-        # Same upstream installer `hermes computer-use install` runs. Bounded
-        # via a background job: the upstream installer serializes with its own
-        # lock (600s stale window), so the ceiling sits above that -- matching
-        # Hermes' _CUA_INSTALLER_TIMEOUT (660s).
-        $job = Start-Job -ScriptBlock {
-            Invoke-RestMethod -UseBasicParsing "https://raw.githubusercontent.com/trycua/cua/main/libs/cua-driver/scripts/install.ps1" | Invoke-Expression
-        }
-        if (Wait-Job $job -Timeout 660) {
-            Receive-Job $job -ErrorAction SilentlyContinue | Out-Null
-            Remove-Job $job -Force -ErrorAction SilentlyContinue
-            $installedCuaDriver = Get-Command cua-driver -ErrorAction SilentlyContinue
-            if ($installedCuaDriver -and (Test-CuaDriverRuntimeContract -DriverPath $installedCuaDriver.Source)) {
-                Write-Success "Computer Use driver installed (enable via 'hermes tools' -> Computer Use)"
-            } else {
-                Write-Warn "Computer Use driver install did not produce a compatible runtime -- repair it before enabling the tool."
-                Write-Info "Install later with: hermes computer-use install"
-            }
-        } else {
-            Stop-Job $job -ErrorAction SilentlyContinue
-            Remove-Job $job -Force -ErrorAction SilentlyContinue
-            Write-Warn "Computer Use driver install timed out -- it will install on demand when you enable the tool."
-            Write-Info "Install later with: hermes computer-use install"
-        }
-    } catch {
-        Write-Warn "Computer Use driver install failed: $_"
-        Write-Info "Install later with: hermes computer-use install"
-    } finally {
-        $ErrorActionPreference = $prevEAP
-    }
+    . (Join-Path $InstallDir 'scripts\lib\install-node-deps.ps1')
+    Invoke-HebriNodeInstall
 }
 
 # Clear the cached Electron download + any half-written unpacked output so the
@@ -4499,12 +3852,11 @@ function Install-DesktopVoiceDeps {
     Write-Info "Installing voice + wake-word dependencies (onnxruntime, faster-whisper -- 1-3min)..."
     Push-Location $InstallDir
     try {
-        Invoke-NativeWithRelaxedErrorAction { & $UvCmd pip install -e ".[wake,voice]" }
-        if ($LASTEXITCODE -eq 0) {
-            Write-Success "Voice + wake-word dependencies installed"
-        } else {
-            Write-Warn "Voice/wake dependency install failed (exit $LASTEXITCODE) -- they will lazy-install at first use"
-        }
+        . (Join-Path $InstallDir 'scripts\lib\install-dependencies.ps1')
+        Invoke-HebriLockedSync -Extra wake,voice -Inexact
+        Write-Success "Voice + wake-word dependencies installed"
+    } catch {
+        Write-Warn "Verified voice/wake installation failed: $($_.Exception.Message). Retry this stage to enable local voice."
     } finally {
         Pop-Location
     }
@@ -4588,8 +3940,8 @@ function Install-Desktop {
         # node_modules\.package-lock.json marker while node_modules is
         # actually empty (Windows workspace-hoisting flake), leaving
         # tsc/typescript unresolved so `npm run pack`'s `tsc -b` dies with
-        # no obvious cause. Fall back to `npm install` only if `npm ci`
-        # fails (lockfile out of sync / very old npm without ci).
+        # no obvious cause. Failed verification stops the install so a stale
+        # lock cannot silently resolve different packages on this machine.
         #
         # Tee the merged output into $npmOut while still emitting every line
         # live. We don't need a side log file (the bootstrap streaming sink
@@ -4598,11 +3950,6 @@ function Install-Desktop {
         # instead of an opaque "exit 1" (issue #38016).
         & $npmExe ci --include=optional 2>&1 | ForEach-Object { "$_" } | Tee-Object -Variable npmOut
         $code = $LASTEXITCODE
-        if ($code -ne 0) {
-            Write-Info "  npm ci failed (exit $code) -- retrying with npm install..."
-            & $npmExe install --include=optional 2>&1 | ForEach-Object { "$_" } | Tee-Object -Variable npmOut
-            $code = $LASTEXITCODE
-        }
         if ($code -eq 0) {
             & node apps/desktop/scripts/ensure-rolldown-binding.mjs
             $code = $LASTEXITCODE
@@ -4612,6 +3959,7 @@ function Install-Desktop {
             if (Test-ElectronPkgStagedMissingDist -InstallDir $InstallDir) {
                 Write-Warn "Desktop dependency install failed with a missing Electron dist; attempting self-heal..."
                 Try-RestoreElectronDist -InstallDir $InstallDir | Out-Null
+                throw "Desktop dependency installation failed. Retry to verify the complete locked dependency tree after Electron recovery."
             } else {
                 Show-NpmCertHint ($npmOut -join "`n") | Out-Null
                 # Replay npm's own debug log into our stream: the terse
@@ -4808,7 +4156,7 @@ function Install-Desktop {
     }
 
     # 4. Create Start Menu + Desktop shortcuts pointing DIRECTLY at the packed
-    #    Hermes.exe. We deliberately do NOT point them at `hermes desktop`: that
+    #    Hermes.exe. We deliberately do NOT point them at `hebri desktop`: that
     #    command rebuilds (npm install + electron-builder) on every launch,
     #    which would cost minutes each time. The packed exe is the consumer --
     #    launching it directly is instant, and updates flow through the
@@ -4878,112 +4226,8 @@ function New-DesktopShortcuts {
 }
 
 function Install-PlatformSdks {
-    # Ensure messaging-platform SDKs matching tokens the user added to
-    # ~/.hermes/.env are importable.  Two problems this solves:
-    #
-    # 1. The tiered `uv pip install` cascade above can fall through to a
-    #    lower tier when the first fails (common when RL git deps choke),
-    #    which silently skips some messaging SDKs from [messaging].
-    # 2. `uv` creates the venv without pip.  If a messaging SDK ends up
-    #    missing, the user can't `pip install python-telegram-bot` to
-    #    recover -- pip simply isn't in their venv.
-    #
-    # Strategy: bootstrap pip via `python -m ensurepip` (idempotent), then
-    # for each token set in .env, verify the matching SDK imports.  If not,
-    # run one targeted `pip install` as last-chance recovery.  Keeps fresh
-    # Windows installs from hitting silent "python-telegram-bot not installed"
-    # at runtime.
-    if ($NoVenv) {
-        Write-Info "Skipping platform-SDK verification (-NoVenv: no venv to bootstrap)"
-        return
-    }
-
-    $pythonExe = "$InstallDir\venv\Scripts\python.exe"
-    if (-not (Test-Path $pythonExe)) {
-        Write-Warn "Skipping platform-SDK verification: $pythonExe not found"
-        return
-    }
-
-    $envPath = "$HermesHome\.env"
-    if (-not (Test-Path $envPath)) { return }
-    $envLines = Get-Content $envPath -ErrorAction SilentlyContinue
-
-    # Map: env var set in .env -> (import name, pip spec matching [messaging] extra).
-    # Specs mirror pyproject.toml to avoid version drift.
-    $sdkMap = @(
-        @{ Var = "TELEGRAM_BOT_TOKEN"; Import = "telegram";  Spec = "python-telegram-bot[webhooks]>=22.6,<23" },
-        @{ Var = "DISCORD_BOT_TOKEN";  Import = "discord";   Spec = "discord.py[voice]>=2.7.1,<3" },
-        @{ Var = "SLACK_BOT_TOKEN";    Import = "slack_sdk"; Spec = "slack-sdk>=3.27.0,<4" },
-        @{ Var = "SLACK_APP_TOKEN";    Import = "slack_bolt";Spec = "slack-bolt>=1.18.0,<2" },
-        @{ Var = "WHATSAPP_ENABLED";   Import = "qrcode";    Spec = "qrcode>=7.0,<8" }
-    )
-
-    # Which tokens are actually set (not placeholder)?
-    $needed = @()
-    foreach ($sdk in $sdkMap) {
-        $match = $envLines | Where-Object {
-            $_ -match ("^" + [regex]::Escape($sdk.Var) + "=.+") `
-            -and $_ -notmatch "your-token-here" `
-            -and $_ -notmatch "^\s*#"
-        }
-        if ($match) { $needed += $sdk }
-    }
-    if ($needed.Count -eq 0) { return }
-
-    Write-Host ""
-    Write-Info "Verifying platform SDKs for tokens found in $envPath ..."
-
-    # Verify each SDK's import without triggering side-effect imports.
-    # Quirk: PowerShell wraps non-zero-exit native stderr as a
-    # NativeCommandError that prints even with `2>$null` / `*> $null`
-    # unless we set $ErrorActionPreference to SilentlyContinue for the
-    # span.  Save + restore rather than nuking globally.
-    $prevEAP = $ErrorActionPreference
-    $ErrorActionPreference = "SilentlyContinue"
-    try {
-        $missing = @()
-        foreach ($sdk in $needed) {
-            & $pythonExe -c "import $($sdk.Import)" 2>&1 | Out-Null
-            if ($LASTEXITCODE -ne 0) {
-                $missing += $sdk
-                Write-Warn "  $($sdk.Import) NOT importable (needed for $($sdk.Var))"
-            } else {
-                Write-Success "  $($sdk.Import) OK"
-            }
-        }
-    } finally {
-        $ErrorActionPreference = $prevEAP
-    }
-    if ($missing.Count -eq 0) { return }
-
-    # Bootstrap pip into the venv if it isn't there.  `uv` creates venvs
-    # without pip; ensurepip is the stdlib-blessed way to add it.
-    $prevEAP = $ErrorActionPreference
-    $ErrorActionPreference = "SilentlyContinue"
-    try {
-        & $pythonExe -m pip --version 2>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) {
-            Write-Info "Bootstrapping pip into venv (uv doesn't ship pip)..."
-            & $pythonExe -m ensurepip --upgrade 2>&1 | Out-Null
-            if ($LASTEXITCODE -ne 0) {
-                Write-Warn "ensurepip failed -- can't auto-install missing SDKs."
-                Write-Info "Manual recovery: $UvCmd pip install `"$($missing[0].Spec)`""
-                return
-            }
-        }
-
-        foreach ($sdk in $missing) {
-            Write-Info "  Installing $($sdk.Spec) ..."
-            & $pythonExe -m pip install $sdk.Spec 2>&1 | ForEach-Object { Write-Host "    $_" }
-            if ($LASTEXITCODE -eq 0) {
-                Write-Success "  Installed $($sdk.Import)"
-            } else {
-                Write-Warn "  Failed to install $($sdk.Spec). Recover manually: $pythonExe -m pip install `"$($sdk.Spec)`""
-            }
-        }
-    } finally {
-        $ErrorActionPreference = $prevEAP
-    }
+    . (Join-Path $InstallDir 'scripts\lib\install-platform-sdks.ps1')
+    Invoke-HebriPlatformSdkInstall
 }
 
 function Invoke-SetupWizard {
@@ -4996,7 +4240,7 @@ function Invoke-SetupWizard {
         # The setup wizard prompts for API keys, model choice, persona, etc.
         # Non-interactive callers (GUI installer) own that UX themselves; let
         # them drive it after install.ps1 returns.
-        Write-Info "Skipping setup wizard (non-interactive). Configure via the GUI or 'hermes setup'."
+        Write-Info "Skipping setup wizard (non-interactive). Configure via the GUI or 'hebri setup'."
         return
     }
 
@@ -5006,7 +4250,7 @@ function Invoke-SetupWizard {
 
     Push-Location $InstallDir
 
-    # Run hermes setup using the venv Python directly (no activation needed)
+    # Run hebri setup using the venv Python directly (no activation needed)
     if (-not $NoVenv) {
         & ".\venv\Scripts\python.exe" -m hermes_cli.main setup
     } else {
@@ -5040,7 +4284,7 @@ function Start-GatewayIfConfigured {
     if ($whatsappEnabled -and -not (Test-Path $whatsappSession)) {
         Write-Host ""
         Write-Info "WhatsApp is enabled but not yet paired."
-        Write-Info "Running 'hermes whatsapp' to pair via QR code..."
+        Write-Info "Running 'hebri whatsapp' to pair via QR code..."
         Write-Host ""
         # Non-interactive callers (GUI installer, CI) skip the QR-pair prompt;
         # WhatsApp pairing requires a human looking at a phone camera, so the
@@ -5069,7 +4313,7 @@ function Start-GatewayIfConfigured {
     # services on the build agent, etc.).  Treat it like the user declined.
     if ($NonInteractive) {
         Write-Info "Skipping gateway autostart prompt (non-interactive)."
-        Write-Info "Start the gateway later with: hermes gateway"
+        Write-Info "Start the gateway later with: hebri gateway"
         return
     }
 
@@ -5087,10 +4331,10 @@ function Start-GatewayIfConfigured {
             Write-Info "Logs: $logFile"
             Write-Info "To stop: close the gateway process from Task Manager"
         } catch {
-            Write-Warn "Failed to start gateway. Run manually: hermes gateway"
+            Write-Warn "Failed to start gateway. Run manually: hebri gateway"
         }
     } else {
-        Write-Info "Skipped. Start the gateway later with: hermes gateway"
+        Write-Info "Skipped. Start the gateway later with: hebri gateway"
     }
 }
 
@@ -5120,15 +4364,15 @@ function Write-Completion {
     Write-Host ""
     Write-Host "   hermes              " -NoNewline -ForegroundColor Green
     Write-Host "Start chatting"
-    Write-Host "   hermes setup        " -NoNewline -ForegroundColor Green
+    Write-Host "   hebri setup        " -NoNewline -ForegroundColor Green
     Write-Host "Configure API keys & settings"
-    Write-Host "   hermes config       " -NoNewline -ForegroundColor Green
+    Write-Host "   hebri config       " -NoNewline -ForegroundColor Green
     Write-Host "View/edit configuration"
-    Write-Host "   hermes config edit  " -NoNewline -ForegroundColor Green
+    Write-Host "   hebri config edit  " -NoNewline -ForegroundColor Green
     Write-Host "Open config in editor"
-    Write-Host "   hermes gateway      " -NoNewline -ForegroundColor Green
+    Write-Host "   hebri gateway      " -NoNewline -ForegroundColor Green
     Write-Host "Start messaging gateway (Telegram, Discord, etc.)"
-    Write-Host "   hermes update       " -NoNewline -ForegroundColor Green
+    Write-Host "   hebri update       " -NoNewline -ForegroundColor Green
     Write-Host "Update to latest version"
     Write-Host ""
     

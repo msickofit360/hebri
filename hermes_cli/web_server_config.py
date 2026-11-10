@@ -87,8 +87,8 @@ _SCHEMA_OVERRIDES: Dict[str, Dict[str, Any]] = {
     "proxy.enabled": {
         "type": "boolean",
         "description": (
-            "Docker-only egress credential firewall. Requires `hermes egress setup` "
-            "and `hermes egress start`; Modal/SSH/Daytona are not wired yet."
+            "Docker-only egress credential firewall. Requires `hebri egress setup` "
+            "and `hebri egress start`; Modal/SSH/Daytona are not wired yet."
         ),
         "category": "security",
     },
@@ -104,7 +104,7 @@ _SCHEMA_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "type": "boolean",
         "description": (
             "Borrow and refresh the Codex CLI / Claude Code logins when Hermes has no usable login of its own. "
-            "Off: Hermes uses only its own logins (`hermes auth add <provider>`)."
+            "Off: Hermes uses only its own logins (`hebri auth add <provider>`)."
         ),
         "category": "security",
     },
@@ -151,7 +151,7 @@ _SCHEMA_OVERRIDES: Dict[str, Dict[str, Any]] = {
     "updates.refresh_cua_driver": {
         "type": "boolean",
         "description": (
-            "Refresh an already-installed cua-driver during hermes update. "
+            "Refresh an already-installed cua-driver during hebri update. "
             "Disable this on non-admin macOS accounts where /Applications is "
             "not writable."
         ),
@@ -546,8 +546,8 @@ _AUX_TASK_SLOTS: Tuple[str, ...] = (
 def _dashboard_code_skew_guard() -> Optional[str]:
     """Return a "restart required" message when this process runs stale code, else None.
 
-    Long-lived dashboard / Desktop-owned ``hermes serve`` processes freeze ``sys.modules``
-    at boot; after ``hermes update`` replaces the checkout, a first-time lazy import can
+    Long-lived dashboard / Desktop-owned ``hebri serve`` processes freeze ``sys.modules``
+    at boot; after ``hebri update`` replaces the checkout, a first-time lazy import can
     resolve a fresh consumer module against a stale cached dependency -> ImportError.
     Mirrors the gateway's ``_model_switch_skew_guard``: refuse the risky call with an
     actionable message. Never a false positive (non-git installs return None).
@@ -570,7 +570,7 @@ def _dashboard_code_skew_guard() -> Optional[str]:
 
 def _dashboard_skew_restart_hint() -> str:
     """Restart advice matching how this process is owned — the same app backs the browser
-    dashboard and Desktop-owned ``hermes serve``; naming a systemd unit would mislead
+    dashboard and Desktop-owned ``hebri serve``; naming a systemd unit would mislead
     macOS/launchd hosts and Desktop SSH backends.
 
     See #97046.
@@ -582,7 +582,7 @@ def _dashboard_skew_restart_hint() -> str:
         )
     return (
         "restart this Hermes process to load the new code "
-        "(hermes dashboard --port <port>, or the equivalent service restart for this install)"
+        "(hebri dashboard --port <port>, or the equivalent service restart for this install)"
     )
 
 
@@ -627,7 +627,7 @@ def _apply_nous_gateway_defaults(cfg: dict) -> list:
 
 def _register_custom_endpoint(base_url: str, api_key: str, model: str) -> None:
     """Register a named ``custom_providers`` entry for a custom/local endpoint (mirrors the
-    ``hermes model`` custom flow) so the picker gets a proper ready row instead of a "needs
+    ``hebri model`` custom flow) so the picker gets a proper ready row instead of a "needs
     setup" dead-end. Dedups by base_url; never blocks the already-persisted assignment."""
     try:
         from hermes_cli.main_provider_setup import _auto_provider_name, _save_custom_provider
