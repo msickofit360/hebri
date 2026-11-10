@@ -1,5 +1,16 @@
 # Fork-only sync. Merge conflicts fail without changing main; never force-push.
 # GitHub may disable scheduled workflows after 60 days without repository activity.
+#
+# The push below re-syncs upstream main, which routinely edits files under
+# .github/workflows/. The workflow-run token (GITHUB_TOKEN) is refused by GitHub
+# for any push that creates or updates a workflow file:
+#   ! [remote rejected] HEAD -> main (refusing to allow a GitHub App to create or
+#     update workflow `.github/workflows/build.yml` without `workflows` permission)
+# No `permissions:` key can grant that; it is not part of the GITHUB_TOKEN
+# permission set. SYNC_TOKEN must therefore be a PAT carrying the `workflow`
+# scope (classic: `repo` + `workflow`; fine-grained: Contents read/write +
+# Workflows read/write on this repository). Passing it to actions/checkout stores
+# it as the git remote credential, so the push uses it too.
 name: Sync upstream main
 
 on:
@@ -25,19 +36,26 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+          token: ${{ secrets.SYNC_TOKEN }}
 
       - name: Merge upstream main and push safely
         shell: bash
+        env:
+          SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if [ -z "${SYNC_TOKEN:-}" ]; then
+            echo "::error::Repository secret SYNC_TOKEN is missing. Create a PAT with the \`workflow\` scope (\`repo\` as well for a classic token) and save it as SYNC_TOKEN: GITHUB_TOKEN is refused for any push that touches .github/workflows/."
+            exit 1
+          fi
           git remote add upstream https://github.com/satoshilove/hebri.git
           git fetch --no-tags upstream main
           before="$(git rev-parse HEAD)"
           upstream="$(git rev-parse refs/remotes/upstream/main)"
           if ! git merge --no-edit refs/remotes/upstream/main; then
-            git merge --abort
+            git merge --abort || true
             echo "::error::Upstream main conflicts with fork main. Resolve the conflict manually; the fork has not been pushed."
             exit 1
           fi
