@@ -6,7 +6,6 @@ import type * as ReactRouterDom from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type * as HermesApi from '@/hermes'
-const CATALOG_ORIGIN = 'https://synapseklabs.org'
 import { queryClient } from '@/lib/query-client'
 import type * as HubActions from '@/store/hub-actions'
 
@@ -264,18 +263,33 @@ describe('CapabilitiesView toolset management', { timeout: 60_000 }, () => {
 
   it('hub picker refuses to reinstall an already-installed skill', async () => {
     const { notify } = await import('@/store/notifications')
+    const { installHubSkill } = await import('@/store/hub-actions')
     const { EmbeddedHubPicker } = await import('./skills/embedded-hub-picker')
 
     render(<EmbeddedHubPicker installedNames={new Set(['web-research'])} profile={null} />)
 
     // The picker is expanded by default — the hub iframe is live on mount.
-    expect(document.querySelector('iframe')).toBeTruthy()
+    const frame = document.querySelector('iframe')!
+    expect(frame).toBeTruthy()
+    expect(frame.getAttribute('sandbox')).toBe('allow-scripts')
+
+    // A different window cannot drive the picker, even with an opaque origin.
+    await act(async () => {
+      window.dispatchEvent(new MessageEvent('message', {
+        data: { type: 'hebri-skill-pick', name: 'web-research', identifier: 'web-research' },
+        origin: 'null',
+        source: window
+      }))
+    })
+    expect(notify).not.toHaveBeenCalled()
+    expect(installHubSkill).not.toHaveBeenCalled()
 
     await act(async () => {
       window.dispatchEvent(
         new MessageEvent('message', {
-          data: { type: 'hermes-skill-pick', name: 'web-research', identifier: 'web-research' },
-          origin: CATALOG_ORIGIN
+          data: { type: 'hebri-skill-pick', name: 'web-research', identifier: 'web-research' },
+          origin: 'null',
+          source: frame.contentWindow
         })
       )
     })
@@ -286,6 +300,7 @@ describe('CapabilitiesView toolset management', { timeout: 60_000 }, () => {
         expect.objectContaining({ title: expect.stringContaining('web-research') })
       )
     )
+    expect(installHubSkill).not.toHaveBeenCalled()
   })
 
   it('mounts the hub iframe lazily and keeps it (hidden) across tab switches', async () => {

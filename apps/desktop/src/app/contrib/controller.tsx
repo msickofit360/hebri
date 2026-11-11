@@ -63,7 +63,13 @@ import { TRANSCRIPT_DIRECTIVE_AREA, type TranscriptDirectiveContribution } from 
 import { setYoloEnabled } from '@/lib/yolo-session'
 import { $botChatScopes } from '@/store/bot-chat-scopes'
 import { $connectionsRegistry } from '@/store/connection-registry-state'
-import { $interfaceMode, $showsAdvancedChrome, setModeContext, toggleSimpleMode } from '@/store/interface-mode'
+import {
+  $interfaceMode,
+  $showsAdvancedChrome,
+  setInterfaceMode,
+  setModeContext,
+  toggleSimpleMode
+} from '@/store/interface-mode'
 import {
   $fileBrowserOpen,
   $sidebarOpen,
@@ -574,6 +580,9 @@ registerLayoutResetHandler(stackSessionTilesIntoMain)
 // real function instead of a copy. See its docblock for the semantics.
 
 bindLayoutSides()
+
+// Keep collaboration out of the everyday Sessions / Bits layout.
+bindPaneVisibility('team', $showsAdvancedChrome, undefined, () => setInterfaceMode('advanced'))
 
 // Workspace-scoped surfaces: the file tree and git diff only mean something
 // inside a project. A detached chat (no cwd) hides them — their zones

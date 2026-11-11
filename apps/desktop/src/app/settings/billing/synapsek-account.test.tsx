@@ -1,10 +1,15 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { $interfaceMode } from '@/store/interface-mode'
+import { setMainModelAssignment } from '@/store/model-assignment'
+
 import type { SynapsekAccountView } from '../../../../electron/synapsek-account-types'
 
 import { SynapsekAccountSettings } from './synapsek-account'
 import { accountCopy } from './synapsek-account-copy'
+
+vi.mock('@/store/model-assignment', () => ({ setMainModelAssignment: vi.fn(async () => ({ ok: true })) }))
 
 vi.mock('@/i18n', () => ({ useI18n: () => ({ locale: 'en' }) }))
 vi.mock('@/components/ui/button', () => ({
@@ -16,9 +21,56 @@ const previous = window.hermesDesktop
 afterEach(() => {
   cleanup()
   window.hermesDesktop = previous
+  $interfaceMode.set('advanced')
+  vi.clearAllMocks()
 })
 
 describe('Synapsek account controls', () => {
+  it.each([true, false])('Simple sign-in selects Synapsek only with inference entitlement: %s', async enabled => {
+    $interfaceMode.set('simple')
+    const onMainModelChanged = vi.fn()
+
+    const bridge = vi.fn(async (operation: string) => ({
+      ok: true as const,
+      value:
+        operation === 'status'
+          ? { state: 'signed_out' as const }
+          : {
+              state: 'signed_in' as const,
+              account: {
+                userId: 'test-user',
+                email: 'fixture@example.com',
+                managedInferenceEnabled: enabled,
+                billing: {
+                  plan: 'pro',
+                  sku: 'pro',
+                  status: 'active',
+                  accessSource: 'stripe',
+                  includedMonthlyCredits: 4000
+                }
+              }
+            }
+    }))
+
+    window.hermesDesktop = { ...previous, synapsekAccount: bridge } as NonNullable<typeof window.hermesDesktop>
+    render(<SynapsekAccountSettings onMainModelChanged={onMainModelChanged} />)
+    fireEvent.click(await screen.findByText('Sign in with Synapsek'))
+    await screen.findByText('fixture@example.com')
+
+    if (enabled) {
+      await screen.findByText('Synapsek is ready for new chats.')
+      expect(setMainModelAssignment).toHaveBeenCalledWith(
+        { provider: 'synapsek', model: 'synapsek-auto' },
+        { connectionId: null, profile: 'default' }
+      )
+      expect(onMainModelChanged).toHaveBeenCalledWith('synapsek', 'synapsek-auto')
+    } else {
+      expect(setMainModelAssignment).not.toHaveBeenCalled()
+      expect(onMainModelChanged).not.toHaveBeenCalled()
+      expect(screen.queryByText('Use Synapsek for new chats')).toBeNull()
+    }
+  })
+
   it.each(['service_unavailable', 'account_operation_failed'])(
     'offers server sign-out after %s hides the saved account',
     async code => {
@@ -27,6 +79,7 @@ describe('Synapsek account controls', () => {
           ? { ok: true as const, value: { state: 'signed_out' as const } }
           : { ok: false as const, code }
       )
+
       window.hermesDesktop = { ...previous, synapsekAccount: bridge } as NonNullable<typeof window.hermesDesktop>
       render(<SynapsekAccountSettings />)
       expect(await screen.findByRole('alert')).toBeTruthy()
@@ -133,7 +186,7 @@ describe('Synapsek account controls', () => {
     >
     render(<SynapsekAccountSettings />)
     expect(await screen.findByText('3,150')).toBeTruthy()
-    expect(screen.getByText(/Choose Synapsek in the model picker/)).toBeTruthy()
+    expect(screen.getByText(/Synapsek uses your shared website and desktop credits/)).toBeTruthy()
     expect(screen.queryByText(/not enabled in this account preview/)).toBeNull()
   })
   it('shows verified account data and opens billing without requesting payment credentials', async () => {

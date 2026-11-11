@@ -1,7 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useStore } from '@nanostores/react'
+import { useEffect, useRef, useState } from 'react'
 
+import { setupCopy } from '@/components/onboarding/setup-copy'
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/i18n'
+import { $activeConnectionId } from '@/store/connections'
+import { $interfaceMode } from '@/store/interface-mode'
+import { setMainModelAssignment } from '@/store/model-assignment'
+import { captureOnboardingScope } from '@/store/onboarding-scope'
+import { $settingsScopeProfile } from '@/store/settings-scope'
 
 import type { SynapsekAccountView } from '../../../../electron/synapsek-account-types'
 
@@ -26,9 +33,21 @@ const messages: Record<string, string> = {
   forbidden: 'This window could not access the account service. Restart Hebri and retry.'
 }
 
-export function SynapsekAccountSettings() {
+export function SynapsekAccountSettings({
+  onMainModelChanged
+}: {
+  onMainModelChanged?: (provider: string, model: string) => void
+}) {
+  const simple = useStore($interfaceMode) === 'simple'
+  const profile = useStore($settingsScopeProfile)
+  const connectionId = useStore($activeConnectionId)
+  const scopeKey = `${connectionId}:${profile}`
+  const currentScope = useRef(scopeKey)
+  currentScope.current = scopeKey
+  const [readyScope, setReadyScope] = useState<string | null>(null)
   const { locale } = useI18n()
   const copy = accountCopy[locale]
+  const setup = setupCopy[locale]
   const usageText = usageCopy[locale]
   const billingText = billingCopy[locale]
   const developerText = developerCopy[locale]
@@ -72,9 +91,35 @@ export function SynapsekAccountSettings() {
     return null
   }
 
+  async function selectSynapsek() {
+    const scope = captureOnboardingScope({ connectionId, profile })
+    const owner = scopeKey
+    await setMainModelAssignment({ provider: 'synapsek', model: 'synapsek-auto' }, scope)
+
+    if (currentScope.current === owner) {
+      onMainModelChanged?.('synapsek', 'synapsek-auto')
+      setReadyScope(owner)
+    }
+  }
+
+  async function activateAccount() {
+    setBusy(true)
+    setError('')
+    setReadyScope(null)
+
+    try {
+      await selectSynapsek()
+    } catch {
+      setError('model_selection_failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function run(operation: 'status' | 'signIn' | 'signOut' | 'openBilling' | 'openCredits' | 'forgetLocal') {
     setBusy(true)
     setError('')
+    setReadyScope(null)
 
     try {
       const result = await bridge!(operation)
@@ -85,6 +130,20 @@ export function SynapsekAccountSettings() {
         setError(result.code)
       } else if (result.value) {
         setView(result.value)
+
+        if (
+          operation === 'signIn' &&
+          simple &&
+          result.value.state === 'signed_in' &&
+          result.value.account?.managedInferenceEnabled &&
+          currentScope.current === scopeKey
+        ) {
+          try {
+            await selectSynapsek()
+          } catch {
+            setError('model_selection_failed')
+          }
+        }
       }
     } catch {
       setError('account_operation_failed')
@@ -97,6 +156,18 @@ export function SynapsekAccountSettings() {
     <section aria-label={copy.title} className="space-y-6">
       <h2 className="font-semibold">{copy.title}</h2>
       <p className="text-sm text-muted-foreground">{copy.introduction}</p>
+      {view.state === 'signed_in' && view.account?.managedInferenceEnabled && (
+        <div className="space-y-2">
+          <Button disabled={busy} onClick={() => void activateAccount()}>
+            {setup.useAccount}
+          </Button>
+          {readyScope === scopeKey && (
+            <p className="text-sm text-muted-foreground" role="status">
+              {setup.ready}
+            </p>
+          )}
+        </div>
+      )}
       {view.account && (
         <div className="space-y-3">
           <p className="break-all text-sm text-muted-foreground">{view.account.email}</p>
@@ -169,7 +240,13 @@ export function SynapsekAccountSettings() {
       <p className="text-sm text-muted-foreground">{billingText.website}</p>
       {error && (
         <p className="text-sm text-destructive" role="alert">
-          {error === 'not_available' ? copy.unavailable : locale === 'en' ? messages[error] || copy.error : copy.error}
+          {error === 'model_selection_failed'
+            ? setup.failed
+            : error === 'not_available'
+              ? copy.unavailable
+              : locale === 'en'
+                ? messages[error] || copy.error
+                : copy.error}
         </p>
       )}
       <div className="flex flex-wrap gap-2">

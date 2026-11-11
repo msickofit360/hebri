@@ -627,6 +627,7 @@ contextBridge.exposeInMainWorld('hermesDesktop', {
   relaunchApp: () => ipcRenderer.invoke('hermes:app:relaunch'),
   getMachineProfile: () => ipcRenderer.invoke('hermes:machine:profile'),
   getTailscaleStatus: () => ipcRenderer.invoke('hebri:tailscale:status'),
+  teamHost: (operation: 'start' | 'stop' | 'status') => ipcRenderer.invoke('hebri:team-host', operation),
   getRemoteDisplayReason: () => ipcRenderer.invoke('hermes:get-remote-display-reason'),
   uninstall: {
     summary: () => ipcRenderer.invoke('hermes:uninstall:summary'),

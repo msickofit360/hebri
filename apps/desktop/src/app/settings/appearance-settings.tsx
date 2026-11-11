@@ -689,9 +689,11 @@ export function AppearanceSettings({ subpage }: AppearanceSettingsProps = {}) {
                 <ChatFontSetting />
               </div>
 
-              <div id={settingElementId(ids.terminalFont)}>
-                <TerminalFontSetting />
-              </div>
+              {interfaceMode === 'advanced' && (
+                <div id={settingElementId(ids.terminalFont)}>
+                  <TerminalFontSetting />
+                </div>
+              )}
             </>
           )}
 
@@ -982,7 +984,7 @@ export function AppearanceSettings({ subpage }: AppearanceSettingsProps = {}) {
             />
           )}
 
-          {show('chat-display') && (
+          {interfaceMode === 'advanced' && show('chat-display') && (
             <ListRow
               action={
                 <SegmentedControl
@@ -1000,7 +1002,7 @@ export function AppearanceSettings({ subpage }: AppearanceSettingsProps = {}) {
             />
           )}
 
-          {show('chat-display') && (
+          {interfaceMode === 'advanced' && show('chat-display') && (
             <ToggleRow
               checked={hideCodeDiffs}
               description={withModeNote(a.hideCodeDiffsDesc, hideCodeDiffsShadowed)}
@@ -1010,7 +1012,7 @@ export function AppearanceSettings({ subpage }: AppearanceSettingsProps = {}) {
             />
           )}
 
-          {show('chat-display') && (
+          {interfaceMode === 'advanced' && show('chat-display') && (
             <ToggleRow
               checked={reasoningCollapsedByDefault}
               description={withModeNote(a.reasoningCollapsedDesc, reasoningCollapsedShadowed)}
@@ -1020,7 +1022,7 @@ export function AppearanceSettings({ subpage }: AppearanceSettingsProps = {}) {
             />
           )}
 
-          {show('chat-display') && (
+          {interfaceMode === 'advanced' && show('chat-display') && (
             <ListRow
               action={
                 <SegmentedControl

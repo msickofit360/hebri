@@ -116,6 +116,7 @@ interface CreateAgentDialogProps {
 }
 
 export function CreateAgentDialog({ open, onClose, roster }: CreateAgentDialogProps) {
+  const simple = useValue(host.state.interfaceMode) === 'simple'
   const extraBots = useExtraBots().additional
 
   const { t } = useI18n()
@@ -679,24 +680,26 @@ export function CreateAgentDialog({ open, onClose, roster }: CreateAgentDialogPr
               value={description}
             />
           )}
-          <Button
-            className="flex items-center gap-1 text-xs font-medium text-(--ui-text-tertiary) hover:text-(--ui-text-secondary)"
-            onClick={() => {
-              setAdvanced(v => {
-                if (!v) {
-                  ensureCaps()
-                }
+          {!simple && (
+            <Button
+              className="flex items-center gap-1 text-xs font-medium text-(--ui-text-tertiary) hover:text-(--ui-text-secondary)"
+              onClick={() => {
+                setAdvanced(v => {
+                  if (!v) {
+                    ensureCaps()
+                  }
 
-                return !v
-              })
-            }}
-            size="inline"
-            variant="text"
-          >
-            <DisclosureCaret open={advanced} />
-            {b.bot.advanced}
-          </Button>
-          {advanced ? (
+                  return !v
+                })
+              }}
+              size="inline"
+              variant="text"
+            >
+              <DisclosureCaret open={advanced} />
+              {b.bot.advanced}
+            </Button>
+          )}
+          {!simple && advanced ? (
             <div className="grid gap-3 rounded-md border border-(--ui-stroke-secondary) p-3">
               <SegmentedControl
                 onChange={id => {

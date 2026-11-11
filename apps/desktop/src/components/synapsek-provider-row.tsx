@@ -15,8 +15,8 @@ export function SynapsekProviderRow({ onClick }: { onClick: () => void }) {
     >
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <img alt="" className="size-6 rounded" src={`${import.meta.env.BASE_URL}hebri-face.png`} />
-          <span className="font-semibold">Synapsek Labs</span>
+          <img alt="" className="h-6 w-auto rounded" src={`${import.meta.env.BASE_URL}synapsek-wordmark.png`} />
+          <span className="sr-only">Synapsek Labs</span>
         </div>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">{accountCopy[locale].introduction}</p>
       </div>

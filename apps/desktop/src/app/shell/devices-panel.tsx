@@ -7,6 +7,8 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Textarea } from '@/components/ui/textarea'
 import { useI18n } from '@/i18n'
 
+import { connectionCopy } from '../right-sidebar/team/connection-copy'
+
 import { devicesCopy } from './devices-copy'
 import { TailscaleSetup } from './tailscale-setup'
 
@@ -21,11 +23,12 @@ export function DevicesPanel({
 }) {
   const { locale } = useI18n()
   const copy = devicesCopy[locale]
+  const connect = connectionCopy[locale]
   const [snapshot, setSnapshot] = useState(initial)
   const [name, setName] = useState(initial?.name || 'Hebri')
   const [models, setModels] = useState(initial?.models.join(', ') || '')
   const [address, setAddress] = useState(initial?.addresses[0] || '')
-  const [network, setNetwork] = useState<'lan' | 'vpn'>('lan')
+  const [network, setNetwork] = useState<'lan' | 'vpn' | 'existing'>('lan')
   const [invite, setInvite] = useState('')
   const [incoming, setIncoming] = useState('')
   const [verification, setVerification] = useState('')
@@ -137,11 +140,14 @@ export function DevicesPanel({
         }}
         options={[
           { id: 'lan', label: copy.lan },
-          { id: 'vpn', label: copy.vpn }
+          { id: 'vpn', label: 'Tailscale' },
+          { id: 'existing', label: connect.existingVpn }
         ]}
         value={network}
       />
-      <p className="text-xs text-muted-foreground">{network === 'vpn' ? copy.vpnHelp : copy.lanHelp}</p>
+      <p className="text-xs text-muted-foreground">
+        {network === 'vpn' ? copy.vpnHelp : network === 'existing' ? connect.vpnHelp : copy.lanHelp}
+      </p>
       {network === 'vpn' && (
         <TailscaleSetup
           onAddress={value => {

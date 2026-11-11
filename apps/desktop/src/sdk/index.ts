@@ -60,6 +60,7 @@ import {
   retireLocalProfileGateways,
   type SpawnPriority
 } from '@/store/gateway'
+import { $interfaceMode } from '@/store/interface-mode'
 import { notify, notifyError } from '@/store/notifications'
 import {
   $activeGatewayProfile,
@@ -691,6 +692,8 @@ export const host = {
     focusedUsage: readonlyAtom<null | UsageStats>($focusedUsage),
     /** Gateway socket state: 'idle' | 'connecting' | 'open' | …. Not turn-busy. */
     gateway: readonlyAtom<string>($gatewayState),
+    /** Presentation preference only; never grants execution permission. */
+    interfaceMode: readonlyAtom($interfaceMode),
     /** Current main model slug. */
     model: readonlyAtom<string>($currentModel),
     /** Profile the live gateway is routed to. */
@@ -1715,6 +1718,7 @@ export { Wordmark } from '@/components/chat/wordmark'
  *  Pair it with `anchor` (spawn corner, default `'top-right'`) plus
  *  `width`/`height`. */
 export type { FloatingAnchor } from '@/components/pane-shell/tree/renderer/floating-rect'
+export { SkillsHubFrame } from '@/components/skills-hub-frame'
 export { StatusDot, type StatusTone } from '@/components/status-dot'
 export { Badge } from '@/components/ui/badge'
 export { Button } from '@/components/ui/button'
@@ -1801,15 +1805,15 @@ export type {
   PluginRestOptions,
   PluginStorage
 } from '@/contrib/plugin'
+
+// -- contracts ----------------------------------------------------------------
+
 /** Mount-scoped contribution: while the rendering component is mounted, its
  *  children render in the target area's slot; unmount disposes it. Use for
  *  page-owned chrome (a page's titlebar control leaves with the page) —
  *  `ctx.register` stays the door for permanent contributions. Namespace the
  *  id with your plugin slug (`kanban:board-switcher`). */
 export { Contribute, type ContributeProps } from '@/contrib/react/contribute'
-
-// -- contracts ----------------------------------------------------------------
-
 export type { Contribution } from '@/contrib/types'
 /** The live gateway instance type — for typing the `gateway` prop `ConnectorsTab`
  *  takes; obtain the instance from `host.getGateway()`. */
@@ -1884,9 +1888,6 @@ export { PROFILE_SWATCHES, profileColor, profileColorSoft } from '@/lib/profile-
  *  `ctx.socket` frame invalidating a query). Inside components keep using
  *  `useQueryClient`. */
 export { queryClient } from '@/lib/query-client'
-/** Compact labels for the reasoning levels exported from @hermes/shared, so a
- *  plugin surfacing a thinking depth uses the same spelling as the app. */
-export { reasoningEffortLabel } from '@/lib/reasoning-effort'
 
 export const PANES_AREA = 'panes'
 export const STATUSBAR_AREAS = { left: 'statusBar.left', right: 'statusBar.right' } as const
@@ -1896,6 +1897,9 @@ export const STATUSBAR_AREAS = { left: 'statusBar.left', right: 'statusBar.right
  *  should exist only while a page is up go to `WORKSPACE_PAGE_HEADER_AREA`. */
 export const TITLEBAR_AREAS = { center: 'titleBar.center', left: 'titleBar.left', right: 'titleBar.right' } as const
 
+/** Compact labels for the reasoning levels exported from @hermes/shared, so a
+ *  plugin surfacing a thinking depth uses the same spelling as the app. */
+export { reasoningEffortLabel } from '@/lib/reasoning-effort'
 /** The app's own gateway-readiness evaluation (setup.status +
  *  setup.runtime_check, reconciled) — pass `host.request`. Don't hand-roll
  *  readiness from raw RPC shapes. */
@@ -1907,6 +1911,7 @@ export { SESSION_ROW_AREAS, type SessionRowSlotContribution, type SessionRowSlot
 /** A sibling WebSocket beside the route's `/api/ws` (voice PCM, Bot Screen RFB):
  *  same origin, same auth resolution as chat. */
 export { resolveSiblingWsUrl, type SiblingWsRoute } from '@/lib/sibling-ws-url'
+export { HUB_ORIGIN, readSkillPick } from '@/lib/skills-hub-picker'
 /** Canonical time formatting — every surface pulls from here so timestamps read
  *  the same app-wide. For a row's AGE, bucket with `coarseElapsed` and render
  *  the compact suffixes (`t.sidebar.row.ageMin` → "52m"), which is what the

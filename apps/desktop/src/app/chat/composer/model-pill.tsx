@@ -14,6 +14,7 @@ import { useI18n } from '@/i18n'
 import { ChevronDown } from '@/lib/icons'
 import { formatModelPillLabel, providerDisplayName } from '@/lib/model-status-label'
 import { cn } from '@/lib/utils'
+import { $interfaceMode } from '@/store/interface-mode'
 import { $currentModelSource, setModelPickerOpen } from '@/store/session'
 
 import { useComposerModelPillLabel } from './contrib'
@@ -47,6 +48,7 @@ export function ModelPill({
   disabled: boolean
   model: ChatBarState['model']
 }) {
+  const simple = useStore($interfaceMode) === 'simple'
   const copy = useI18n().t.shell.statusbar
   // Two return branches below, one handle: only ever one of them mounts.
   const tourMarker = useTourMarker('model-pill')
@@ -73,7 +75,7 @@ export function ModelPill({
   useEffect(
     () =>
       onComposerModelMenuRequest(target => {
-        if (target !== scope.target || disabled) {
+        if (simple || target !== scope.target || disabled) {
           return
         }
 
@@ -111,7 +113,7 @@ export function ModelPill({
           setModelPickerOpen(true)
         }
       }),
-    [scope.target, disabled, hasLiveMenu]
+    [scope.target, disabled, hasLiveMenu, simple]
   )
 
   // The composer pick is sticky: a manual selection is pinned and every NEW
@@ -167,6 +169,20 @@ export function ModelPill({
     : copy.switchModel
 
   const title = pinnedOverride ? `${baseTitle} — ${copy.modelPinned}` : baseTitle
+
+  if (simple) {
+    return (
+      <Button
+        className={pillClass}
+        onClick={() => {
+          window.location.hash = '#/settings?tab=billing'
+        }}
+        variant="ghost"
+      >
+        {currentProvider === 'synapsek' ? 'Synapsek Labs' : providerDisplayName(currentProvider) || 'Synapsek Labs'}
+      </Button>
+    )
+  }
 
   if (!model.modelMenuContent) {
     return (

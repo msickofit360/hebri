@@ -49,10 +49,7 @@ export function listTeamRooms(profile?: null | string): Promise<{ rooms: TeamRoo
   })
 }
 
-export function createTeamRoom(
-  name: string,
-  profile?: null | string
-): Promise<{ room: { id: string; name: string } }> {
+export function createTeamRoom(name: string, profile?: null | string): Promise<{ room: { id: string; name: string } }> {
   return hermesApi<{ room: { id: string; name: string } }>({
     ...profileScoped(profile),
     method: 'POST',
@@ -111,11 +108,7 @@ export function listTeamWork(profile?: null | string): Promise<{ items: TeamWork
   })
 }
 
-export function createTeamWork(
-  title: string,
-  owner: string,
-  profile?: null | string
-): Promise<{ item: TeamWorkItem }> {
+export function createTeamWork(title: string, owner: string, profile?: null | string): Promise<{ item: TeamWorkItem }> {
   return hermesApi<{ item: TeamWorkItem }>({
     ...profileScoped(profile),
     method: 'POST',
@@ -154,8 +147,16 @@ export interface TeamRelay {
 export function normalizeRelayBase(raw: string): string {
   const base = raw.trim().replace(/\/+$/, '')
 
-  if (!base) {return ''}
+  if (!base) {
+    return ''
+  }
+
   const url = new URL(base)
+
+  if (url.username || url.password || url.search || url.hash) {
+    throw new Error('Use the server address without credentials, query parameters or fragments.')
+  }
+
   const loopback = url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '::1'
 
   if (url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback)) {
@@ -171,6 +172,16 @@ function relayHeaders(relay?: TeamRelay): HeadersInit {
     : { 'Content-Type': 'application/json' }
 }
 
+function relayFetch(url: string, options: RequestInit = {}) {
+  return fetch(url, {
+    ...options,
+    redirect: 'error',
+    credentials: 'omit',
+    cache: 'no-store',
+    signal: AbortSignal.timeout(10_000)
+  })
+}
+
 export function relayRegister(
   base: string,
   code: string,
@@ -178,18 +189,20 @@ export function relayRegister(
 ): Promise<{ expires_in: number; grant: string; room: { id: string; name: string } }> {
   const url = `${normalizeRelayBase(base)}/api/team/relay/register`
 
-  return fetch(url, {
+  return relayFetch(url, {
     method: 'POST',
     headers: relayHeaders(),
     body: JSON.stringify({ code: code.trim(), peer })
-  }).then(async (res) => {
+  }).then(async res => {
     if (!res.ok) {
       let detail = `relay join failed (${res.status})`
 
       try {
         const data = (await res.json()) as { detail?: string }
 
-        if (data && typeof data.detail === 'string') {detail = data.detail}
+        if (data && typeof data.detail === 'string') {
+          detail = data.detail
+        }
       } catch {
         /* keep default */
       }
@@ -207,31 +220,32 @@ export function relayListMessages(
 ): Promise<{ latest_seq: number; messages: TeamMessage[] }> {
   const url = `${normalizeRelayBase(relay.base)}/api/team/relay/${encodeURIComponent(relay.roomId)}/messages?since_seq=${sinceSeq}&limit=300`
 
-  return fetch(url, { headers: relayHeaders(relay) }).then(async (res) => {
-    if (!res.ok) {throw new Error(`relay ${res.status}`)}
+  return relayFetch(url, { headers: relayHeaders(relay) }).then(async res => {
+    if (!res.ok) {
+      throw new Error(`relay ${res.status}`)
+    }
 
     return (await res.json()) as { latest_seq: number; messages: TeamMessage[] }
   })
 }
 
-export function relaySendMessage(
-  relay: TeamRelay,
-  text: string
-): Promise<{ message: TeamMessage }> {
+export function relaySendMessage(relay: TeamRelay, text: string): Promise<{ message: TeamMessage }> {
   const url = `${normalizeRelayBase(relay.base)}/api/team/relay/${encodeURIComponent(relay.roomId)}/messages`
 
-  return fetch(url, {
+  return relayFetch(url, {
     method: 'POST',
     headers: relayHeaders(relay),
     body: JSON.stringify({ author: relay.peer, text })
-  }).then(async (res) => {
+  }).then(async res => {
     if (!res.ok) {
       let detail = `relay send failed (${res.status})`
 
       try {
         const data = (await res.json()) as { detail?: string }
 
-        if (data && typeof data.detail === 'string') {detail = data.detail}
+        if (data && typeof data.detail === 'string') {
+          detail = data.detail
+        }
       } catch {
         /* keep default */
       }
@@ -246,25 +260,26 @@ export function relaySendMessage(
 export function relayGetPresence(relay: TeamRelay): Promise<{ online: TeamPresence[] }> {
   const url = `${normalizeRelayBase(relay.base)}/api/team/relay/${encodeURIComponent(relay.roomId)}/presence`
 
-  return fetch(url, { headers: relayHeaders(relay) }).then(async (res) => {
-    if (!res.ok) {throw new Error(`relay ${res.status}`)}
+  return relayFetch(url, { headers: relayHeaders(relay) }).then(async res => {
+    if (!res.ok) {
+      throw new Error(`relay ${res.status}`)
+    }
 
     return (await res.json()) as { online: TeamPresence[] }
   })
 }
 
-export function relayUpdatePresence(
-  relay: TeamRelay,
-  status: string
-): Promise<{ ok: boolean }> {
+export function relayUpdatePresence(relay: TeamRelay, status: string): Promise<{ ok: boolean }> {
   const url = `${normalizeRelayBase(relay.base)}/api/team/relay/${encodeURIComponent(relay.roomId)}/presence`
 
-  return fetch(url, {
+  return relayFetch(url, {
     method: 'POST',
     headers: relayHeaders(relay),
     body: JSON.stringify({ name: relay.peer, status })
-  }).then(async (res) => {
-    if (!res.ok) {throw new Error(`relay ${res.status}`)}
+  }).then(async res => {
+    if (!res.ok) {
+      throw new Error(`relay ${res.status}`)
+    }
 
     return (await res.json()) as { ok: boolean }
   })
@@ -273,25 +288,26 @@ export function relayUpdatePresence(
 export function relayListWork(relay: TeamRelay): Promise<{ items: TeamWorkItem[] }> {
   const url = `${normalizeRelayBase(relay.base)}/api/team/relay/${encodeURIComponent(relay.roomId)}/work`
 
-  return fetch(url, { headers: relayHeaders(relay) }).then(async res => {
-    if (!res.ok) {throw new Error(`relay ${res.status}`)}
+  return relayFetch(url, { headers: relayHeaders(relay) }).then(async res => {
+    if (!res.ok) {
+      throw new Error(`relay ${res.status}`)
+    }
 
     return (await res.json()) as { items: TeamWorkItem[] }
   })
 }
 
-export function relayCreateWork(
-  relay: TeamRelay,
-  title: string
-): Promise<{ item: TeamWorkItem }> {
+export function relayCreateWork(relay: TeamRelay, title: string): Promise<{ item: TeamWorkItem }> {
   const url = `${normalizeRelayBase(relay.base)}/api/team/relay/${encodeURIComponent(relay.roomId)}/work`
 
-  return fetch(url, {
+  return relayFetch(url, {
     method: 'POST',
     headers: relayHeaders(relay),
     body: JSON.stringify({ owner: relay.peer, status: 'backlog', title })
   }).then(async res => {
-    if (!res.ok) {throw new Error(`relay ${res.status}`)}
+    if (!res.ok) {
+      throw new Error(`relay ${res.status}`)
+    }
 
     return (await res.json()) as { item: TeamWorkItem }
   })
@@ -304,22 +320,20 @@ export function relayUpdateWork(
 ): Promise<{ item: TeamWorkItem }> {
   const url = `${normalizeRelayBase(relay.base)}/api/team/relay/${encodeURIComponent(relay.roomId)}/work/${encodeURIComponent(id)}`
 
-  return fetch(url, {
+  return relayFetch(url, {
     method: 'PATCH',
     headers: relayHeaders(relay),
     body: JSON.stringify(patch)
   }).then(async res => {
-    if (!res.ok) {throw new Error(`relay ${res.status}`)}
+    if (!res.ok) {
+      throw new Error(`relay ${res.status}`)
+    }
 
     return (await res.json()) as { item: TeamWorkItem }
   })
 }
 
-export function updateTeamPresence(
-  name: string,
-  status: string,
-  profile?: null | string
-): Promise<{ ok: boolean }> {
+export function updateTeamPresence(name: string, status: string, profile?: null | string): Promise<{ ok: boolean }> {
   return hermesApi<{ ok: boolean }>({
     ...profileScoped(profile),
     method: 'POST',

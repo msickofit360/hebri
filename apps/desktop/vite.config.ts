@@ -2,6 +2,8 @@ import babel from '@rolldown/plugin-babel'
 import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
+import { bundleSkillsHub } from './scripts/bundle-skills-hub.mjs'
+
 /** React Compiler preset scoped to modules that can actually contain
  *  components/hooks (JSX syntax or a react-ish import). The preset's default
  *  code filter matches any PascalCase/use* declaration — effectively every TS
@@ -122,7 +124,19 @@ const emojibaseAssets = () => ({
 
 export default defineConfig(({ command }) => ({
   base: './',
-  plugins: [react(), babel({ presets: [compilerPreset()] }), tailwindcss(), emojibaseAssets()],
+  plugins: [
+    react(),
+    babel({ presets: [compilerPreset()] }),
+    tailwindcss(),
+    emojibaseAssets(),
+    {
+      name: 'hebri:offline-skills-hub',
+      apply: 'build',
+      writeBundle(options) {
+        bundleSkillsHub(path.join(options.dir ?? path.resolve(__dirname, 'dist'), 'skills-hub'))
+      }
+    }
+  ],
   css: {
     // Pin an explicit (empty) PostCSS config. Tailwind is handled entirely by
     // `@tailwindcss/vite`, so the renderer needs no PostCSS plugins — and

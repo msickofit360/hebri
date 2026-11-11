@@ -42,20 +42,25 @@ import {
 } from '@/api/team'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Tip } from '@/components/ui/tooltip'
 import { useI18n as useDesktopLanguage } from '@/i18n'
 import { useI18n } from '@/i18n'
+import { readRoomInvitation } from '@/lib/team-invitation'
 import { uiDateLocale } from '@/lib/time'
 import { cn } from '@/lib/utils'
+import { $activeConnectionId } from '@/store/connections'
 import { $activeGatewayProfile } from '@/store/profile'
 import { $connection } from '@/store/session'
 
 import { RightSidebarSectionHeader } from '../index'
 
+import { connectionCopy } from './connection-copy'
+import { ConnectionSetup } from './connection-setup'
 import { teamHelp } from './help-copy'
 import { HostedTeamPane } from './hosted'
 import { hostedCopy } from './hosted-copy'
-import { shareCopy } from './share-copy'
+import { selfHostedCopy } from './self-hosted-copy'
 import { ShareRoom } from './share-room'
 
 const POLL_MS = 3000
@@ -170,6 +175,7 @@ export function TeamPane() {
   const [hosted, setHosted] = useState(true)
   const connection = useStore($connection)
   const profile = useStore($activeGatewayProfile)
+  const connectionId = useStore($activeConnectionId)
 
   return (
     <div>
@@ -186,17 +192,22 @@ export function TeamPane() {
       ) : (
         <LocalTeamPane
           baseUrl={connection?.baseUrl || ''}
-          key={`${connection?.connectionId}:${connection?.baseUrl}:${profile}`}
+          key={`${connectionId}:${connection?.connectionId}:${connection?.baseUrl}:${profile}`}
+          local={connectionId === 'local'}
         />
       )}
     </div>
   )
 }
 
-function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
+function LocalTeamPane({ baseUrl, local }: { baseUrl: string; local: boolean }) {
   const { t: languageText } = useDesktopLanguage()
 
   const { locale } = useI18n()
+  const setup = selfHostedCopy[locale]
+  const connect = connectionCopy[locale]
+  const [hostAddress, setHostAddress] = useState('')
+  const [invitation, setInvitation] = useState('')
   const help = teamHelp[locale]
   const [name, setName] = useState<string>(() => readLocal(NAME_KEY) ?? '')
   const [status, setStatus] = useState<string>(() => readLocal(STATUS_KEY) ?? '')
@@ -527,9 +538,16 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
       aria-label={languageText.additional.ui.teamChat}
       className="flex h-full w-full min-w-0 flex-col gap-3 overflow-hidden p-3 text-xs"
     >
-      <details className="shrink-0 text-muted-foreground">
-        <summary className="cursor-pointer font-medium text-foreground">{shareCopy[locale].title}</summary>
-        <p className="mt-2">{shareCopy[locale].help}</p>
+      {!relay && <ConnectionSetup local={local} onAddress={setHostAddress} onJoin={() => setRelayOpen(true)} />}
+      <p className="shrink-0 text-muted-foreground">{setup.intro}</p>
+      <details className="max-h-64 shrink-0 overflow-y-auto text-muted-foreground">
+        <summary className="cursor-pointer font-medium text-foreground">{connect.manual}</summary>
+        <ol className="mt-2 list-decimal space-y-2 ps-5">
+          <li>{setup.host}</li>
+          <li>{setup.room}</li>
+          <li>{setup.invite}</li>
+        </ol>
+        <p className="mt-2">{setup.online}</p>
         <p className="mt-2">{help.join}</p>
         <p className="mt-2">{help.privacy}</p>
       </details>
@@ -682,7 +700,7 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
                     onClick={() => void shareRoom(r)}
                     type="button"
                   >
-                    ⧉
+                    {setup.share}
                   </button>
                 </Tip>
               </span>
@@ -697,9 +715,9 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
           </div>
           {shared && (
             <ShareRoom
-              baseUrl={baseUrl}
+              baseUrl={hostAddress || baseUrl}
               code={shared.code}
-              key={`${shared.roomId}:${shared.code}`}
+              key={`${shared.roomId}:${shared.code}:${hostAddress}`}
               onClose={() => setShared(null)}
             />
           )}
@@ -718,6 +736,34 @@ function LocalTeamPane({ baseUrl }: { baseUrl: string }) {
           </button>
           {relayOpen && (
             <div className="flex flex-col gap-1.5 rounded border border-border bg-muted/10 p-2">
+              <Textarea
+                aria-label={connect.invite}
+                maxLength={8192}
+                onChange={event => setInvitation(event.target.value)}
+                placeholder={connect.invite}
+                value={invitation}
+              />
+              <Button
+                disabled={!invitation.trim()}
+                onClick={() => {
+                  const parsed = readRoomInvitation(invitation)
+
+                  if (!parsed) {
+                    setError(connect.invalid)
+
+                    return
+                  }
+
+                  setJoinBase(parsed.base)
+                  setJoinCode(parsed.code)
+                  setInvitation('')
+                  setError('')
+                }}
+                size="sm"
+                variant="outline"
+              >
+                {connect.apply}
+              </Button>
               <Input
                 onChange={e => setJoinBase(e.target.value)}
                 placeholder={languageText.additional.ui.hostUrl}

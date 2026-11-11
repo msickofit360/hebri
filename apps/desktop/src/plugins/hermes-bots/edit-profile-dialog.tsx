@@ -45,6 +45,7 @@ interface EditProfileDialogProps {
 }
 
 export function EditProfileDialog({ bot, open, onClose }: EditProfileDialogProps) {
+  const simple = useValue(host.state.interfaceMode) === 'simple'
   const { t } = useI18n()
   const b = useBots()
   const metaAll = useValue($botMeta)
@@ -228,16 +229,18 @@ export function EditProfileDialog({ bot, open, onClose }: EditProfileDialogProps
               value={description}
             />
           )}
-          <Button
-            className="flex items-center gap-1 text-xs font-medium text-(--ui-text-tertiary) hover:text-(--ui-text-secondary)"
-            onClick={() => setAdvanced(v => !v)}
-            size="inline"
-            variant="text"
-          >
-            <DisclosureCaret open={advanced} />
-            {b.bot.advancedHint}
-          </Button>
-          {advanced ? (
+          {!simple && (
+            <Button
+              className="flex items-center gap-1 text-xs font-medium text-(--ui-text-tertiary) hover:text-(--ui-text-secondary)"
+              onClick={() => setAdvanced(v => !v)}
+              size="inline"
+              variant="text"
+            >
+              <DisclosureCaret open={advanced} />
+              {b.bot.advancedHint}
+            </Button>
+          )}
+          {!simple && advanced ? (
             <div className="rounded-md border border-(--ui-stroke-secondary) p-3">
               <AdvancedProfileConfig bot={bot} setState={setAdv} state={adv} />
             </div>

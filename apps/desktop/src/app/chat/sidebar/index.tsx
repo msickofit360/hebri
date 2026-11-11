@@ -442,7 +442,13 @@ export function ChatSidebar({
   const navPrefs = useContributions(SIDEBAR_NAV_PREFS_AREA)
 
   const navItems = useMemo(
-    () => applySidebarNavPrefs([...SIDEBAR_NAV, ...contributedNav].filter(shownInMode(interfaceMode)), navPrefs),
+    () =>
+      applySidebarNavPrefs(
+        [...SIDEBAR_NAV, ...contributedNav]
+          .filter(item => interfaceMode === 'advanced' || item.id === 'new-session')
+          .filter(shownInMode(interfaceMode)),
+        navPrefs
+      ),
     [contributedNav, interfaceMode, navPrefs]
   )
 

@@ -2,6 +2,7 @@ import { useStore } from '@nanostores/react'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 
+import { Button } from '@/components/ui/button'
 import { codiconIcon } from '@/components/ui/codicon'
 import { KbdCombo } from '@/components/ui/kbd'
 import { Tip } from '@/components/ui/tooltip'
@@ -32,6 +33,7 @@ import { cn } from '@/lib/utils'
 import { $commandPaletteOpen, openCommandPalettePage } from '@/store/command-palette'
 import { confirm } from '@/store/confirm'
 import { $activeConnectionId } from '@/store/connections'
+import { $interfaceMode, setInterfaceMode } from '@/store/interface-mode'
 import { bindingsFor } from '@/store/keybinds'
 import { $localModelsEnabled } from '@/store/local-models-flag'
 import { notifyError } from '@/store/notifications'
@@ -45,6 +47,7 @@ import { OverlayView } from '../overlays/overlay-view'
 import { AboutSettings } from './about-settings'
 import { AppearanceSettings } from './appearance-settings'
 import { BillingSettings } from './billing'
+import { accountCopy } from './billing/synapsek-account-copy'
 import { ComputerControlSettings } from './computer-control-settings'
 import { ConfigSettings } from './config-settings'
 import { SECTIONS } from './constants'
@@ -56,6 +59,7 @@ import { NotificationsSettings } from './notifications-settings'
 import { SettingsBreadcrumbContext } from './primitives'
 import { PROVIDER_VIEWS, ProvidersSettings, type ProviderView } from './providers-settings'
 import { SessionsSettings } from './sessions-settings'
+import { simpleSettingsAllowed } from './simple-settings-policy'
 import { SettingsSubpageHeader } from './subpage-navigation'
 import { resolveSettingsSubpage, settingsSubpageIcon, settingsSubpages } from './subpages'
 import type { SettingsPageProps, SettingsView as SettingsViewId } from './types'
@@ -80,8 +84,9 @@ const SETTINGS_VIEWS: readonly SettingsViewId[] = [
 
 export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: SettingsPageProps) {
   const scopeProfile = useStore($settingsScopeProfile)
+  const simple = useStore($interfaceMode) === 'simple'
   const activeConnectionId = useStore($activeConnectionId)
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const navigate = useNavigate()
   const { hash, pathname, search } = useLocation()
 
@@ -96,7 +101,7 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
     }
   }, [navigate, search])
 
-  const [activeView] = useRouteEnumParam('tab', SETTINGS_VIEWS, 'config:model' as SettingsViewId)
+  const [activeView] = useRouteEnumParam('tab', SETTINGS_VIEWS, (simple ? 'billing' : 'config:model') as SettingsViewId)
   const params = new URLSearchParams(search)
   const requestedSubpage = params.get('page')
   const subpage = resolveSettingsSubpage(activeView, params)
@@ -422,7 +427,20 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
     ]
   )
 
-  const activeGroup = navGroups.find(group => group.active)
+  const visibleNavGroups = simple
+    ? navGroups
+        .filter(group => simpleSettingsAllowed(group.id))
+        .map(group => ({
+          ...group,
+          label: group.id === 'billing' ? accountCopy[locale].title : group.label,
+          children:
+            group.id === 'billing'
+              ? undefined
+              : group.children?.filter(child => simpleSettingsAllowed(group.id, child.id.split(':').at(-1)))
+        }))
+    : navGroups
+
+  const activeGroup = visibleNavGroups.find(group => group.active)
   const activeChild = activeGroup?.children?.find(child => child.active)
 
   // Type-to-search: printable keystrokes on the Settings surface (outside any
@@ -430,7 +448,7 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
   // reflex as the chat surface's type-to-focus, pointed at search instead.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if ($commandPaletteOpen.get() || isEditableTarget(event.target)) {
+      if (simple || $commandPaletteOpen.get() || isEditableTarget(event.target)) {
         return
       }
 
@@ -447,7 +465,7 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
     window.addEventListener('keydown', onKeyDown)
 
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
+  }, [simple])
 
   // Fake search pill riding the card's top edge, dead-center and half off it.
   // Clicking (or just typing) opens the ⌘K palette scoped to settings; while
@@ -543,7 +561,7 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
     ) : activeView === 'notifications' ? (
       <NotificationsSettings subpage={subpage} />
     ) : activeView === 'billing' ? (
-      <BillingSettings />
+      <BillingSettings onMainModelChanged={onMainModelChanged} />
     ) : activeView === 'vault' ? (
       <VaultSettings key={vaultOwnerKey(activeConnectionId, scopeProfile)} subpage={subpage} />
     ) : (
@@ -551,14 +569,27 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
     )
 
   return (
-    <OverlayView closeLabel={t.settings.closeSettings} edgeBadge={searchPill} onClose={onClose}>
+    <OverlayView closeLabel={t.settings.closeSettings} edgeBadge={simple ? undefined : searchPill} onClose={onClose}>
       <OverlaySplitLayout>
-        <OverlayNav footer={navFooter} groups={navGroups} />
+        <OverlayNav
+          footer={
+            simple ? (
+              <Button onClick={() => setInterfaceMode('advanced')} size="sm" variant="outline">
+                {t.interfaceMode.advanced.label}
+              </Button>
+            ) : (
+              navFooter
+            )
+          }
+          groups={visibleNavGroups}
+        />
 
         <OverlayMain className="px-0 pb-0">
           <SettingsBreadcrumbContext.Provider value>
             {activeGroup && <SettingsSubpageHeader child={activeChild} group={activeGroup} />}
-            {needsSubpageRedirect ? (
+            {simple && !simpleSettingsAllowed(activeView, subpage) ? (
+              <Navigate replace to={{ pathname, hash, search: '?tab=billing' }} />
+            ) : needsSubpageRedirect ? (
               <Navigate replace to={{ hash, pathname, search: `?${subpageSearch}` }} />
             ) : (
               activeSettingsContent

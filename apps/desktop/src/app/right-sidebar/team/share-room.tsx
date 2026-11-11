@@ -3,33 +3,13 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useI18n } from '@/i18n'
+import { roomInvitation, teamHostAddress } from '@/lib/team-invitation'
 
+import { selfHostedCopy } from './self-hosted-copy'
 import { shareCopy } from './share-copy'
 
 // Never advertise a loopback address, credentials or a ticket in a share message.
-export function shareableHost(raw: string): string {
-  try {
-    const url = new URL(raw)
-    const host = url.hostname.toLowerCase()
-
-    if (
-      url.protocol !== 'https:' ||
-      url.username ||
-      url.password ||
-      url.search ||
-      url.hash ||
-      host === 'localhost' ||
-      host.endsWith('.localhost') ||
-      /^127\./.test(host) ||
-      ['[::1]', '[::]', '0.0.0.0'].includes(host)
-    )
-      {return ''}
-
-    return url.href.replace(/\/+$/, '')
-  } catch {
-    return ''
-  }
-}
+export const shareableHost = teamHostAddress
 
 interface ShareRoomProps {
   baseUrl: string
@@ -45,10 +25,14 @@ export function ShareRoom({ baseUrl, code, onClose }: ShareRoomProps) {
   const host = shareableHost(address)
 
   async function copyInvite() {
-    if (!host) {return}
+    if (!host) {
+      return
+    }
 
     try {
-      await navigator.clipboard.writeText(`${copy.host}: ${host}\n${copy.code}: ${code}\n\n${copy.help}`)
+      await navigator.clipboard.writeText(
+        `${roomInvitation(host, code)}\n\n${copy.host}: ${host}\n${copy.code}: ${code}\n\n${copy.help}`
+      )
       setCopied(true)
     } catch {
       setCopied(false)
@@ -73,6 +57,7 @@ export function ShareRoom({ baseUrl, code, onClose }: ShareRoomProps) {
         <Input readOnly value={code} />
       </label>
       <p className="text-sm text-muted-foreground">{host ? copy.help : copy.missing}</p>
+      <p className="text-sm text-muted-foreground">{selfHostedCopy[locale].rotate}</p>
       <div className="flex flex-wrap gap-2">
         <Button disabled={!host} onClick={() => void copyInvite()} size="sm">
           {copied ? copy.copied : copy.copy}

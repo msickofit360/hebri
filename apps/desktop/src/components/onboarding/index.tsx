@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils'
 import { $desktopBoot, type DesktopBootState } from '@/store/boot'
 import { $freeTierStatus, FREE_TIER_MODEL, freeTierSetupFailure } from '@/store/free-tier'
 import { openFreeTierSignIn } from '@/store/free-tier-sign-in'
+import { setInterfaceMode } from '@/store/interface-mode'
 import { $introReveal, shouldPlayFirstRunIntro } from '@/store/intro-reveal'
 import { $setupReadyTick } from '@/store/live-sync'
 import { $localModelsEnabled } from '@/store/local-models-flag'
@@ -44,13 +45,8 @@ import type { OAuthProvider } from '@/types/hermes'
 import { DocsLink, FlowPanel, Status } from './flow'
 import { FreeTierSetupNotice } from './free-tier-setup-notice'
 import { DecodedLabel } from './glyph'
-import {
-  FireworksProviderRow,
-  LocalModelsProviderRow,
-  OpenRouterProviderRow,
-  ProviderRow,
-  sortProviders
-} from './providers'
+import { FireworksProviderRow, OpenRouterProviderRow, ProviderRow, sortProviders } from './providers'
+import { setupCopy } from './setup-copy'
 
 export {
   FeaturedProviderRow,
@@ -601,7 +597,8 @@ const persistShowAll = (value: boolean) => {
 }
 
 export function Picker({ ctx }: { ctx: OnboardingContext }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const setup = setupCopy[locale]
   const { localEndpoint, manual, mode, providers } = useStore($desktopOnboarding)
   const [showAll, setShowAll] = useState(readShowAll)
   // Which key-form option to preselect when we flip to 'apikey' mode. The
@@ -609,6 +606,7 @@ export function Picker({ ctx }: { ctx: OnboardingContext }) {
   const [apiKeyInitialEnv, setApiKeyInitialEnv] = useState<string | undefined>(undefined)
 
   const openKeyForm = (envKey?: string) => {
+    setInterfaceMode('advanced')
     setApiKeyInitialEnv(envKey)
     setOnboardingMode('apikey')
   }
@@ -639,11 +637,11 @@ export function Picker({ ctx }: { ctx: OnboardingContext }) {
     )
   }
 
-  if (providers === null) {
-    return <Status>{t.onboarding.lookingUpProviders}</Status>
+  const select = (p: OAuthProvider) => {
+    setInterfaceMode('advanced')
+    void startProviderOAuth(p, ctx)
   }
 
-  const select = (p: OAuthProvider) => void startProviderOAuth(p, ctx)
   const rest = ordered
 
   // "Run models locally" leaves the picker for Settings -> Providers ->
@@ -652,6 +650,8 @@ export function Picker({ ctx }: { ctx: OnboardingContext }) {
   // re-nags; manual mode just closes. window.location keeps this picker
   // router-independent (it renders outside the route tree on first run).
   const openLocalModels = () => {
+    setInterfaceMode('advanced')
+
     if (manual) {
       closeManualOnboarding()
     } else {
@@ -664,8 +664,11 @@ export function Picker({ ctx }: { ctx: OnboardingContext }) {
   return (
     <div className="grid gap-2">
       <div className="grid max-h-[60dvh] gap-2 overflow-y-auto p-1">
+        <p className="text-sm text-muted-foreground">{setup.choose}</p>
         <SynapsekProviderRow
           onClick={() => {
+            setInterfaceMode('simple')
+
             if (manual) {
               closeManualOnboarding()
             } else {
@@ -675,12 +678,20 @@ export function Picker({ ctx }: { ctx: OnboardingContext }) {
             window.location.hash = '#/settings?tab=billing'
           }}
         />
-        {/* The no-account path: everything runs on this machine. Shipped
-            behind the --local launch flag. (Fireworks moved into the
-            expanded list on main.) */}
-        {$localModelsEnabled.get() ? <LocalModelsProviderRow onClick={openLocalModels} /> : null}
+        <p className="text-xs text-muted-foreground">{setup.synapsek}</p>
+        <Button onClick={() => openKeyForm()} variant="outline">
+          {setup.api}
+        </Button>
+        <Button
+          onClick={() => ($localModelsEnabled.get() ? openLocalModels() : openKeyForm('OPENAI_BASE_URL'))}
+          variant="outline"
+        >
+          {setup.local}
+        </Button>
+        <p className="text-xs text-muted-foreground">{setup.advanced}</p>
         {showAll ? (
           <>
+            {providers === null && <Status>{t.onboarding.lookingUpProviders}</Status>}
             {/* Alternative providers retain their own authentication flows. */}
             <FireworksProviderRow onClick={() => openKeyForm('FIREWORKS_API_KEY')} />
             {rest.map(p => (
@@ -705,9 +716,6 @@ export function Picker({ ctx }: { ctx: OnboardingContext }) {
             In manual mode the overlay already has a close affordance, so the
             "choose later" escape would be redundant — hide it. */}
         {manual ? <span /> : <ChooseLaterLink />}
-        <Button className="-mr-2 font-medium" onClick={() => openKeyForm()} size="xs" type="button" variant="text">
-          {t.onboarding.haveApiKey}
-        </Button>
       </div>
     </div>
   )

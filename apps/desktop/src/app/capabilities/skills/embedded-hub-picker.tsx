@@ -1,10 +1,12 @@
 import { useStore } from '@nanostores/react'
 import { memo, type PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from 'react'
 
+import { SkillsHubFrame } from '@/components/skills-hub-frame'
 import { Button } from '@/components/ui/button'
 import type { ProfileScope } from '@/hermes'
 import { useI18n } from '@/i18n'
 import { Loader2 } from '@/lib/icons'
+import { readSkillPick } from '@/lib/skills-hub-picker'
 import { useStoreSelector } from '@/lib/use-session-slice'
 import { cn } from '@/lib/utils'
 import {
@@ -16,16 +18,6 @@ import {
 } from '@/store/hub-actions'
 import { notify, notifyError } from '@/store/notifications'
 import { $paneHeightOverride, setPaneHeightOverride } from '@/store/panes'
-
-// The REAL Skills Hub page (docs site) embedded as a one-click picker — the
-// same trick the Bot Mode agent editor uses. `?embed=picker` hides the docs
-// chrome and adds a "+ Add to this Agent" button per card, which posts
-//   { type: 'hermes-skill-pick', name, identifier, installCmd, source }
-// to the parent window. We validate the origin and route the install through
-// the standard hub action pipeline (background action + tailed log + Skills
-// list invalidation), scoped to the Capabilities profile selector.
-const HUB_ORIGIN = 'https://synapseklabs.org'
-const HUB_PICKER_URL = `${HUB_ORIGIN}/docs/skills?embed=picker`
 
 // Hub viewport height: persisted through the shared pane store (same one the
 // terminal/editor panes use), dragged from the section's TOP edge — "pull the
@@ -42,18 +34,10 @@ const HUB_COLLAPSED_PX = 4
 // crush the list to zero and shove its chrome under the hub header.
 const HUB_LIST_RESERVED_PX = 176
 
-interface SkillPickMessage {
-  identifier?: string
-  installCmd?: string
-  name?: string
-  source?: string
-  type?: string
-}
-
 interface EmbeddedHubPickerProps {
   /** Kept mounted but fully hidden (display:none). The Capabilities view uses
    *  this to preserve the loaded hub iframe across tab switches — a plain
-   *  unmount would reload the whole docs site on every return to Skills. */
+   *  unmount would reload the bundled catalog on every return to Skills. */
   hidden?: boolean
   /** Names of skills already installed in the scoped profile — a pick that
    *  matches is refused with a toast instead of re-running the install. */
@@ -63,7 +47,7 @@ interface EmbeddedHubPickerProps {
   profile?: ProfileScope
 }
 
-/** The Skills Hub browser for the Skills tab: a resizable iframe of the live
+/** The Skills Hub browser for the Skills tab: a resizable iframe of the bundled
  *  hub where every card installs with one click. Expanded by default —
  *  discovery IS the point — with a collapse toggle (persisted, like every
  *  other pane) and an update-all action. Memoized: the iframe must not sit in
@@ -80,13 +64,14 @@ export const EmbeddedHubPicker = memo(function EmbeddedHubPicker({
   const updating = useStoreSelector($hubActions, actions => actions[UPDATE_ALL_KEY]?.running ?? false)
   // Collapse state rides the same persisted height override the sash writes
   // (0 = collapsed to the header), so "Hide the hub browser" survives tab
-  // switches and restarts instead of re-expanding — and re-loading the docs
-  // site — on every visit. Same contract as DetailPane.
+  // switches and restarts instead of re-expanding the catalog on every visit.
+  // Same contract as DetailPane.
   const heightOverride = useStore($paneHeightOverride(HUB_PANE_ID))
   const height = heightOverride ?? HUB_DEFAULT_PX
   const open = height > HUB_COLLAPSED_PX
   const [dragging, setDragging] = useState(false)
   const sectionRef = useRef<HTMLElement>(null)
+  const frameRef = useRef<HTMLIFrameElement>(null)
 
   // Top-edge sash: dragging UP grows the hub (shrinking the skills list above,
   // which is the flex-1 sibling). Same gesture as DetailPane / the shell's
@@ -134,18 +119,13 @@ export const EmbeddedHubPicker = memo(function EmbeddedHubPicker({
     }
 
     const onMessage = (event: MessageEvent) => {
-      if (event.origin !== HUB_ORIGIN) {
+      const pick = readSkillPick(event, frameRef.current)
+
+      if (!pick) {
         return
       }
 
-      const data = event.data as SkillPickMessage | null
-
-      if (!data || data.type !== 'hermes-skill-pick' || !data.name) {
-        return
-      }
-
-      const target = String(data.identifier || data.name)
-      const label = String(data.name)
+      const { target, label } = pick
 
       // Already installed in this scope → tell the user, don't reinstall.
       if (installedNames.has(label) || installedNames.has(target)) {
@@ -230,22 +210,7 @@ export const EmbeddedHubPicker = memo(function EmbeddedHubPicker({
               width: '100%'
             }}
           >
-            <iframe
-              sandbox="allow-scripts allow-same-origin"
-              src={HUB_PICKER_URL}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                height: '133.34%',
-                // While the sash drags, the cross-origin iframe must not eat
-                // the pointermove stream.
-                pointerEvents: dragging ? 'none' : 'auto',
-                transform: 'scale(0.75)',
-                transformOrigin: 'top left',
-                width: '133.34%'
-              }}
-              title={h.pickerTitle}
-            />
+            <SkillsHubFrame dragging={dragging} frameRef={frameRef} title={h.pickerTitle} />
           </div>
           <p className="shrink-0 px-1 text-[0.65rem] leading-4 text-(--ui-text-quaternary)">{h.pickerHint}</p>
         </div>

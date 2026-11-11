@@ -1,3 +1,4 @@
+import { readSkillPick, SkillsHubFrame } from '@hermes/plugin-sdk'
 /**
  * The real skills hub page embedded as a picker, plus its offline search
  * fallback.
@@ -5,7 +6,6 @@
  * A leaf: the advanced profile editor and the create dialog both mount it, and
  * it reaches back into neither.
  */
-
 import { Button, host, Input, useI18n } from '@hermes/plugin-sdk'
 import { useEffect, useRef, useState } from 'react'
 
@@ -13,10 +13,7 @@ import { useBots } from './i18n'
 import { requestForBot } from './routing'
 import type { RosterRow } from './types'
 
-// The full catalog ships in the desktop package. The picker has an opaque
-// sandbox origin and no network access; only its exact contentWindow may pick.
-export const HUB_ORIGIN = 'null'
-const HUB_PICKER_URL = new URL('./skills-hub/index.html?embed=picker', document.baseURI).href
+export { HUB_ORIGIN } from '@hermes/plugin-sdk'
 /** One `skills.manage action=search` hit. */
 interface HubSkillResult {
   description?: string
@@ -51,31 +48,16 @@ export function HubSkillsSection({ bot, onInstalled }: HubSkillsSectionProps) {
     }
 
     const onMessage = (event: MessageEvent) => {
-      if (event.origin !== HUB_ORIGIN) {
+      const pick = readSkillPick(event, frameRef.current)
+
+      if (!pick) {
         return
       }
 
-      if (!frameRef.current || event.source !== frameRef.current.contentWindow) {
-        return
-      }
-
-      const data = event.data
-
-      if (!data || data.type !== 'hebri-skill-pick' || !data.name) {
-        return
-      }
-
-      const target = String(data.identifier || data.name)
-
-      // Skill identifiers are slugs / owner-name paths — keep anything
-      // else out of skills.manage.
-      if (target.length > 512 || !/^@?[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(target) ||
-        target.split('/').some(part => !part || part === '.' || part === '..')) {
-        return
-      }
+      const { target, label } = pick
 
       if (installRef.current) {
-        void installRef.current(target, String(data.name))
+        void installRef.current(target, label)
       }
     }
 
@@ -172,26 +154,14 @@ export function HubSkillsSection({ bot, onInstalled }: HubSkillsSectionProps) {
           <div
             className="relative w-full max-w-full resize overflow-hidden border border-(--ui-stroke-secondary)"
             style={{
+              position: 'relative',
               height: 560,
               minHeight: 240,
               minWidth: 320,
               borderRadius: 8
             }}
           >
-            <iframe
-              ref={frameRef}
-              sandbox="allow-scripts"
-              src={HUB_PICKER_URL}
-              style={{
-                width: '133.34%',
-                height: '133.34%',
-                border: 'none',
-                background: 'transparent',
-                transform: 'scale(0.75)',
-                transformOrigin: 'top left'
-              }}
-              title={b.tools.skillsHub}
-            />
+            <SkillsHubFrame frameRef={frameRef} title={b.tools.skillsHub} />
           </div>
           <div className="px-1 text-[0.65rem] leading-4 text-(--ui-text-quaternary)">
             {installing ? h.installStarted(installing) : `${h.pickerHint} ${b.tools.resizeHint}`}

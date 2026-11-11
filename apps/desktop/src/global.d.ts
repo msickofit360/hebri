@@ -7,6 +7,7 @@ import type { HermesNotification } from '../electron/notification-types'
 import type { PoolLimits } from '../electron/pool-limits'
 import type { SynapsekAccountView } from '../electron/synapsek-account-types'
 import type { TailscaleStatus } from '../electron/tailscale-types'
+import type { TeamHostStatus } from '../electron/team-host-types'
 
 import type { WakeIndicatorState } from './lib/wake-indicator'
 import type {
@@ -608,6 +609,7 @@ declare global {
        *  mid-upgrade managed install) simply doesn't answer. */
       getMachineProfile?: () => Promise<DesktopMachineProfile>
       getTailscaleStatus?: () => Promise<TailscaleStatus>
+      teamHost?: (operation: 'start' | 'stop' | 'status') => Promise<TeamHostStatus>
       /** Restart the app in place — loads the swapped bundle when bundleSwapPending. */
       relaunchApp?: () => Promise<void>
       getRemoteDisplayReason?: () => Promise<string | null>

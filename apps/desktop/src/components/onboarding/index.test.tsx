@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { $interfaceMode, setInterfaceMode } from '@/store/interface-mode'
 import { $desktopOnboarding, type DesktopOnboardingState, type OnboardingContext } from '@/store/onboarding'
 import { makeOAuthProvider } from '@/test/oauth-provider'
 import type { OAuthProvider } from '@/types/hermes'
@@ -26,6 +27,7 @@ const ctx: OnboardingContext = { requestGateway: async () => undefined as never 
 
 afterEach(() => {
   cleanup()
+  setInterfaceMode('advanced')
 
   try {
     window.localStorage.clear()
@@ -48,6 +50,14 @@ afterEach(() => {
 })
 
 describe('onboarding Picker', () => {
+  it.each(['Use my own API key', 'Run a local model'])('keeps %s available through Advanced setup', label => {
+    setProviders([])
+    setInterfaceMode('simple')
+    render(<Picker ctx={ctx} />)
+    fireEvent.click(screen.getByRole('button', { name: label }))
+    expect($interfaceMode.get()).toBe('advanced')
+    expect($desktopOnboarding.get().mode).toBe('apikey')
+  })
   it('opens Synapsek account settings and excludes Nous from the provider choices', () => {
     setProviders([makeOAuthProvider('anthropic', 'Anthropic Claude'), makeOAuthProvider('nous', 'Nous Portal')])
     render(<Picker ctx={ctx} />)
@@ -65,12 +75,14 @@ describe('onboarding Picker', () => {
     expect(screen.queryByText('Nous Portal')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /Synapsek Labs/ }))
     expect(window.location.hash).toBe('#/settings?tab=billing')
+    expect($interfaceMode.get()).toBe('simple')
     expect($desktopOnboarding.get().firstRunSkipped).toBe(true)
     expect($desktopOnboarding.get().flow.status).toBe('idle')
   })
 
   it('keeps Synapsek reachable without backend OAuth providers', () => {
     setProviders([])
+    $desktopOnboarding.set({ ...$desktopOnboarding.get(), providers: null })
     render(<Picker ctx={ctx} />)
 
     fireEvent.click(screen.getByRole('button', { name: /Synapsek Labs/ }))

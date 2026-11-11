@@ -15,6 +15,7 @@
 import type * as HermesSdk from '@hermes/plugin-sdk'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import type { WritableAtom } from 'nanostores'
 import type { ReactNode } from 'react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -28,6 +29,7 @@ interface CapabilitiesViewProps {
 }
 
 const mocks = vi.hoisted(() => ({
+  interfaceMode: null as unknown as WritableAtom<'simple' | 'advanced'>,
   connections: vi.fn(async () => [] as { id: string; label: string }[]),
   createCanonicalChat: vi.fn(async () => 'session-1'),
   deleteBot: vi.fn(async () => undefined),
@@ -43,6 +45,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@hermes/plugin-sdk', async importOriginal => {
   const original = await importOriginal<typeof HermesSdk>()
+  const { atom } = await import('nanostores')
+  mocks.interfaceMode = atom<'simple' | 'advanced'>('advanced')
 
   const CapabilitiesViewStub = (props: CapabilitiesViewProps) => {
     mocks.skillsView.push(props)
@@ -58,6 +62,7 @@ vi.mock('@hermes/plugin-sdk', async importOriginal => {
     ...original,
     host: {
       ...original.host,
+      state: { ...original.host.state, interfaceMode: mocks.interfaceMode },
       connections: mocks.connections,
       notify: mocks.notify,
       notifyError: mocks.notifyError,
@@ -137,6 +142,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.interfaceMode.set('advanced')
   mocks.skillsView.length = 0
   mocks.connections.mockResolvedValue([])
   mocks.requestProfile.mockResolvedValue({})
@@ -162,6 +168,25 @@ afterEach(() => {
 })
 
 describe('materializing the draft profile', () => {
+  it('creates a Simple mode Bit with inherited defaults without exposing advanced configuration', async () => {
+    vi.resetModules()
+    const { CreateAgentDialog } = await import('./create-dialog')
+    mocks.interfaceMode.set('simple')
+
+    try {
+      render(withQueryClient(<CreateAgentDialog onClose={() => undefined} open roster={roster} />))
+      expect(screen.queryByRole('button', { name: /Advanced/ })).toBeNull()
+      fireEvent.change(screen.getByPlaceholderText('inbox-triage'), { target: { value: 'everyday-helper' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Create Bit' }))
+      await waitFor(() => expect(createCalls()).toHaveLength(1))
+      expect(createCalls()[0][1]).toMatchObject({ name: 'everyday-helper', clone_from: 'default' })
+      await waitFor(() => expect(mocks.createCanonicalChat).toHaveBeenCalledWith('everyday-helper', { kickoff: true }))
+    } finally {
+      cleanup()
+      mocks.interfaceMode.set('advanced')
+    }
+  })
+
   it.each([
     ['小助手', 'u5c0f-u52a9-u624b'],
     ['test机器人', 'test-u673a-u5668-u4eba']

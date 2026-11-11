@@ -459,6 +459,7 @@ import { createStreamThrottle } from './stream-throttle'
 import { registerSynapsekAccountIpc } from './synapsek-account-ipc'
 import { synapsekBackendEnvironment } from './synapsek-account-runtime'
 import { registerTailscaleIpc } from './tailscale-ipc'
+import { registerTeamHostIpc } from './team-host-ipc'
 import { registerTerminalIpc } from './terminal-ipc'
 import { nativeOverlayWidth as computeNativeOverlayWidth, titleBarOverlayOptions } from './titlebar-overlay-width'
 import {
@@ -18498,6 +18499,15 @@ function showAboutPanelFresh() {
 
 registerSynapsekAccountIpc(() => DEV_SERVER || pathToFileURL(resolveRendererIndex()).href)
 registerTailscaleIpc(() => DEV_SERVER || pathToFileURL(resolveRendererIndex()).href)
+registerTeamHostIpc(() => DEV_SERVER || pathToFileURL(resolveRendererIndex()).href, async () => {
+  if (readDesktopConnectionsRegistry().connections.find(connection => connection.id === 'local')?.kind !== 'local') {
+    throw new Error('local_backend_required')
+  }
+
+  const backend = await ensureRegistryBackend('local', 'default')
+
+  return backend.baseUrl
+})
 
 ipcMain.handle('hermes:version', async () => {
   const skew = await detectRendererSkew()

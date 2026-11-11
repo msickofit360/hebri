@@ -29,7 +29,9 @@ Promise.resolve(window.HEBRI_SKILLS_INDEX).then(d => {
     o.textContent = k + " (" + srcs[k].toLocaleString() + ")"; sel.appendChild(o);
   });
   render(defaultView());
+  parent.postMessage({ type: "hebri-skills-hub-ready", ok: true }, "*");
 }).catch(e => {
+  parent.postMessage({ type: "hebri-skills-hub-ready", ok: false }, "*");
   document.getElementById("sub").textContent = "Could not load the catalog: " + e.message;
   document.getElementById("grid").innerHTML =
     '<div class="empty">The bundled catalog is unavailable. Reinstall the current Hebri desktop package. ' +
