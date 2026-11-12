@@ -20,9 +20,25 @@ _CALLBACKS = {
 class CodexBrowserTools:
     def __init__(self, agent):
         self._agent = agent
+        specs = list(getattr(agent, "tools", None) or [])
+        self._deferred = set()
+        if "tool_call" in getattr(agent, "valid_tool_names", ()):
+            # Progressive disclosure removes the concrete schemas from agent.tools.
+            # The stdio MCP worker still cannot execute their live GUI callbacks.
+            # Resolve only the two browser tools within this agent's toolset scope
+            # once, at thread creation; do not mutate its cached prompt/tool list.
+            from agent.tool_executor import _tool_search_scoped_names
+            from model_tools import get_tool_definitions
+            self._deferred = set(_CALLBACKS).intersection(_tool_search_scoped_names(agent))
+            if self._deferred:
+                specs += [spec for spec in get_tool_definitions(
+                    enabled_toolsets=getattr(agent, "enabled_toolsets", None),
+                    disabled_toolsets=getattr(agent, "disabled_toolsets", None),
+                    quiet_mode=True, skip_tool_search_assembly=True,
+                ) if spec.get("function", {}).get("name") in self._deferred]
         self._schemas = {
             spec["function"]["name"]: deepcopy(spec["function"])
-            for spec in (getattr(agent, "tools", None) or [])
+            for spec in specs
             if spec.get("type") == "function"
             and spec.get("function", {}).get("name") in _CALLBACKS
             and callable(getattr(agent, _CALLBACKS[spec["function"]["name"]], None))
@@ -42,7 +58,11 @@ class CodexBrowserTools:
     def call(self, name: str, arguments: dict, call_id: str) -> str:
         agent = self._agent
         spec = self._schemas.get(name)
-        if (spec is None or name not in getattr(agent, "valid_tool_names", set())
+        allowed = name in getattr(agent, "valid_tool_names", ())
+        if name in self._deferred and "tool_call" in getattr(agent, "valid_tool_names", ()):
+            from agent.tool_executor import _tool_search_scoped_names
+            allowed = name in _tool_search_scoped_names(agent)
+        if (spec is None or not allowed
                 or not callable(getattr(agent, _CALLBACKS[name], None))):
             raise ValueError("This browser tool is unavailable in this chat.")
         # These two existing schemas have only scalar properties. Reject unknown

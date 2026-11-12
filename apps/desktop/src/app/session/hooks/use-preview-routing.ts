@@ -35,7 +35,7 @@ function asRecord(payload: unknown): Record<string, unknown> {
 
 function sessionIsOnScreen(sessionId: string): boolean {
   const owner = knownOwnerForSession(sessionId)
-  const activeOwner = knownOwnerForSession($activeSessionId.get())
+  const activeOwner = knownOwnerForSession($focusedRuntimeId.get())
 
   const route = (value: typeof owner) =>
     typeof value === 'string' ? [value, ''] : value ? [value.profile, value.connectionId || ''] : null

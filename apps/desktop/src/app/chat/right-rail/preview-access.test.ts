@@ -5,12 +5,21 @@ import {
   previewReadRequest
 } from '@/app/session/hooks/use-message-stream/gateway-event/preview-requests'
 import type { ServerRequestContext } from '@/app/session/hooks/use-message-stream/gateway-event/server-requests'
+import { handleServerRequest } from '@/app/session/hooks/use-message-stream/gateway-event/server-requests'
+import { group, split } from '@/components/pane-shell/tree/model'
+import { $layoutTree, noteActiveTreeGroup } from '@/components/pane-shell/tree/store'
 import { createClientSessionState } from '@/lib/chat-runtime'
 import { $confirmRequest, settleConfirm } from '@/store/confirm'
 import { selectRightRailTab } from '@/store/layout'
-import { $previewTabs, noteBrowserPage, setPreviewScope, shareBrowserTabWithCurrentProfile } from '@/store/preview'
-import { setActiveSessionId } from '@/store/session'
-import { recordSessionEventScope } from '@/store/session-states'
+import {
+  $previewTabs,
+  noteBrowserPage,
+  previewScope,
+  setPreviewScope,
+  shareBrowserTabWithCurrentProfile
+} from '@/store/preview'
+import { $selectedStoredSessionId, setActiveSessionId } from '@/store/session'
+import { $focusedRuntimeId, $sessionTiles, recordSessionEventScope } from '@/store/session-states'
 
 import {
   $previewAccess,
@@ -72,7 +81,73 @@ afterEach(() => {
   settleConfirm(false)
   $previewAccess.set({})
   $previewTabs.set([])
+  $layoutTree.set(null)
+  $sessionTiles.set([])
+  $selectedStoredSessionId.set(null)
   vi.useRealTimers()
+})
+
+it('lets the focused tile use its shared page across chat/browser focus, without lending access to the primary', async () => {
+  recordSessionEventScope({ session_id: 'parked-primary', profile: 'other-profile', connectionId: 'local-test' })
+  $selectedStoredSessionId.set('stored-primary')
+  setActiveSessionId('parked-primary')
+  $sessionTiles.set([{ storedSessionId: 'stored-browser', runtimeId: owner.sessionId, ownerRoute: owner }])
+  $layoutTree.set(
+    split('row', [
+      group(['workspace', 'session-tile:stored-browser'], { active: 'session-tile:stored-browser', id: 'chat-zone' }),
+      group(['preview'], { active: 'preview', id: 'browser-zone' })
+    ])
+  )
+  noteActiveTreeGroup('chat-zone')
+  expect($focusedRuntimeId.get()).toBe(owner.sessionId)
+  expect(previewScope()).toBe(owner.profile)
+  $previewTabs.set(
+    $previewTabs.get().map(tab => (tab.id === 'url:a' ? { ...tab, browserProfile: 'other-profile' } : tab))
+  )
+  await expect(previewReadRequest(context('read', 'url:a'))).rejects.toThrow()
+  shareBrowserTabWithCurrentProfile('url:a')
+  noteActiveTreeGroup('browser-zone')
+  expect($focusedRuntimeId.get()).toBe(owner.sessionId)
+  expect(previewScope()).toBe(owner.profile)
+
+  const ctx = context('tabs')
+  ctx.isActiveSession = false
+  ctx.deps.activeSessionIdRef.current = 'parked-primary'
+  expect(await previewReadRequest(ctx)).toMatchObject({
+    tabs: [expect.objectContaining({ tab_id: 'url:a' }), expect.anything()]
+  })
+  cleanups.push(
+    registerPreviewPageReader('url:a', async () => ({ text: 'Visible page', title: 'A', url: 'https://a.example' }))
+  )
+  ctx.request.params = { action: 'read' }
+  expect(await previewReadRequest(ctx)).toMatchObject({ text: 'Visible page' })
+
+  const run = vi.fn(async () => JSON.stringify({ success: true, elements: [] }))
+  cleanups.push(registerPreviewScriptRunner('url:a', run))
+  const respond = vi.fn()
+  handleServerRequest(
+    { ...ctx.request, method: 'preview.act', params: { action: 'elements', session_id: owner.sessionId }, respond },
+    ctx.deps,
+    'parked-primary'
+  )
+  await vi.waitFor(() => expect(respond).toHaveBeenCalled())
+  expect(JSON.parse(respond.mock.calls[0][0].value)).toMatchObject({ success: true, tab_id: 'url:a' })
+  expect(run).toHaveBeenCalled()
+
+  const allowed = previewPermission(ctx, 'url:a')
+  noteActiveTreeGroup('chat-zone')
+  $layoutTree.set(group(['workspace'], { active: 'workspace', id: 'primary-zone' }))
+  noteActiveTreeGroup('primary-zone')
+  expect(previewScope()).toBe('other-profile')
+  expect(allowed()).toBe(false)
+  expect(await previewReadRequest(context('tabs'))).toEqual({ tabs: [] })
+  $layoutTree.set(
+    group(['workspace', 'session-tile:stored-browser'], { active: 'session-tile:stored-browser', id: 'chat-zone' })
+  )
+  noteActiveTreeGroup('chat-zone')
+  expect(previewScope()).toBe(owner.profile)
+  expect(allowed()).toBe(false) // Returning does not resurrect captured stale work.
+  expect(await previewReadRequest(ctx)).toMatchObject({ text: 'Visible page' })
 })
 
 it('pins reads and captures to a chosen tab, and requires human consent before background/delegated use', async () => {
@@ -83,7 +158,9 @@ it('pins reads and captures to a chosen tab, and requires human consent before b
   expect(inventory.tabs.map(tab => tab.tab_id)).toEqual(['url:a', 'url:b'])
   const staleForeground = context('tabs')
   staleForeground.deps.activeSessionIdRef.current = 'browser-b'
+  setActiveSessionId('browser-b')
   expect(await previewReadRequest(staleForeground)).toEqual({ tabs: [] })
+  setActiveSessionId(owner.sessionId)
   expect(await previewReadRequest(context('read', 'url:b'))).toMatchObject({ tab_id: 'url:b', text: 'Only B' })
   expect(await previewReadRequest(context('screenshot', 'url:b'))).toMatchObject({ tab_id: 'url:b' })
   await expect(previewReadRequest(context('read', 'url:missing'))).rejects.toThrow('no longer open')

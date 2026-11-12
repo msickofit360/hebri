@@ -62,7 +62,7 @@ const DRIVEN: readonly string[] = ['click', 'hover', 'press', 'type']
  *  from them would report every one of them as a failure. */
 const CLICKS: readonly string[] = ['click', 'type']
 
-const NOTHING_OPEN = 'No live page is open in the in-app browser — open one with open_preview first.'
+const NOTHING_OPEN = 'No live page is open in the in-app browser — use desktop_preview with action="open" first.'
 
 const NAVIGATED =
   'The page stopped answering right after — it is probably navigating. Call elements to see where you landed.'
@@ -135,7 +135,7 @@ const preamble = () => `  var w = window;
   };`
 
 /** Bring the target on screen, mark it, and report where it came to rest. */
-function buildLocateScript(action: PreviewActAction, focus: boolean): string {
+function buildLocateScript(action: PreviewActAction, focus: boolean, inputDocument: string): string {
   const locate = { focus, kind: 'locate', ref: action.ref, selector: action.selector }
 
   return `(function () {
@@ -148,6 +148,7 @@ ${preamble()}
   // click that never reached the page is indistinguishable from one the page
   // ignored, and the agent would report success either way.
   w.__hermesHit = null;
+  w.__hermesInputDocument = ${JSON.stringify(inputDocument)};
   document.addEventListener('pointerdown', function (e) {
     w.__hermesHit = { tag: e.target ? e.target.tagName : '?', trusted: e.isTrusted === true };
   }, { capture: true, once: true });
@@ -234,7 +235,7 @@ ${
 }
 
 /** Mark the hit, let the page react, and hand back a fresh inventory. */
-function buildFinishScript(settleMs: number): string {
+function buildFinishScript(settleMs: number, inputDocument?: string): string {
   return `(function () {
 ${preamble()}
   watch('strike');
@@ -245,6 +246,7 @@ ${preamble()}
       var out = act({ kind: 'elements' });
       watch('sweep');
       out.hit = w.__hermesHit || null;
+      out.documentChanged = ${inputDocument !== undefined} && w.__hermesInputDocument !== ${JSON.stringify(inputDocument) ?? 'undefined'};
       return JSON.stringify(out);
     } catch (err) {
       return JSON.stringify({ note: 'The page changed before it could be re-read: ' + err, success: true });
@@ -342,7 +344,8 @@ async function driveAction(
 ): Promise<PreviewActResult> {
   // A key press must not be preceded by a click — that would activate the
   // control rather than type into it — so the page hands it focus instead.
-  const trip = await runJson(run, buildLocateScript(action, action.kind === 'press'))
+  const inputDocument = crypto.randomUUID()
+  const trip = await runJson(run, buildLocateScript(action, action.kind === 'press', inputDocument))
 
   if (trip.kind === 'failed') {
     return { error: trip.error, success: false }
@@ -394,7 +397,7 @@ async function driveAction(
   // target, which is the whole request.
 
   const target = String(found.acted || '').replace(/^looking at /, '')
-  const after = await runJson(run, buildFinishScript(SETTLE_MS))
+  const after = await runJson(run, buildFinishScript(SETTLE_MS, inputDocument))
   const acted = describeDone(action, target)
 
   // The action itself already happened as real input, so a page that will not
@@ -403,7 +406,22 @@ async function driveAction(
     return { acted, note: NAVIGATED, success: true }
   }
 
-  const { hit, ...result } = after.result as PreviewActResult & { hit?: { tag: string; trusted: boolean } | null }
+  const { hit, documentChanged, ...result } = after.result as PreviewActResult & {
+    hit?: { tag: string; trusted: boolean } | null
+    documentChanged?: boolean
+  }
+
+  // A completed navigation destroys the old document's input witness. The new
+  // document can answer immediately, so a successful read-back alone does not
+  // distinguish it from a click that missed an unchanged page.
+  if (documentChanged) {
+    return {
+      ...result,
+      acted,
+      note: 'The page changed after input. Read the new page before acting again.',
+      success: true
+    }
+  }
 
   // The witness the locate trip armed. No record means the input never reached
   // the document, which the agent must hear about — every other signal here

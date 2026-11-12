@@ -22,7 +22,7 @@ import { $sessionTiles } from '@/store/session-states'
 import { requestScrollToBottom } from '@/store/thread-scroll'
 import { $toursEnabled } from '@/store/tours'
 
-import { previewPermission, previewReadRequest } from './preview-requests'
+import { previewIsForeground, previewPermission, previewReadRequest } from './preview-requests'
 import type { GatewayEventDeps } from './types'
 
 /** The preview engine, loaded on demand so ~25KB of page-injectable source stays
@@ -347,7 +347,7 @@ const previewAct: Handler = ctx => {
   const p = request.params
   const tab = resolvePreviewTab(typeof p.tab_id === 'string' ? p.tab_id : undefined)
 
-  if (!tab || (!ctx.isActiveSession && !p.tab_id) || !previewPermission(ctx, tab.id)()) {
+  if (!tab || (!previewIsForeground(ctx) && !p.tab_id) || !previewPermission(ctx, tab.id)()) {
     answerValue(request, {
       error: 'This chat has no access to that browser tab. Open the chat or approve background access first.',
       success: false
@@ -380,7 +380,7 @@ const previewAct: Handler = ctx => {
       {
         tabId: tab.id,
         allowed,
-        background: ctx.deps.activeSessionIdRef.current !== ctx.sessionId || p.delegated === true
+        background: !previewIsForeground(ctx)
       }
     )
 

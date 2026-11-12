@@ -53,7 +53,7 @@ def drive_preview_tool(
     except Exception as exc:
         return tool_error(f"Failed to act on the in-app browser: {exc}")
     if not raw:
-        return tool_error("The action timed out, or no GUI window answered. Open a page with open_preview first.")
+        return tool_error('The action timed out, or no GUI window answered. Use desktop_preview with action="open" first.')
     return passthrough_json(raw)
 
 

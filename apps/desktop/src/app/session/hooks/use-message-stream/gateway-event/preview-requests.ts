@@ -12,8 +12,7 @@ import { translateNow } from '@/i18n'
 import { $confirmRequest, confirm, settleConfirm } from '@/store/confirm'
 import { selectRightRailTab } from '@/store/layout'
 import { previewBelongsToScope, previewScope, previewScopeEpoch } from '@/store/preview'
-import { $activeSessionId } from '@/store/session'
-import { knownOwnerForSession } from '@/store/session-states'
+import { $focusedRuntimeId, knownOwnerForSession } from '@/store/session-states'
 
 import type { ServerRequestContext } from './server-requests'
 
@@ -32,13 +31,23 @@ function matchesRoute(sessionId: string | null, profile: string, connectionId?: 
 }
 
 // A same-named profile on a different remote connection is a different owner.
-$activeSessionId.listen(sessionId => {
+$focusedRuntimeId.listen(sessionId => {
   for (const [id, grant] of Object.entries($previewAccess.get())) {
     if (!matchesRoute(sessionId, grant.owner.profile, grant.owner.connectionId)) {
       revokePreviewAccess(id)
     }
   }
 })
+
+export function previewIsForeground(ctx: ServerRequestContext): boolean {
+  return Boolean(
+    ctx.sessionId &&
+    $focusedRuntimeId.get() === ctx.sessionId &&
+    ctx.request.params.delegated !== true &&
+    previewScope() === ctx.request.profile &&
+    matchesRoute(ctx.sessionId, ctx.request.profile, ctx.request.connectionId)
+  )
+}
 
 /** Rechecked at every input event and after async reads/captures. */
 export function previewPermission(ctx: ServerRequestContext, tabId: string) {
@@ -57,10 +66,9 @@ export function previewPermission(ctx: ServerRequestContext, tabId: string) {
       scope === owner.profile &&
       ctx.sessionId &&
       matchesRoute(ctx.sessionId, owner.profile, owner.connectionId) &&
-      matchesRoute(ctx.deps.activeSessionIdRef.current, owner.profile, owner.connectionId) &&
+      matchesRoute($focusedRuntimeId.get(), owner.profile, owner.connectionId) &&
       !ctx.deps.sessionInterrupted(ctx.sessionId) &&
-      (hasPreviewAccess(owner, tabId) ||
-        (ctx.request.params.delegated !== true && ctx.deps.activeSessionIdRef.current === ctx.sessionId))
+      (hasPreviewAccess(owner, tabId) || previewIsForeground(ctx))
     )
 }
 
@@ -70,12 +78,7 @@ export async function previewReadRequest(ctx: ServerRequestContext) {
   const explicitId = typeof p.tab_id === 'string' ? p.tab_id : undefined
   const owner = previewOwner(ctx)
 
-  const foreground =
-    ctx.isActiveSession &&
-    ctx.deps.activeSessionIdRef.current === ctx.sessionId &&
-    p.delegated !== true &&
-    previewScope() === owner.profile &&
-    matchesRoute(ctx.sessionId, owner.profile, owner.connectionId)
+  const foreground = previewIsForeground(ctx)
 
   if (action === 'tabs') {
     if (!ctx.sessionId || ctx.deps.sessionInterrupted(ctx.sessionId)) {
@@ -140,7 +143,7 @@ export async function previewReadRequest(ctx: ServerRequestContext) {
 
     const accepted = await answer
     clearTimeout(timer)
-    const stillForeground = ctx.deps.activeSessionIdRef.current === ctx.sessionId
+    const stillForeground = previewIsForeground(ctx)
 
     if (!accepted || !stillForeground || !allowed() || previewOrigin(tab.id) !== origin) {
       throw new Error('Browser access was not granted.')

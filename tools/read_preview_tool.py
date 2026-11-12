@@ -45,14 +45,14 @@ READ_PREVIEW_SCHEMA = {
     "name": "read_preview",
     "description": (
         "Read what's currently shown in the in-app browser / preview pane of the "
-        "Hebri desktop GUI (the pane open_preview opens beside this chat). Call "
+        "Hebri desktop GUI (the pane desktop_preview opens beside this chat). Call "
         "with no arguments for the first window of the active tab's content. "
         "Returns JSON {kind, url, title, text, start, end, total_chars, note?}: "
         "a URL (Browser) tab's text is the rendered page's visible text — page "
         "through longer pages with `start`/`count` (character offsets, capped "
         "per read); a file tab answers identity only (read the file with "
         "read_file); an artifact tab points back at the conversation. Use after "
-        "open_preview, or whenever the user refers to what's on screen in the "
+        "desktop_preview(action='open'), or whenever the user refers to what's on screen in the "
         "browser ('what does this page say?'). To close the pane, use close_preview."
     ),
     "parameters": {

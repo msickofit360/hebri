@@ -159,6 +159,39 @@ def test_browser_tools_require_session_surface_and_use_security_hooks(tmp_path, 
             assert "dynamicTools" not in wire[-1][1]
 
 
+def test_deferred_browser_tools_keep_live_callbacks_and_session_scope(tmp_path, monkeypatch):
+    from agent.codex_browser_tools import CodexBrowserTools
+    from model_tools import get_tool_definitions
+
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+    (tmp_path / "config.yaml").write_text(
+        "tools:\n  tool_search:\n    enabled: on\n    defer: [desktop_preview, drive_preview]\n",
+        encoding="utf-8",
+    )
+    calls = []
+    agent = make_agent("deferred", calls)
+    agent.enabled_toolsets = ["desktop_ui"]
+    agent.disabled_toolsets = []
+    agent.tools = get_tool_definitions(enabled_toolsets=agent.enabled_toolsets, quiet_mode=True)
+    agent.valid_tool_names = {t["function"]["name"] for t in agent.tools}
+    assert "tool_call" in agent.valid_tool_names
+    assert "desktop_preview" not in agent.valid_tool_names
+    original_tools = json.dumps(agent.tools, sort_keys=True)
+    bridge = CodexBrowserTools(agent)
+    assert {s["name"] for s in bridge.definitions()} == {"desktop_preview", "drive_preview"}
+    assert json.loads(bridge.call("desktop_preview", {"action": "read"}, "read"))["text"] == "deferred"
+    assert calls[-1][0:2] == ("deferred", "read")
+    assert json.dumps(agent.tools, sort_keys=True) == original_tools
+
+    # The presence of the discovery wrapper is not authority for disabled tools.
+    agent.disabled_toolsets = ["desktop_ui"]
+    assert CodexBrowserTools(agent).definitions() == []
+    import pytest
+    with pytest.raises(ValueError, match="unavailable"):
+        bridge.call("drive_preview", {"action": "elements"}, "revoked")
+    assert len(calls) == 1
+
+
 def test_preview_screenshot_is_native_bounded_and_not_text_base64(tmp_path, monkeypatch):
     import base64
     from io import BytesIO

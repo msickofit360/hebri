@@ -3,6 +3,8 @@ import { act, cleanup, render, waitFor } from '@testing-library/react'
 import { useEffect } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { group } from '@/components/pane-shell/tree/model'
+import { $layoutTree, noteActiveTreeGroup } from '@/components/pane-shell/tree/store'
 import { assistantTextPart, type ChatMessage } from '@/lib/chat-messages'
 import {
   $previewTabs,
@@ -13,7 +15,7 @@ import {
   setPreviewScope
 } from '@/store/preview'
 import { $activeSessionId, $currentCwd, $messages, $selectedStoredSessionId } from '@/store/session'
-import { recordSessionEventScope } from '@/store/session-states'
+import { $sessionTiles, recordSessionEventScope } from '@/store/session-states'
 
 import { usePreviewRouting } from './use-preview-routing'
 
@@ -87,8 +89,30 @@ describe('preview routing', () => {
     closeRightRail()
     $activeSessionId.set(null)
     $selectedStoredSessionId.set(null)
+    $layoutTree.set(null)
+    $sessionTiles.set([])
     window.localStorage.clear()
     vi.restoreAllMocks()
+  })
+
+  it('opens for the focused Bit on its own route while rejecting a parked primary and a same-name remote profile', async () => {
+    recordSessionEventScope({ session_id: 'focused-bit', profile: 'writer', connectionId: 'local-test' })
+    recordSessionEventScope({ session_id: 'remote-bit', profile: 'writer', connectionId: 'remote-test' })
+    $selectedStoredSessionId.set('stored-primary')
+    $sessionTiles.set([
+      { storedSessionId: 'stored-bit', runtimeId: 'focused-bit' },
+      { storedSessionId: 'stored-remote', runtimeId: 'remote-bit' }
+    ])
+    $layoutTree.set(
+      group(['workspace', 'session-tile:stored-bit'], { active: 'session-tile:stored-bit', id: 'bit-zone' })
+    )
+    noteActiveTreeGroup('bit-zone')
+    render(<Harness />)
+    await emitPreviewOpen('/tmp/writer.html', 'focused-bit')
+    await waitFor(() => expect($previewTarget.get()?.path).toBe('/tmp/writer.html'))
+    await emitPreviewOpen('/tmp/parked.html')
+    await emitPreviewOpen('/tmp/remote.html', 'remote-bit')
+    expect($previewTabs.get().map(tab => tab.target.path)).toEqual(['/tmp/writer.html'])
   })
 
   it("cannot close or overwrite another bot's persistent browser tab", async () => {

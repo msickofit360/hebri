@@ -1238,8 +1238,8 @@ export function knownOwnerForSession(sessionId: null | string | undefined): Sess
  *  the launch profile while you read another agent's chat. Keying the rail there
  *  showed one agent's previews in every agent's chat. `bot-row.tsx` documents
  *  the same trap for the roster highlight and resolves it the same way. */
-function railScopeForActiveSession(): string {
-  const owner = knownOwnerForSession($activeSessionId.get() ?? undefined)
+function railScopeForFocusedSession(): string {
+  const owner = knownOwnerForSession($focusedRuntimeId.get())
   const profile = typeof owner === 'string' ? owner : owner?.profile
 
   return normalizeProfileKey(profile || $activeGatewayProfile.get())
@@ -1247,11 +1247,8 @@ function railScopeForActiveSession(): string {
 
 /** Keep the rail on the chat in view, so switching agents re-homes it. */
 function syncPreviewScope() {
-  setPreviewScope(railScopeForActiveSession())
+  setPreviewScope(railScopeForFocusedSession())
 }
-
-$activeSessionId.subscribe(syncPreviewScope)
-syncPreviewScope()
 
 /**
  * Whether the connection that OWNS `sessionId` is remote — never the ambient
@@ -2343,6 +2340,8 @@ export const $focusedRuntimeId = computed(
     return primaryRuntime
   }
 )
+
+$focusedRuntimeId.subscribe(syncPreviewScope)
 
 /** The focused session's state slice (undefined while unresolved/unbound). */
 export const $focusedSessionState = computed([$focusedRuntimeId, $sessionStates], (runtimeId, states) =>
