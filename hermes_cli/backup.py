@@ -101,7 +101,9 @@ def _in_excluded_root_dir(rel_path: Path) -> bool:
 # SQLite sidecars are excluded because ``*.db`` is snapshotted via ``sqlite3.backup()``:
 # shipping the live WAL/SHM/journal alongside would pair a fresh snapshot with stale sidecar
 # state and produce a torn restore on next open. They are regenerated on first connection.
-_SQLITE_SIDECAR_SUFFIXES = (".db-wal", ".db-shm", ".db-journal")
+_SQLITE_EXTENSIONS = (".db", ".sqlite", ".sqlite3")
+_SQLITE_SIDECAR_SUFFIXES = tuple(ext + suffix for ext in _SQLITE_EXTENSIONS
+                                  for suffix in ("-wal", "-shm", "-journal"))
 _EXCLUDED_SUFFIXES = (".pyc", ".pyo", *_SQLITE_SIDECAR_SUFFIXES)
 
 # File names to skip (runtime state that's meaningless on another machine)
@@ -596,7 +598,7 @@ def _write_zip_entries(
     total_bytes = 0
     for i, (abs_path, rel_path) in enumerate(files_to_add, 1):
         try:
-            if abs_path.suffix == ".db":
+            if abs_path.suffix in _SQLITE_EXTENSIONS:
                 size = _zip_sqlite_snapshot(zf, abs_path, rel_path, out_path)
                 if size is None:
                     on_db_failure(rel_path)
@@ -964,7 +966,7 @@ def _import_members(
         else:
             try:
                 target.parent.mkdir(parents=True, exist_ok=True)
-                if target.suffix == ".db":
+                if target.suffix in _SQLITE_EXTENSIONS:
                     # Count before the write: afterwards the dropped rows are gone.
                     before = _count_session_rows(target)
                     _import_db_member(zf, member, target, new_file_mode)
@@ -1127,6 +1129,7 @@ _QUICK_STATE_FILES = (
     "projects.db",                      # per-profile project store
     "response_store.db",                # gateway conversation history / tool payloads
     "memory_store.db",                  # holographic memory facts/entities
+    "keelindex/entries.sqlite3",        # profile-local KEEL recall (WAL-safe snapshot)
     "verification_evidence.db",         # agent verification audit trail
     "kanban.db",                        # default board (back-compat <root>/kanban.db)
     "kanban/boards",                    # non-default boards (workspaces/ + attachments/ skipped as regenerable)
@@ -1190,14 +1193,14 @@ def _copy_quick_snapshot_files(
                 print(f"  ⚠ Snapshot: skipping {rel} "
                       f"({_format_size(size)} exceeds {_format_size(max_file_size)} limit)")
                 logger.warning("Quick snapshot skipped %s: %d bytes exceeds %d byte limit", rel, size, max_file_size)
-                if src.suffix == ".db":
+                if src.suffix in _SQLITE_EXTENSIONS:
                     oversized_skipped.append(rel)
                 continue
         dst = staging_dir / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
         try:
             # SQLite DBs go through the WAL-safe backup() path (the gateway may hold the WAL open).
-            if src.suffix == ".db":
+            if src.suffix in _SQLITE_EXTENSIONS:
                 if not _safe_copy_db(src, dst):
                     failed_dbs.append(rel)
                     print(f"  ⚠ Snapshot: SQLite safe copy FAILED for {rel} — file may be locked or corrupted")
@@ -1352,7 +1355,7 @@ def restore_quick_snapshot(snapshot_id: str, hermes_home: Optional[Path] = None)
             continue
         dst.parent.mkdir(parents=True, exist_ok=True)
         try:
-            if dst.suffix == ".db":
+            if dst.suffix in _SQLITE_EXTENSIONS:
                 # Through the backup API so live connections see the restored data instead of
                 # stale pages from a replaced inode (#65942).
                 if not _safe_restore_db(src, dst):

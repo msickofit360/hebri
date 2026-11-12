@@ -9,6 +9,16 @@ APP_ID = "hebri"
 APP_URL = "https://synapseklabs.org"
 
 
+def openrouter_attribution_headers() -> dict[str, str]:
+    """Public app identity only; never include a user, device, or session identifier."""
+    return {
+        "HTTP-Referer": APP_URL,
+        "X-OpenRouter-Title": APP_NAME,
+        "X-Title": APP_NAME,
+        "X-OpenRouter-Categories": "cli-agent,personal-agent",
+    }
+
+
 def user_agent() -> str:
     from hermes_cli import __version__
 

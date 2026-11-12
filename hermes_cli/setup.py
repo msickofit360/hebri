@@ -713,6 +713,12 @@ def _run_setup_wizard_impl(args):
         migration_ran = _offer_openclaw_migration(hermes_home)  # before configuration begins
         if migration_ran:
             config = load_config()
+        elif not config_path.exists():
+            # Source/pip first-run setup (installers seed the example config themselves).
+            # A recovered profile with existing memory/history keeps its old provider.
+            from hermes_cli.memory_setup import seed_fresh_memory
+            if seed_fresh_memory(config, hermes_home):
+                save_config(config)
         setup_mode = prompt_choice("How would you like to set up Hebri?", [label for label, _ in _FIRST_TIME_MODES], 0)
         label, runner = _FIRST_TIME_MODES[setup_mode]
         if runner is not None:

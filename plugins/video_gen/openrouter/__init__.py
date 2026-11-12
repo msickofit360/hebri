@@ -18,6 +18,7 @@ import time
 from typing import Any, Dict, List, Optional, Tuple
 
 from agent.video_gen_provider import VideoGenProvider, error_response, save_url_video, success_response
+from hermes_cli.provider_identity import openrouter_attribution_headers
 
 logger = logging.getLogger(__name__)
 
@@ -172,7 +173,7 @@ class OpenRouterVideoGenProvider(VideoGenProvider):
 
     def _headers(self, api_key: str) -> Dict[str, str]:
         return {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json",
-                "HTTP-Referer": "https://github.com/NousResearch/hermes-agent", "X-Title": "Hebri"}
+                **openrouter_attribution_headers()}
 
     def _session(self) -> Any:
         import requests

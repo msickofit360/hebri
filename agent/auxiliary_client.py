@@ -24,7 +24,7 @@ from types import SimpleNamespace
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, TYPE_CHECKING, Union
 from urllib.parse import urlparse, parse_qs, urlunparse
 
-from hermes_cli.provider_identity import APP_NAME, APP_URL, user_agent
+from hermes_cli.provider_identity import APP_NAME, APP_URL, openrouter_attribution_headers, user_agent
 
 from agent.error_classifier import (
     _BILLING_PATTERNS,
@@ -867,14 +867,6 @@ def _resolve_provider_vision_default(provider: str) -> Optional[str]:
 # instead of returning a client that 404s (Kimi Coding Plan Anthropic wire has no image_in).
 _PROVIDERS_WITHOUT_VISION: frozenset = frozenset({"kimi-coding", "kimi-coding-cn"})
 
-# OpenRouter app attribution (always sent). `X-Title` is what the dashboard reads.
-_OR_HEADERS_BASE = {
-    "HTTP-Referer": APP_URL,
-    "X-Title": APP_NAME,
-    "X-OpenRouter-Categories": "productivity,cli-agent",
-}
-
-
 def _apply_user_default_headers(headers: dict | None) -> dict | None:
     """Merge user ``model.default_headers`` onto resolved headers (user wins; ``model.extra_headers``
     alias wins over both). Mirrors ``AIAgent._apply_user_default_headers`` so a custom endpoint behind a
@@ -902,7 +894,7 @@ def build_or_headers(or_config: dict | None = None) -> dict:
     ``openrouter.response_cache``; ``HERMES_OPENROUTER_CACHE_TTL`` (1-86400 s) overrides
     ``openrouter.response_cache_ttl``. ``or_config=None`` reads from disk.
     """
-    headers = dict(_OR_HEADERS_BASE)
+    headers = openrouter_attribution_headers()
     if or_config is None:
         try:
             from hermes_cli.config import load_config_readonly
@@ -2217,8 +2209,10 @@ def _endpoint_default_headers(
     (``is_vision`` adds Copilot-Vision-Request); NVIDIA NIM and (optionally) xAI have
     their own fingerprints; anything else falls back to the provider profile.
     """
-    if base_url_host_matches(base_url, "api.kimi.com"):
-        headers: dict = {"User-Agent": "claude-code/0.1.0"}
+    if base_url_host_matches(base_url, "openrouter.ai"):
+        headers: dict = build_or_headers()
+    elif base_url_host_matches(base_url, "api.kimi.com"):
+        headers = {"User-Agent": "claude-code/0.1.0"}
     elif base_url_host_matches(base_url, "githubcopilot.com"):
         from hermes_cli.copilot_auth import copilot_request_headers
         headers = dict(copilot_request_headers(is_agent_turn=True, is_vision=is_vision))
@@ -5083,7 +5077,9 @@ def _named_custom_openai_wire_client(custom_base: str, custom_key: Any, extra_he
     runtime lifts it onto every request, so aux must too (#109595). SECURITY: never log the values."""
     _clean_base, _dq = _extract_url_query_params(_to_openai_base_url(custom_base))
     _extra = {"default_query": _dq} if _dq else {}
-    _headers = _apply_user_default_headers(None)
+    _headers = _apply_user_default_headers(
+        build_or_headers() if base_url_host_matches(_clean_base, "openrouter.ai") else None
+    )
     if extra_headers:
         _headers = {**(_headers or {}), **extra_headers}
     if _headers:

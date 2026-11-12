@@ -23,6 +23,7 @@ from agent.image_gen_provider import (
     DEFAULT_ASPECT_RATIO, ImageGenProvider, error_response, resolve_aspect_ratio, save_b64_image,
     save_url_image, success_response)
 from plugins.image_gen._common import error_factory, load_image_gen_config, post_json, record_token_usage
+from hermes_cli.provider_identity import openrouter_attribution_headers
 
 logger = logging.getLogger(__name__)
 
@@ -171,9 +172,7 @@ _IMAGE_API_INTS = (
 
 _ATTRIBUTION_HEADERS = {
     "Content-Type": "application/json",
-    # OpenRouter attribution headers (harmless against Nous Portal).
-    "HTTP-Referer": "https://github.com/NousResearch/hermes-agent",
-    "X-Title": "Hebri",
+    **openrouter_attribution_headers(),
 }
 
 

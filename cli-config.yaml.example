@@ -972,6 +972,9 @@ prompt_caching:
 # Disabled by default in batch_runner.
 #
 memory:
+  # New installations: local Synapsek KEEL recall, with no extra account or API key.
+  # Existing config files are preserved. Set "" for built-in memory only.
+  provider: keelindex
   # Agent's personal notes: environment facts, conventions, things learned
   memory_enabled: true
   

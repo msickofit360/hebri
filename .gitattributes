@@ -38,3 +38,4 @@ docker/entrypoint.sh text eol=lf
 
 # uv writes platform-independent lock data; prevent CRLF-only dependency diffs.
 uv.lock text eol=lf
+plugins/memory/keelindex/** text eol=lf

@@ -57,9 +57,35 @@ jobs:
       - name: Test profile isolation and real context-engine lifecycle
         run: bash scripts/run_tests.sh tests/agent/test_context_floor_profiles.py tests/plugins/test_local_context_engines.py --tb=short
 
+  keel-memory:
+    name: KEEL memory (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Install native Python runtime and test dependencies
+        shell: bash
+        run: |
+          python -m venv .venv
+          if test -f .venv/Scripts/python.exe; then
+            .venv/Scripts/python.exe -m pip install -e . pytest==9.1.1
+          else
+            .venv/bin/python -m pip install -e . pytest==9.1.1
+          fi
+      - name: Test KEEL lifecycle, profile isolation and backed-up migration
+        shell: bash
+        run: bash scripts/run_tests.sh tests/plugins/test_bundled_keel.py tests/hermes_cli/test_keel_upgrade.py --tb=short
+
   quality:
-    needs: [validate-version, context-regressions]
-    if: always() && needs.context-regressions.result == 'success' && (needs.validate-version.result == 'success' || needs.validate-version.result == 'skipped')
+    needs: [validate-version, context-regressions, keel-memory]
+    if: always() && needs.context-regressions.result == 'success' && needs.keel-memory.result == 'success' && (needs.validate-version.result == 'success' || needs.validate-version.result == 'skipped')
     runs-on: ubuntu-24.04
     # A cold Node 26 install can take 5+ minutes and the inherited 8,500-test
     # renderer suite takes another 12–15 on hosted Linux. Keep a hard ceiling,

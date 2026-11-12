@@ -12,7 +12,7 @@ def build_memory_parser(subparsers, *, cmd_memory: Callable) -> None:
     memory_parser = subparsers.add_parser(
         "memory", help="Configure external memory provider",
         description="Set up and manage external memory provider plugins.\n\n"
-            "Bundled providers: honcho, openviking, mem0, holographic,\n"
+            "Bundled providers: keelindex (local KEEL), honcho, openviking, mem0, holographic,\n"
             "retaindb, byterover. Catalog providers (e.g. hindsight):\n"
             "hebri plugins install <name>.\n\n"
             "Only one external provider can be active at a time.\n"

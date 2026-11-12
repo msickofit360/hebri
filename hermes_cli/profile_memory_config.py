@@ -46,6 +46,8 @@ def clone_memory_provider_config(source_dir: Path, profile_dir: Path, provider: 
     src_dir = source_dir / provider
     if src_dir.is_dir():
         shutil.copytree(src_dir, profile_dir / provider, dirs_exist_ok=True)
+        if provider == 'keelindex':
+            snapshot_cloned_keel(source_dir, profile_dir)
         for root, _dirs, files in os.walk(profile_dir / provider):
             for filename in files:
                 with contextlib.suppress(OSError):
@@ -59,6 +61,29 @@ def clone_memory_provider_config(source_dir: Path, profile_dir: Path, provider: 
             os.chmod(str(dst), 0o600)
         copied = True
     return copied
+
+
+def snapshot_cloned_keel(source_dir: Path, profile_dir: Path) -> None:
+    """Replace the new clone's raw KEEL copy with a consistent, independent SQLite snapshot."""
+    import tempfile
+    from hermes_cli.backup import _safe_copy_db
+
+    source = source_dir / 'keelindex/entries.sqlite3'
+    destination = profile_dir / 'keelindex/entries.sqlite3'
+    source.resolve().relative_to(source_dir.resolve())
+    destination.resolve().relative_to(profile_dir.resolve())
+    if not source.is_file():
+        return
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    # Only used on an unpublished clone, never an installed/live profile.
+    with tempfile.TemporaryDirectory(prefix='.keel-snapshot-', dir=profile_dir) as staging:
+        snapshot = Path(staging) / 'entries.sqlite3'
+        if not _safe_copy_db(source, snapshot):
+            raise OSError('Cannot safely snapshot KEEL memory; profile clone was not published.')
+        for suffix in ('-wal', '-shm', '-journal'):
+            destination.with_name(destination.name + suffix).unlink(missing_ok=True)
+        os.chmod(snapshot, 0o600)
+        os.replace(snapshot, destination)
 
 
 def cloned_memory_provider(profile_dir: Path) -> Optional[str]:

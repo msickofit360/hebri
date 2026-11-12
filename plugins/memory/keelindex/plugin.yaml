@@ -1,0 +1,3 @@
+name: keelindex
+version: 0.6.1
+description: "Profile-local SQLite factual recall with BM25, optional write-time aliases and bounded episode recall. Mirrors committed built-in memory adds, corrections and removals using exact previous-content provenance. Retired revisions remain audit history but are excluded from recall. Model aliases default off and use only the active Hebri profile when explicitly enabled."

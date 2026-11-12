@@ -18,7 +18,8 @@
  * recursive walk instead.
  */
 
-import { cpSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
+import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { resolve, sep } from "node:path";
 
 const DESKTOP_ROOT = resolve(import.meta.dirname, "..");
@@ -108,6 +109,17 @@ for (const rel of ["scripts/install.ps1", "scripts/install.sh", "pyproject.toml"
   if (!statSync(p).isFile()) {
     throw new Error(`stage-bundle: expected ${p} after copy; bundle is incomplete`)
   }
+}
+
+// Fail the build if a pinned memory component or its license was omitted/changed.
+const keelDir = resolve(OUT_DIR, "plugins", "memory", "keelindex");
+const keelManifest = JSON.parse(readFileSync(resolve(keelDir, "UPSTREAM.json"), "utf8"));
+for (const file of keelManifest.files) {
+  const digest = createHash("sha256").update(readFileSync(resolve(keelDir, file.path))).digest("hex");
+  if (digest !== file.sha256) throw new Error(`stage-bundle: KEEL checksum mismatch: ${file.path}`);
+}
+for (const file of ["cli.py", "README.md"]) {
+  if (!statSync(resolve(keelDir, file)).isFile()) throw new Error(`stage-bundle: missing KEEL ${file}`);
 }
 
 console.log(

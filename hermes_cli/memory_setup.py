@@ -12,6 +12,22 @@ from hermes_cli.secret_prompt import masked_secret_prompt
 
 _CANCELLED = -1
 
+
+def seed_fresh_memory(config: dict, home) -> bool:
+    """Opt a genuinely new setup into bundled KEEL, never an existing/recovered profile."""
+    from pathlib import Path
+    home = Path(home)
+    if any((home / name).exists() for name in ('config.yaml', 'state.db', 'MEMORY.md', 'USER.md', 'keelindex')):
+        return False
+    memories = home / 'memories'
+    if memories.exists() and any(memories.iterdir()):
+        return False
+    memory = config.get('memory')
+    if not isinstance(memory, dict) or memory.get('provider'):
+        return False
+    memory['provider'] = 'keelindex'
+    return True
+
 # pip name → import name mapping for packages where they differ. Catalog-installed providers keep
 # declaring pip_dependencies in their plugin.yaml, so their bridge packages stay here too.
 _IMPORT_NAMES = {

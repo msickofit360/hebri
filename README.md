@@ -12,6 +12,10 @@
 
 Hebri combines a native desktop agent, a separate human Team workspace, managed bots, messaging gateways, browser and computer tools, memory, skills, and remote workspaces. Humans own Team messages and board state; bots can receive a bounded read-only snapshot so their work follows the team without impersonating a teammate or mutating human state.
 
+New installations include local **KEEL memory**, with a separate store for each
+profile or Bit. Existing users can opt in and preview a backed-up import of their
+curated memories. See the [KEEL setup and migration guide](plugins/memory/keelindex/README.md).
+
 ## Install
 
 Download the package for your platform from [GitHub Releases](https://github.com/satoshilove/hebri/releases):

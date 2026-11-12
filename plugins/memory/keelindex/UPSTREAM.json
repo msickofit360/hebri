@@ -1,0 +1,45 @@
+{
+  "repository": "https://github.com/Synapsek-Labs/keel",
+  "commit": "b6d5faff00470b264becedfb4c33c331c9f57d38",
+  "version": "0.6.1",
+  "license": "AGPL-3.0-only",
+  "files": [
+    {
+      "source": "src/keel/__init__.py",
+      "path": "__init__.py",
+      "sha256": "e59bf2d849fac99287901b6ecb69f0f2ecc7f4e6edb8df8b040d0924f9607d01"
+    },
+    {
+      "source": "src/keel/aliasgen.py",
+      "path": "aliasgen.py",
+      "sha256": "ffbd040e5a059ffd4c94e94402556c4bfc3b2c9158b7cc09847b045b4173ccb7"
+    },
+    {
+      "source": "src/keel/plugin.yaml",
+      "path": "plugin.yaml",
+      "sha256": "ad0cbd70b28ec383dfcd22a09119bdd74b41d13482bdb80e8cff34170822af29"
+    },
+    {
+      "source": "LICENSE",
+      "path": "LICENSE",
+      "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0"
+    },
+    {
+      "source": "scripts/keel_admin.py",
+      "path": "maintenance/keel_admin.py",
+      "sha256": "b361f5f2b044705b60e8befed881a169d9713734e4da166b120b1f6f69b6bc71",
+      "upstream_sha256": "fdf59912b7f2900640b8c53929e5d2b7daee32af74c407f2548961af4d7e5e79",
+      "patch": "Allow explicitly selected hidden default homes; implicit discovery still skips hidden directories."
+    },
+    {
+      "source": "scripts/keel_unify.py",
+      "path": "maintenance/keel_unify.py",
+      "sha256": "6aa598abcc9ad6f87480f8163a820dbf454bb514992f105685dd6d250c7f1feb"
+    },
+    {
+      "source": "scripts/keel_doctor.py",
+      "path": "maintenance/keel_doctor.py",
+      "sha256": "57b26a8bfa622ea650f107a2a5a9e72e9f8e38f3f9423c4dba1871ddf1385073"
+    }
+  ]
+}
