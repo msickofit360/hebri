@@ -319,7 +319,7 @@ mistral = ["mistralai==2.9.4"]
 # OTLP/HTTP exporter for monitoring.gateway_health_export. Lazy-installed via
 # tools/lazy_deps.py on first use; never a core dependency and deliberately
 # NOT in [all].
-otlp = ["opentelemetry-sdk==1.45.1", "opentelemetry-exporter-otlp-proto-http==1.45.1"]
+otlp = ["opentelemetry-sdk==1.45.2", "opentelemetry-exporter-otlp-proto-http==1.45.2"]
 bedrock = ["boto3==1.42.89"]
 vertex = ["google-auth==2.55.1"]
 azure-identity = ["azure-identity==1.25.3"]
@@ -451,8 +451,8 @@ constraint-dependencies = [
   "msgpack>=1.2.3,<2",
   "multidict>=6.9.1,<7",
   "oauthlib>=4.0.1,<5",
-  "opentelemetry-api>=1.45.1,<2",
-  "tornado>=6.6,<7",
+  "opentelemetry-api>=1.45.2,<2",
+  "tornado>=6.6.1,<7",
 ]
 override-dependencies = [
   # discord.py's latest published version, 2.7.1, pins pynacl at <1.6. however, pynacl 1.5.0 has known vulnerabilities.

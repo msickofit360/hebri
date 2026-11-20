@@ -54,8 +54,8 @@ LAZY_DEPS: dict[str, tuple[str, ...]] = {
     # ─── Monitoring ─────────────────────────────────────────────────────────
     # OTLP export; tracks the `otlp` extra.
     "export.otlp": (
-        "opentelemetry-sdk==1.45.1",
-        "opentelemetry-exporter-otlp-proto-http==1.45.1",
+        "opentelemetry-sdk==1.45.2",
+        "opentelemetry-exporter-otlp-proto-http==1.45.2",
     ),
 
     # ─── TTS providers ─────────────────────────────────────────────────────
