@@ -21,6 +21,7 @@ from hermes_constants import (
     display_hermes_home,
 )
 from hermes_state_dbfile import RETIRED_GENERATION_DIR_SUFFIX
+from hermes_state_holders import read_only_db_uri
 from utils import (
     _preserve_file_mode, _preserve_file_owner, _restore_file_mode, _restore_file_owner, atomic_replace,
     default_new_file_mode,
@@ -43,14 +44,14 @@ def _snapshot_recovery_hint() -> str:
     return ("To restore a newer snapshot, start `hermes` in a terminal and run `/snapshot list`, then "
             "`/snapshot restore <id>` (CLI only).")
 
-# Directory names to skip (matched against each path component). ``hermes-agent`` only matches at
-# the root (``_should_exclude``) so skill dirs like ``skills/.../hermes-agent/`` survive. The
-# dependency/cache entries matter: one plugin venv or pip/uv cache under HERMES_HOME walked
+# Current and legacy per-user checkout names. Protect only the installation at the home root.
+_INSTALL_DIRS = frozenset({"hebri-agent", "hermes-agent"})
+
+# Directory names to skip at any depth. One plugin venv or pip/uv cache under HERMES_HOME walked
 # file-by-file balloons a backup to hundreds of thousands of entries ("backup stuck for days").
 # Mostly mirrors ``agent.skill_utils.EXCLUDED_SKILL_DIRS``; ``.cache`` is backup-only. ``.archive``
 # is deliberately NOT excluded: the curator's ``skills/.archive/`` holds restorable user skills.
 _EXCLUDED_DIRS = {
-    "hermes-agent",     # the codebase repo — re-clone instead
     "__pycache__",      # bytecode caches — regenerated on import
     ".git",             # nested git dirs (profiles shouldn't have these, but safety)
     "node_modules",     # js deps — reinstalled on demand
@@ -86,9 +87,15 @@ _EXCLUDED_BACKUP_ROOT_DIRS = frozenset({"browser_profiles"})
 _KEPT_CACHE_SUBDIRS = {"images", "audio", "videos", "documents", "screenshots", "citations"}
 
 
+def _in_install_tree(rel_path: Path) -> bool:
+    return bool(rel_path.parts and os.path.normcase(rel_path.parts[0]) in _INSTALL_DIRS)
+
+
 def _in_excluded_root_dir(rel_path: Path) -> bool:
     """True when *rel_path* is inside a regenerable tree at a profile-home root."""
     parts = rel_path.parts
+    if _in_install_tree(rel_path):
+        return True
     if len(parts) >= 3 and parts[0] == "profiles":
         parts = parts[2:]
     if not parts:
@@ -250,7 +257,8 @@ def _iter_external_files(base: Path) -> List[Path]:
         return []
     files: List[Path] = []
     for dirpath, dirnames, filenames in os.walk(base, followlinks=False):
-        dirnames[:] = [d for d in dirnames if d not in _EXCLUDED_DIRS]
+        # External provider trees historically omit any nested Hermes checkout.
+        dirnames[:] = [d for d in dirnames if d not in _EXCLUDED_DIRS and d != "hermes-agent"]
         files.extend(fp for fp in (Path(dirpath) / f for f in filenames)
                      if not (_is_non_regular_path(fp) or fp.name in _EXCLUDED_NAMES
                              or fp.name.endswith(_EXCLUDED_SUFFIXES)))
@@ -274,8 +282,7 @@ def _should_exclude(rel_path: Path) -> bool:
     parts = rel_path.parts
     if _in_excluded_root_dir(rel_path):
         return True
-    # ``hermes-agent`` only matches at the root level; nested same-named dirs are preserved.
-    if any(p in _EXCLUDED_DIRS and (p != "hermes-agent" or p == parts[0]) for p in parts):
+    if any(p in _EXCLUDED_DIRS for p in parts):
         return True
     name = rel_path.name
     return name in _EXCLUDED_NAMES or name.startswith(_EXCLUDED_PREFIXES) or name.endswith(_EXCLUDED_SUFFIXES)
@@ -285,16 +292,14 @@ def _iter_backup_files(hermes_root: Path, out_path: Path, skipped_dirs: Optional
     """Yield ``(abs_path, rel_path)`` for every file a full backup should hold.
 
     The one owner of the walk policy (directory pruning so os.walk never descends a multi-GB
-    excluded tree, the root-only ``hermes-agent`` carve-out, root runtime trees, per-file rules),
+    excluded tree, root-only installation directories, root runtime trees, per-file rules),
     shared by ``hebri backup`` and the pre-update / pre-migration path so they can never drift.
     """
     for dirpath, dirnames, filenames in os.walk(hermes_root, followlinks=False):
         rel_dir = Path(dirpath).relative_to(hermes_root)
-        is_root = rel_dir == Path(".")
         kept = [
             d for d in dirnames
-            if (d not in _EXCLUDED_DIRS or (d == "hermes-agent" and not is_root))
-            and not _in_excluded_root_dir(rel_dir / d)]
+            if d not in _EXCLUDED_DIRS and not _in_excluded_root_dir(rel_dir / d)]
         if skipped_dirs is not None:
             skipped_dirs.update(str(rel_dir / d) for d in set(dirnames) - set(kept))
         dirnames[:] = kept
@@ -323,7 +328,7 @@ def _query_ro_sqlite(path: Path, fn):
     """Run ``fn(conn)`` on a read-only connection to *path*; return ``(value, None)`` or ``(None, exc)``."""
     conn = None
     try:
-        conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=1.0)
+        conn = sqlite3.connect(read_only_db_uri(path), uri=True, timeout=1.0)
         return fn(conn), None
     except Exception as exc:
         return None, exc
@@ -355,7 +360,7 @@ def _safe_copy_db(src: Path, dst: Path, *, timeout_seconds: float = 10.0) -> boo
                 os.close(secure_fd)
         # timeout=0.0 disables sqlite3's implicit busy wait so the progress callback owns the
         # full locked-source deadline instead of adding the default timeout before each callback.
-        conn = sqlite3.connect(f"file:{src}?mode=ro", uri=True, timeout=0.0)
+        conn = sqlite3.connect(read_only_db_uri(src), uri=True, timeout=0.0)
         backup_conn = sqlite3.connect(str(dst))
         busy_deadline = time.monotonic() + max(0.0, timeout_seconds)
 
@@ -524,7 +529,7 @@ def _safe_restore_db(src: Path, dst: Path) -> bool:
         # Checkpoint first so the backup starts clean rather than writing on top of a deep WAL.
         with suppress(Exception):
             dst_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-        with closing(sqlite3.connect(f"file:{src}?mode=ro", uri=True)) as src_conn:
+        with closing(sqlite3.connect(read_only_db_uri(src), uri=True)) as src_conn:
             src_conn.backup(dst_conn)
         dst_conn.close()
         with suppress(Exception):
@@ -840,7 +845,7 @@ def _count_session_rows(path: Path) -> Optional[Tuple[int, int]]:
     if not path.is_file():
         return None
     try:
-        conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        conn = sqlite3.connect(read_only_db_uri(path), uri=True)
     except sqlite3.Error:
         return None
     try:
@@ -944,7 +949,8 @@ def _import_members(
             tighten = target.suffix in {".json", ".env", ".conf"} or target.name in _SECRET_FILE_NAMES
         else:
             rel = member[len(prefix):] if prefix and member.startswith(prefix) else member
-            if rel and Path(rel).name in _IMPORT_SKIP_NAMES:  # see ``_IMPORT_SKIP_NAMES``
+            rel_path = Path(rel)
+            if _in_install_tree(rel_path) or rel_path.name in _IMPORT_SKIP_NAMES:
                 skipped_runtime.append(rel)
                 continue
             # A ``.db`` member is page-restored into the live file; an archived WAL/SHM/journal
@@ -1043,8 +1049,8 @@ def run_import(args) -> None:
                           sorted(skipped_runtime), "    ")
         restored_profiles = _restore_profile_wrappers(hermes_root)
         print()
-        if not (hermes_root / "hermes-agent").is_dir():
-            print("Note: The hermes-agent codebase was not included in the backup.\n"
+        if not any((hermes_root / name).is_dir() for name in _INSTALL_DIRS):
+            print("Note: The Hebri installation is managed separately from the backup.\n"
                   "  If this is a fresh install, run: hebri update")
         if restored_profiles:
             print("\nTo re-enable gateway services for profiles:")

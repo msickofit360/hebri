@@ -102,7 +102,9 @@ def select_synapsek(home: Path | None = None):
     path = (home or get_hermes_home()) / "config.yaml"
     config = yaml.safe_load(path.read_text(encoding="utf-8")) if path.exists() else {}
     config = config or {}
-    model = dict(config.get("model") or {})
+    current_model = config.get("model")
+    # A string is shorthand for the default model that this login replaces.
+    model = {} if isinstance(current_model, str) else dict(current_model or {})
     for key in ("base_url", "api_key", "key_env", "api_key_env", "api_mode"):
         model.pop(key, None)
     model.update(provider="synapsek", default="synapsek-auto")

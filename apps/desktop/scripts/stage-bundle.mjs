@@ -11,7 +11,7 @@
  *
  * Excluded: dev-only trees (tests/, website/, evals/), VCS metadata, and
  * build artifacts (node_modules, __pycache__, .venv, apps/desktop/{dist,
- * build,release}). Everything the installed agent needs at runtime ships.
+ * build,release} and numbered desktop release directories).
  *
  * NOTE: Node's fs.cpSync refuses to copy a directory into a subdirectory of
  * itself (the output lives inside the repo), so this uses an explicit
@@ -57,7 +57,7 @@ function isExcluded(relParts) {
     relParts[0] === "apps" &&
     relParts[1] === "desktop" &&
     relParts.length > 2 &&
-    DESKTOP_EXCLUDE.has(relParts[2])
+    (DESKTOP_EXCLUDE.has(relParts[2]) || /^release\d+$/.test(relParts[2]))
   ) {
     return true
   }

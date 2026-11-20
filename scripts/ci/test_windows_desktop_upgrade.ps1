@@ -1,7 +1,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$Installer,
     [Parameter(Mandatory = $true)][string]$ExpectedVersion,
-    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$PreviousVersion = '0.17.23'
+    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$PreviousVersion = '0.17.30'
 )
 
 # Installs real NSIS packages and therefore runs only on disposable hosted CI.

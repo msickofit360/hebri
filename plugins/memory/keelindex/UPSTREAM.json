@@ -7,7 +7,9 @@
     {
       "source": "src/keel/__init__.py",
       "path": "__init__.py",
-      "sha256": "e59bf2d849fac99287901b6ecb69f0f2ecc7f4e6edb8df8b040d0924f9607d01"
+      "sha256": "07d3cba4822c1f454e27284711f2f947c9a5c1886cfdce0fb371e49078940637",
+      "upstream_sha256": "e59bf2d849fac99287901b6ecb69f0f2ecc7f4e6edb8df8b040d0924f9607d01",
+      "patch": "Index Unicode words and recognize exact non-ASCII text, including unspaced East Asian phrases."
     },
     {
       "source": "src/keel/aliasgen.py",

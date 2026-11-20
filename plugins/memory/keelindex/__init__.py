@@ -25,6 +25,7 @@ import json
 import logging
 import math
 import re
+import unicodedata
 from contextlib import contextmanager
 import sqlite3
 from dataclasses import dataclass
@@ -63,7 +64,7 @@ def _load_aliasgen():
 aliasgen = _load_aliasgen()
 
 # --------------------------------------------------------------------------------------
-# retrieval core (verbatim from the measured v0.3.0 drop-in)
+# retrieval core
 # --------------------------------------------------------------------------------------
 
 _STOP = set('the a an and or of to in on for is are was were be it this that with at by from '
@@ -130,20 +131,27 @@ def stem(w):
     return w
 
 
+def _fold(text):
+    return unicodedata.normalize("NFC", text.casefold())
+
+
+_WORDS = re.compile(r"[^\W_]+")
+
+
 def tokens(text):
-    text = text.lower().replace("on-call", "oncall").replace("on call", "oncall")
+    text = _fold(text).replace("on-call", "oncall").replace("on call", "oncall")
     out = []
-    for raw in re.findall(r"[a-z0-9]+", text):
-        if raw in _STOP or len(raw) < 2:
-            continue
-        out.append(stem(SYN.get(raw, raw)))
+    for raw in _WORDS.findall(text):
+        if not raw.isascii():
+            out.append(raw)
+        elif raw not in _STOP and len(raw) >= 2:
+            out.append(stem(SYN.get(raw, raw)))
     return out
 
 
 def char_grams(text, n=4):
-    text = re.sub(r"[^a-z0-9 ]+", " ", text.lower())
     out = []
-    for word in text.split():
+    for word in _WORDS.findall(_fold(text)):
         padded = " " + word + " "
         for i in range(len(padded) - n + 1):
             out.append(padded[i:i + n])
@@ -421,6 +429,10 @@ class IndexedStore:
         alias_map = self._aliases_by_id()
         has_aliases = any(alias_map.get(r['id']) for r in rows)
         qt = set(tokens(query))
+        literal = _fold(query.strip()) if any(not c.isascii() and c.isalpha() for c in query) else ''
+        # Wide-script words can occur inside a run with no spaces, e.g. 東京駅 in a sentence.
+        allow_substring = len(literal) >= 2 and all(
+            c.isalpha() and unicodedata.east_asian_width(c) in ('W', 'F') for c in literal)
 
         # BODY channel. When write-time aliases exist they arbitrate weak matches: a body match
         # resting on a SINGLE shared term is not treated as evidence, because the normalised score
@@ -428,9 +440,17 @@ class IndexedStore:
         # is inert -> retrieval is byte-identical to v0.3.0.
         body_hits = []
         for i, (fid, s) in enumerate(index.score_all(query)):
+            literal_match = False
+            if literal:
+                fields = (_fold(by_id[fid][field].strip()) for field in ('key', 'body'))
+                literal_match = any(literal == field or (allow_substring and literal in field)
+                                    for field in fields)
+                if literal_match:
+                    # An exact match can otherwise miss the threshold when every term occurs once.
+                    s = max(s, self.params.k1 + 1.0)
             if s < threshold:
                 continue
-            if has_aliases:
+            if has_aliases and not literal_match:
                 matched = sum(1 for t in qt if index.word_tf[i].get(t, 0))
                 if matched < 2:
                     continue

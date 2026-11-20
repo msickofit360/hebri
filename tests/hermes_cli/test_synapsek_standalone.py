@@ -147,16 +147,31 @@ def test_bridge_auth_retries_owner_binding_and_tool_stream(tmp_path, monkeypatch
         server.shutdown(); server.server_close()
 
 
-def test_account_model_selection_preserves_other_config(tmp_path):
-    from hermes_cli.synapsek_account import select_synapsek
+@pytest.mark.parametrize(("previous_model", "retained"), [
+    ("anthropic/claude-sonnet-4", {}),
+    ({"provider": "custom", "base_url": "https://old.invalid", "context_length": 32000},
+     {"context_length": 32000}),
+])
+def test_managed_login_selects_model_and_preserves_other_config(tmp_path, monkeypatch, previous_model, retained):
+    from types import SimpleNamespace
+    from hermes_cli import synapsek_account
     import yaml
+
+    def successful_login(action, *, on_authorize):
+        assert action == "login"
+        return {"state": "signed_in", "account": {"managedInferenceEnabled": True}}
+
+    monkeypatch.setattr(synapsek_account, "run_account", successful_login)
     path = tmp_path / "config.yaml"
-    path.write_text("# personal settings\nmodel:\n  provider: custom\n  base_url: https://old.invalid\nterminal:\n  backend: docker\n")
-    select_synapsek(tmp_path)
-    result = yaml.safe_load(path.read_text())
-    assert result["model"] == {"provider": "synapsek", "default": "synapsek-auto"}
+    config = {"model": previous_model, "terminal": {"backend": "docker"}}
+    path.write_text("# personal settings\n" + yaml.safe_dump(config), encoding="utf-8")
+    synapsek_account.cli(SimpleNamespace(synapsek_action="login", no_browser=True))
+
+    saved = path.read_text(encoding="utf-8")
+    result = yaml.safe_load(saved)
+    assert result["model"] == {"provider": "synapsek", "default": "synapsek-auto", **retained}
     assert result["terminal"]["backend"] == "docker"
-    assert "# personal settings" in path.read_text()
+    assert "# personal settings" in saved
 
 
 def test_browser_account_routes_reject_unauthenticated_and_remote(monkeypatch):

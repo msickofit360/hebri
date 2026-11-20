@@ -14,6 +14,7 @@ import sqlite3
 import sys
 from pathlib import Path
 from typing import Callable, List, Optional, Sequence, Set, Tuple
+from urllib.parse import quote_from_bytes
 
 from hermes_state_errors import is_sqlite_lock_error
 
@@ -24,9 +25,13 @@ except ImportError:  # pragma: no cover - stripped/scaffold installs only
 
 
 def read_only_db_uri(db_path) -> str:
-    """``file:`` URI for a ``mode=ro`` open. ``as_uri()`` percent-encodes ``?``/``#`` in the home
-    path; a raw ``f"file:{path}?mode=ro"`` truncates there and opens the wrong (empty) database."""
-    return Path(db_path).resolve().as_uri() + "?mode=ro"
+    """Build a SQLite read-only URI, escaping URI delimiters in the filename."""
+    path = Path(db_path)
+    if path.drive.startswith("\\\\"):
+        # A UNC server is part of the native filename. SQLite rejects the
+        # non-local URI authority that Path.as_uri() would give it.
+        return "file:" + quote_from_bytes(os.fsencode(path)) + "?mode=ro"
+    return path.resolve().as_uri() + "?mode=ro"
 
 
 logger = logging.getLogger(__name__)

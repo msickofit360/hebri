@@ -182,6 +182,31 @@ test('a disabled updater is an error, and concurrent checks share a request', as
   assert.equal(client.downloadUpdate.mock.calls.length, 0)
 })
 
+test('manual checks keep the downloaded release selected until installation', async () => {
+  const client = updater({ isUpdateAvailable: true, updateInfo: { version: '0.17.29' } })
+  const showMessageBox = vi.fn(async (_window: unknown, _options: { message: string }) => ({
+    checkboxChecked: false,
+    response: 0
+  }))
+  const controller = createReleaseUpdater({
+    currentVersion: '0.17.28',
+    isPackaged: true,
+    getWindow: () => null,
+    log: vi.fn(),
+    showMessageBox,
+    updater: client as never
+  })!
+
+  const staged = await controller.apply()
+  client.checkForUpdates.mockResolvedValue({ isUpdateAvailable: true, updateInfo: { version: '0.17.30' } })
+  await controller.check(true)
+  assert.match(showMessageBox.mock.calls[0][1].message, /0\.17\.29 is downloaded/)
+  assert.equal((await controller.status(true)).releaseVersion, staged.releaseVersion)
+  assert.deepEqual(await controller.apply(), staged)
+  assert.equal(client.checkForUpdates.mock.calls.length, 1)
+  assert.equal(client.downloadUpdate.mock.calls.length, 1)
+})
+
 test('release download streams real progress, survives a reopened status view and becomes ready only after verification', async () => {
   const client = updater({ isUpdateAvailable: true, updateInfo: { version: '0.17.21' } })
   let finish!: (files: string[]) => void
@@ -208,7 +233,11 @@ test('release download streams real progress, survives a reopened status view an
   await vi.waitFor(() => assert.equal(client.downloadUpdate.mock.calls.length, 1))
   client.emit('download-progress', { transferred: 50, total: 100, bytesPerSecond: 10 })
   assert.equal(onProgress.mock.calls.at(-1)?.[0].percent, 50)
-  assert.equal((await controller.status()).progress?.transferred, 50)
+  client.checkForUpdates.mockResolvedValue({ isUpdateAvailable: true, updateInfo: { version: '0.17.22' } })
+  const downloading = await controller.status(true)
+  assert.equal(downloading.progress?.transferred, 50)
+  assert.equal(downloading.releaseVersion, '0.17.21')
+  assert.equal(client.checkForUpdates.mock.calls.length, 1)
   client.emit('download-progress', { transferred: 100, total: 100, bytesPerSecond: 10 })
   assert.equal((await controller.status()).progress?.releasePhase, 'verifying')
   finish(['verified-installer'])

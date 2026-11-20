@@ -63,6 +63,7 @@ const DRIVEN: readonly string[] = ['click', 'hover', 'press', 'type']
 const CLICKS: readonly string[] = ['click', 'type']
 
 const NOTHING_OPEN = 'No live page is open in the in-app browser — use desktop_preview with action="open" first.'
+const INPUT_LOOKUP_TIMEOUT = 'The page did not respond before input could be sent. Read the page and retry.'
 
 const NAVIGATED =
   'The page stopped answering right after — it is probably navigating. Call elements to see where you landed.'
@@ -352,7 +353,7 @@ async function driveAction(
   }
 
   if (trip.kind === 'silent') {
-    return { acted: action.kind, note: NAVIGATED, success: true }
+    return { error: INPUT_LOOKUP_TIMEOUT, success: false }
   }
 
   const found = trip.result
@@ -477,7 +478,7 @@ async function driveScroll(
   }
 
   if (trip.kind === 'silent') {
-    return { acted: 'scrolled', note: NAVIGATED, success: true }
+    return { error: INPUT_LOOKUP_TIMEOUT, success: false }
   }
 
   const anchor = trip.result as PreviewActResult & { page?: number; span?: number }

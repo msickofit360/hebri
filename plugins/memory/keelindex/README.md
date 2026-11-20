@@ -87,10 +87,12 @@ repository's MIT license does not replace that license. Corresponding source
 is shipped here, including the maintenance tools. No runtime fetch from the
 private upstream repository is needed.
 
-The only patch to upstream 0.6.1 is in `maintenance/keel_admin.py`: explicitly
-selected hidden homes such as `.hebri` and `.hermes` are permitted. Implicit
-multi-profile discovery still excludes hidden directories. `UPSTREAM.json`
-records both the upstream hash and the patched bundled hash. `cli.py` is Hebri's
+Hebri patches `__init__.py` to index Unicode words and recall exact text,
+including Japanese phrases inside unspaced sentences. Existing records use the
+new tokenizer when the in-memory index is built. In `maintenance/keel_admin.py`,
+Hebri permits explicitly selected hidden homes such as `.hebri` and `.hermes`.
+Implicit multi-profile discovery still excludes hidden directories. `UPSTREAM.json`
+records the upstream and bundled hashes for both patches. `cli.py` is Hebri's
 profile-scoped wrapper, adding backup-before-apply and writer acknowledgment.
 
 The upstream lifecycle correction fixed stale correction/deletion recall,

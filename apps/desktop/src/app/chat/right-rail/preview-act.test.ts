@@ -157,6 +157,24 @@ describe('actOnActivePreview (drive_preview tool)', () => {
 
   const sentTypes = (send: ReturnType<typeof vi.fn>) => send.mock.calls.map(([event]) => event.type)
 
+  it.each(['click', 'type', 'press', 'hover', 'scroll'])(
+    'reports a stalled lookup before sending %s input',
+    async kind => {
+      vi.useFakeTimers()
+      const tabId = openBrowserTab()
+      const send = vi.fn()
+      const focus = vi.fn()
+      cleanups.push(registerPreviewScriptRunner(tabId, () => new Promise(() => {})))
+      cleanups.push(registerPreviewInput(tabId, { focus, send }))
+
+      const result = actOnActivePreview(kind === 'scroll' ? { kind } : { kind, ref: '@e1' })
+      await vi.runAllTimersAsync()
+      expect(await result).toMatchObject({ success: false, error: expect.stringContaining('before input') })
+      expect(send).not.toHaveBeenCalled()
+      expect(focus).not.toHaveBeenCalled()
+    }
+  )
+
   it('clicks with real input, walking the pointer to where the page said', async () => {
     const send = withDrivenPane()
 
@@ -173,6 +191,25 @@ describe('actOnActivePreview (drive_preview tool)', () => {
       y: 80
     })
     expect(result.acted).toBe('clicked button "Save"')
+  })
+
+  it('keeps the dispatched click when the page stops answering during read-back', async () => {
+    vi.useFakeTimers()
+    const tabId = openBrowserTab()
+    const send = vi.fn()
+    const runner = vi
+      .fn<() => Promise<unknown>>()
+      .mockResolvedValueOnce(
+        JSON.stringify({ acted: 'looking at button "Save"', point: { x: 12, y: 8 }, success: true })
+      )
+      .mockImplementation(() => new Promise(() => {}))
+    cleanups.push(registerPreviewScriptRunner(tabId, runner))
+    cleanups.push(registerPreviewInput(tabId, { focus: vi.fn(), send }))
+
+    const result = actOnActivePreview({ kind: 'click', ref: '@e1' })
+    await vi.runAllTimersAsync()
+    expect(await result).toMatchObject({ acted: 'clicked button "Save"', success: true })
+    expect(sentTypes(send)).toContain('mouseUp')
   })
 
   it('types by pressing keys, after selecting whatever the field held', async () => {

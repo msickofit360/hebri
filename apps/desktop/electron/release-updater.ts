@@ -168,6 +168,12 @@ export function createReleaseUpdater(options: ReleaseUpdaterOptions): ReleaseUpd
       return checking
     }
 
+    // A check changes electron-updater's selected release. Keep the selected
+    // version stable while downloading and until its installer runs on quit.
+    if (latest && (ready || progress?.stage === 'fetch')) {
+      return { ...latest, progress }
+    }
+
     if (!force && latest && !latest.error && Date.now() - latest.fetchedAt < CHECK_INTERVAL_MS) {
       return { ...latest, progress }
     }
@@ -283,6 +289,16 @@ export function createReleaseUpdater(options: ReleaseUpdaterOptions): ReleaseUpd
     const result = await status(manual)
 
     if (!manual) {
+      return
+    }
+
+    if (result.progress?.releasePhase === 'ready') {
+      await options.showMessageBox(options.getWindow(), {
+        type: 'info',
+        title: nativeText('Hebri update found'),
+        message: result.progress.message
+      })
+
       return
     }
 

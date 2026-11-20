@@ -79,3 +79,26 @@ def test_committed_memory_corrections_and_removals_retire_recall(homes):
     finally:
         manager.shutdown_all()
         reset_hermes_home_override(token)
+
+
+@pytest.mark.parametrize(("key", "body", "query"), [
+    ("meeting location", "会議の集合場所は東京駅です", "会議の集合場所は東京駅です"),
+    ("meeting location", "会議の集合場所は東京駅です", "東京駅"),
+    ("meeting location", "Место встречи — Казанский вокзал", "МЕСТО ВСТРЕЧИ — КАЗАНСКИЙ ВОКЗАЛ"),
+    ("Казанский вокзал", "Место встречи — Казанский вокзал", "ВОКЗАЛ казанский"),
+])
+def test_existing_unicode_fact_is_recalled_after_restart(homes, key, body, query):
+    tool = "keel_index_memory"
+    writer = load_memory_provider("keelindex", register_skills=False)
+    writer.initialize("writing")
+    saved = json.loads(writer.handle_tool_call(tool, {
+        "action": "save", "id": "location", "key": key, "body": body, "source": "user"
+    }))
+    assert saved["stored"] == "location"
+
+    reader = load_memory_provider("keelindex", register_skills=False)
+    reader.initialize("reading")
+    recalled = json.loads(reader.handle_tool_call(tool, {"action": "recall", "query": query}))
+    assert [r["body"] for r in recalled["records"]] == [body]
+    unrelated = json.loads(reader.handle_tool_call(tool, {"action": "recall", "query": "天気予報"}))
+    assert unrelated["records"] == []
