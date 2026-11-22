@@ -89,6 +89,123 @@ function fileStore() {
 }
 
 describe('Synapsek native account', () => {
+  it('recovers a lost logout reply only after the pinned issuer confirms the refresh token is gone', async () => {
+    const { storage } = fileStore()
+    let revoked = false
+    let refreshStatus = 400
+    let refreshBody: Record<string, unknown> = { error_code: 'refresh_token_not_found' }
+    let refreshes = 0
+    let revocations = 0
+    const server = http.createServer((req, res) => {
+      res.setHeader('Content-Type', 'application/json')
+      if (req.url?.includes('action=config')) {
+        res.end(JSON.stringify(config))
+      } else if (req.url?.includes('/oauth/token')) {
+        refreshes++
+        res.statusCode = refreshStatus
+        res.end(JSON.stringify(refreshBody))
+      } else if (req.url?.includes('action=revoke')) {
+        revocations++
+        if (!revoked) {
+          revoked = true
+          req.socket.destroy() // The revoke committed, but its reply was lost.
+        } else {
+          res.statusCode = 401
+          res.end(JSON.stringify({ code: 'unauthenticated' }))
+        }
+      } else if (req.url?.includes('action=bind')) {
+        res.end(JSON.stringify({ expiresAt: new Date(Date.now() + 60000).toISOString() }))
+      } else {
+        res.end(JSON.stringify(snapshot()))
+      }
+    })
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+    const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`
+    const json: typeof accountJson = (url, init, max) => {
+      if (url.endsWith('/oauth/token')) expect(url).toBe(config.tokenUrl)
+      return accountJson(base + new URL(url).pathname + new URL(url).search, init, max)
+    }
+    const account = new SynapsekAccount(
+      origin,
+      storage,
+      async () => {},
+      json,
+      async () => ({ accessToken: 'access', refreshToken: 'refresh', expiresAt: Date.now() + 3600000 })
+    )
+    try {
+      await account.signIn()
+      await expect(account.signOut()).rejects.toThrow()
+      expect(loadAccount(storage)).not.toBeNull()
+      // A server error with the same body is not evidence of revocation.
+      refreshStatus = 500
+      await expect(account.signOut()).rejects.toThrow('service_unavailable')
+      expect(loadAccount(storage)).not.toBeNull()
+      refreshStatus = 400
+      refreshBody = { error_code: 'invalid_client' }
+      await expect(account.signOut()).rejects.toThrow('service_unavailable')
+      expect(loadAccount(storage)).not.toBeNull()
+      refreshStatus = 200
+      refreshBody = {
+        token_type: 'Bearer',
+        access_token: 'rotated-access',
+        refresh_token: 'rotated-refresh',
+        expires_in: 3600
+      }
+      const beforeRetry = revocations
+      await expect(account.signOut()).rejects.toThrow('reauthentication_required')
+      expect(revocations - beforeRetry).toBe(2)
+      expect(loadAccount(storage)?.refreshToken).toBe('rotated-refresh')
+      refreshStatus = 400
+      refreshBody = { error_code: 'refresh_token_not_found' }
+      expect(await account.signOut()).toEqual({ state: 'signed_out' })
+      expect(loadAccount(storage)).toBeNull()
+      expect(refreshes).toBe(4)
+      // Restarting after the lost reply must also recover from the saved token.
+      saveAccount(saved, storage)
+      const restarted = new SynapsekAccount(origin, storage, async () => {}, json)
+      expect(await restarted.signOut()).toEqual({ state: 'signed_out' })
+      expect(loadAccount(storage)).toBeNull()
+    } finally {
+      await new Promise<void>(resolve => server.close(() => resolve()))
+    }
+  })
+
+  it('does not treat a non-token endpoint or changed issuer as refresh revocation', async () => {
+    const { storage } = fileStore()
+    saveAccount(saved, storage)
+    let calls = 0
+    const account = new SynapsekAccount(
+      origin,
+      storage,
+      async () => {},
+      async () => {
+        calls++
+        return {
+          ...config,
+          issuer: 'https://other.supabase.co/auth/v1',
+          authorizeUrl: 'https://other.supabase.co/auth/v1/oauth/authorize',
+          tokenUrl: 'https://other.supabase.co/auth/v1/oauth/token'
+        }
+      }
+    )
+    await expect(account.signOut()).rejects.toThrow('reauthentication_required')
+    expect(calls).toBe(1)
+    expect(loadAccount(storage)).not.toBeNull()
+    const server = http.createServer((_req, res) => {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error_code: 'refresh_token_not_found' }))
+    })
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+    try {
+      const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`
+      await expect(accountJson(`${base}/api/desktop-account?action=revoke`, { method: 'POST' })).rejects.toThrow(
+        'service_unavailable'
+      )
+    } finally {
+      await new Promise<void>(resolve => server.close(() => resolve()))
+    }
+  })
+
   it('sends team commands over authenticated HTTP and denies account switches before transmission', async () => {
     const { storage } = fileStore()
     saveAccount(saved, storage)

@@ -267,6 +267,17 @@ export async function accountJson(url: string, init: RequestInit = {}, maxBytes 
       throw new AccountError('invalid_response')
     }
 
+    if (
+      response.status === 400 &&
+      body?.error_code === 'refresh_token_not_found' &&
+      new URL(url).pathname === '/auth/v1/oauth/token' &&
+      init?.method === 'POST' &&
+      typeof init.body === 'string' &&
+      new URLSearchParams(init.body).get('grant_type') === 'refresh_token'
+    ) {
+      throw new AccountError('refresh_token_revoked')
+    }
+
     if (response.status === 403 && body?.code === 'session_binding_required') {
       throw new AccountError('session_binding_required')
     }
@@ -579,7 +590,10 @@ export class SynapsekAccount {
         throw new AccountError('reauthentication_required')
       }
 
-      if (saved && (!this.tokens || this.tokens.expiresAt <= Date.now())) {
+      const refreshForLogout = async () => {
+        if (!saved) {
+          throw new AccountError('reauthentication_required')
+        }
         const config = await this.config()
 
         if (saved.issuer !== config.issuer || saved.clientId !== config.clientId) {
@@ -588,27 +602,52 @@ export class SynapsekAccount {
 
         // Do not require an active account snapshot to finish a previously
         // partial revocation. The revoke endpoint is deliberately idempotent.
-        this.tokens = parseTokens(
-          await this.json(config.tokenUrl, {
+        let response: unknown
+        try {
+          response = await this.json(config.tokenUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
               grant_type: 'refresh_token',
               client_id: config.clientId,
-              refresh_token: saved.refreshToken
+              refresh_token: this.tokens?.refreshToken || saved.refreshToken
             }).toString()
           })
-        )
+        } catch (error) {
+          if (!(error instanceof AccountError) || error.code !== 'refresh_token_revoked') {
+            throw error
+          }
+          // A committed logout can lose its reply. Only the pinned issuer's
+          // explicit missing-refresh-token response confirms recovery is safe.
+          this.tokens = null
+          return
+        }
+        this.tokens = parseTokens(response)
         saveAccount({ ...saved, refreshToken: this.tokens.refreshToken }, this.storage)
       }
 
-      if (this.tokens) {
-        const result = await this.json(`${this.origin}/api/desktop-account?action=revoke`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${this.tokens.accessToken}` }
-        })
+      if (saved && (!this.tokens || this.tokens.expiresAt <= Date.now())) {
+        await refreshForLogout()
+      }
 
-        if (result?.revoked !== true || result?.refreshRevoked !== true) {
+      if (this.tokens) {
+        const revoke = () =>
+          this.json(`${this.origin}/api/desktop-account?action=revoke`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${this.tokens!.accessToken}` }
+          })
+        let result
+        try {
+          result = await revoke()
+        } catch (error) {
+          if (!(error instanceof AccountError) || error.code !== 'reauthentication_required') {
+            throw error
+          }
+          await refreshForLogout()
+          if (this.tokens) result = await revoke() // At most one refreshed retry.
+        }
+
+        if (this.tokens && (result?.revoked !== true || result?.refreshRevoked !== true)) {
           throw new AccountError('revocation_incomplete')
         }
       }

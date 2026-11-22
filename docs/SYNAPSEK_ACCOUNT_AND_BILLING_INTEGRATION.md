@@ -567,3 +567,45 @@ References:
 - [Supabase OAuth flows and token claims](https://supabase.com/docs/guides/auth/oauth-server/oauth-flows)
 - [OAuth token security and RLS](https://supabase.com/docs/guides/auth/oauth-server/token-security)
 - [Stripe subscription webhooks](https://docs.stripe.com/billing/subscriptions/webhooks)
+
+## 2026-11-22 staging logout recovery qualification
+
+The earlier review above describes historical implementation gaps. Managed native
+inference now exists; an ordinary disposable staging account completed PKCE,
+device consent, an Auto request and measured provider-cost settlement in the
+website PR #263 preview. Premium manual selection and automatic paid retry were
+rejected. This is staging evidence, not production rollout approval.
+
+Live qualification found two logout defects:
+
+1. Supabase's ordinary logout endpoint does not accept OAuth-client sessions.
+   Website PR #263 adds a service-only SQL function restricted to a matching
+   user/client/device session already marked revoked by Synapsek. It deletes
+   that auth session and its cascading refresh tokens. The function is installed
+   and verified in staging only; production requires the reviewed migration.
+2. After successful revocation, a lost HTTP response left Hebri with its encrypted
+   refresh credential. A retry received HTTP 401 and could never finish. Hebri
+   now asks the pinned issuer/client to refresh once. Only HTTP 400 with the
+   issuer's explicit `refresh_token_not_found` code for the refresh-token grant
+   confirms it can clear the credential. A successful refresh is persisted and
+   permits one bounded revoke retry. Other failures retain the credential.
+
+Regression coverage uses real loopback HTTP and encrypted temporary files:
+response loss, issuer failure, invalid client, token rotation, bounded retry,
+restart recovery, changed issuer and an unrelated endpoint with a misleading
+error body. The regression failed on unmodified 0.17.31 before the fix.
+
+On isolated Windows Electron against staging, restart recovery and a fresh
+PKCE/device-consent session with deliberate loss of the successful revoke reply
+both passed. The latter returned 401 on retry, recovered through the issuer,
+removed the local encrypted credential, and independently proved refresh reuse
+returns HTTP 400 `refresh_token_not_found`. These recovery tests incurred no
+model requests. The staging Site URL was restored afterward. Installed user
+profiles were not used.
+
+One immediate re-login between rehearsals returned 401 before device consent;
+the following attempt passed. Its cause remains unverified and must not be
+presented as resolved by this logout patch. This evidence does not qualify
+macOS/Linux native storage, accounting providers, social publishing, production
+billing, or all launch requirements. See the shared launch report in
+Synapsek-Labs/synapsek-internal for outstanding gates.
