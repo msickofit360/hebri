@@ -31,7 +31,12 @@ it('opens billing and credit management only at the configured Synapsek origin w
   const account = new SynapsekAccount(origin, {} as AccountStorage, open)
   await account.openBilling()
   await account.openBilling('credits')
-  expect(open.mock.calls.map(call => call[0])).toEqual([`${origin}/billing`, `${origin}/billing?section=credits`])
+  await account.openSignup()
+  expect(open.mock.calls.map(call => call[0])).toEqual([
+    `${origin}/billing`,
+    `${origin}/billing?section=credits`,
+    `${origin}/signup?next=%2Fpricing`
+  ])
 })
 
 const config = {

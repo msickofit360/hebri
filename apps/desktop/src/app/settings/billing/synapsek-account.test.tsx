@@ -26,6 +26,21 @@ afterEach(() => {
 })
 
 describe('Synapsek account controls', () => {
+  it('opens registration without signing in, activating a model or claiming the account is connected', async () => {
+    const bridge = vi.fn(async (operation: string) => ({
+      ok: true as const,
+      value: operation === 'status' ? { state: 'signed_out' as const } : null
+    }))
+    window.hermesDesktop = { ...previous, synapsekAccount: bridge } as NonNullable<typeof window.hermesDesktop>
+    render(<SynapsekAccountSettings />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Create a Synapsek account' }))
+    await waitFor(() => expect(bridge).toHaveBeenCalledWith('openSignup'))
+    expect(bridge).not.toHaveBeenCalledWith('signIn')
+    expect(setMainModelAssignment).not.toHaveBeenCalled()
+    expect(screen.queryByText('Synapsek is ready for new chats.')).toBeNull()
+    expect(screen.getByText(/A Synapsek plan is optional/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Sign in with Synapsek' })).toBeTruthy()
+  })
   it.each([true, false])('Simple sign-in selects Synapsek only with inference entitlement: %s', async enabled => {
     $interfaceMode.set('simple')
     const onMainModelChanged = vi.fn()

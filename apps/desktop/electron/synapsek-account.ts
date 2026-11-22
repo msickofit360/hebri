@@ -661,6 +661,9 @@ export class SynapsekAccount {
   openBilling(section: 'overview' | 'credits' = 'overview') {
     return this.open(`${this.origin}/billing${section === 'credits' ? '?section=credits' : ''}`)
   }
+  openSignup() {
+    return this.open(`${this.origin}/signup?next=%2Fpricing`)
+  }
   async teamRequest(command: { action: string; data: Record<string, string>; expectedUserId: string }) {
     const actions = [
       'list',

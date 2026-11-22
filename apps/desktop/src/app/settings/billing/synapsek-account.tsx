@@ -14,6 +14,7 @@ import type { SynapsekAccountView } from '../../../../electron/synapsek-account-
 
 import { billingCopy } from './billing-copy'
 import { accountCopy } from './synapsek-account-copy'
+import { synapsekStartCopy } from './synapsek-start-copy'
 import { developerCopy } from './synapsek-developer-copy'
 import { usageCopy } from './synapsek-usage-copy'
 
@@ -47,6 +48,7 @@ export function SynapsekAccountSettings({
   const [readyScope, setReadyScope] = useState<string | null>(null)
   const { locale } = useI18n()
   const copy = accountCopy[locale]
+  const start = synapsekStartCopy[locale]
   const setup = setupCopy[locale]
   const usageText = usageCopy[locale]
   const billingText = billingCopy[locale]
@@ -116,7 +118,9 @@ export function SynapsekAccountSettings({
     }
   }
 
-  async function run(operation: 'status' | 'signIn' | 'signOut' | 'openBilling' | 'openCredits' | 'forgetLocal') {
+  async function run(
+    operation: 'status' | 'signIn' | 'signOut' | 'openBilling' | 'openCredits' | 'openSignup' | 'forgetLocal'
+  ) {
     setBusy(true)
     setError('')
     setReadyScope(null)
@@ -156,6 +160,16 @@ export function SynapsekAccountSettings({
     <section aria-label={copy.title} className="space-y-6">
       <h2 className="font-semibold">{copy.title}</h2>
       <p className="text-sm text-muted-foreground">{copy.introduction}</p>
+      {view.state !== 'signed_in' && (
+        <div className="space-y-3">
+          <p className="text-sm">{start.benefit}</p>
+          <p className="text-sm text-muted-foreground">{start.steps}</p>
+          <Button disabled={busy} onClick={() => void run('openSignup')}>
+            {start.create}
+          </Button>
+          <p className="text-sm text-muted-foreground">{start.choice}</p>
+        </div>
+      )}
       {view.state === 'signed_in' && view.account?.managedInferenceEnabled && (
         <div className="space-y-2">
           <Button disabled={busy} onClick={() => void activateAccount()}>

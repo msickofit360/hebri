@@ -1,4 +1,4 @@
-import { accountCopy } from '@/app/settings/billing/synapsek-account-copy'
+import { synapsekStartCopy } from '@/app/settings/billing/synapsek-start-copy'
 import { RowButton } from '@/components/ui/row-button'
 import { useI18n } from '@/i18n'
 import { ChevronRight } from '@/lib/icons'
@@ -18,7 +18,8 @@ export function SynapsekProviderRow({ onClick }: { onClick: () => void }) {
           <img alt="" className="h-6 w-auto rounded" src={`${import.meta.env.BASE_URL}synapsek-wordmark.png`} />
           <span className="sr-only">Synapsek Labs</span>
         </div>
-        <p className="mt-1 text-xs leading-5 text-muted-foreground">{accountCopy[locale].introduction}</p>
+        <p className="mt-2 text-sm font-medium">{synapsekStartCopy[locale].title}</p>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">{synapsekStartCopy[locale].benefit}</p>
       </div>
       <ChevronRight className="size-4 shrink-0 text-primary" />
     </RowButton>

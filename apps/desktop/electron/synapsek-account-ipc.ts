@@ -23,14 +23,24 @@ export function registerSynapsekAccountIpc(rendererUrl: () => string) {
         throw new AccountError('forbidden')
       }
 
-      if (!['status', 'signIn', 'signOut', 'openBilling', 'openCredits', 'forgetLocal', 'teams'].includes(String(operation))) {
+      if (
+        !['status', 'signIn', 'signOut', 'openBilling', 'openCredits', 'openSignup', 'forgetLocal', 'teams'].includes(
+          String(operation)
+        )
+      ) {
         throw new AccountError('invalid_operation')
       }
 
       const account = getSynapsekAccount()
 
-      if (operation === 'teams')
-        {return { ok: true, value: await account.teamRequest(payload as Parameters<typeof account.teamRequest>[0]) }}
+      if (operation === 'openSignup') {
+        await account.openSignup()
+        return { ok: true, value: null }
+      }
+
+      if (operation === 'teams') {
+        return { ok: true, value: await account.teamRequest(payload as Parameters<typeof account.teamRequest>[0]) }
+      }
 
       const result =
         operation === 'status'
@@ -44,7 +54,9 @@ export function registerSynapsekAccountIpc(rendererUrl: () => string) {
                 : await account.openBilling(operation === 'openCredits' ? 'credits' : 'overview')
 
       if (['signIn', 'signOut', 'forgetLocal'].includes(String(operation))) {
-        for (const window of BrowserWindow.getAllWindows()) {window.webContents.send('hebri:synapsek-account-changed')}
+        for (const window of BrowserWindow.getAllWindows()) {
+          window.webContents.send('hebri:synapsek-account-changed')
+        }
       }
 
       return { ok: true, value: result ?? null }
