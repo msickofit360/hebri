@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import socketserver
 import ssl
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -64,6 +65,12 @@ class PeerServer(ThreadingHTTPServer):
         self.slots = threading.BoundedSemaphore(8)
         self.context = owner.identity.server_context()
         super().__init__((address, owner.identity.data.get("port", 0)), PeerHandler)
+
+    def server_bind(self):
+        # Peer identity is certificate-pinned; HTTPServer's reverse DNS lookup
+        # is unnecessary and can block enabling sharing while holding the lock.
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
 
     def get_request(self):
         stream, address = super().get_request()

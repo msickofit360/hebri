@@ -1,7 +1,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$Installer,
-    [Parameter(Mandatory = $true)][string]$ExpectedVersion,
-    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$PreviousVersion = '0.17.30'
+    [Parameter(Mandatory = $true)][ValidatePattern('^\d+\.\d+\.\d+$')][string]$ExpectedVersion,
+    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$PreviousVersion
 )
 
 # Installs real NSIS packages and therefore runs only on disposable hosted CI.
@@ -13,12 +13,20 @@ if ($env:OS -ne 'Windows_NT' -or $env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_
     throw 'The upgrade rehearsal requires a disposable GitHub-hosted Windows runner.'
 }
 $candidate = (Resolve-Path -LiteralPath $Installer).Path
+if (-not $PreviousVersion) {
+    $PreviousVersion = & node (Join-Path $PSScriptRoot 'select_upgrade_baseline.mjs') $ExpectedVersion
+    if ($LASTEXITCODE -ne 0 -or $PreviousVersion -notmatch '^\d+\.\d+\.\d+$') {
+        throw 'Could not resolve the immediately preceding published stable release.'
+    }
+}
+if ([version]$PreviousVersion -ge [version]$ExpectedVersion) { throw 'Upgrade baseline must precede the candidate.' }
+Write-Host "Upgrade baseline: https://github.com/Synapsek-Labs/hebri/releases/tag/v$PreviousVersion"
 $sandbox = Join-Path $env:RUNNER_TEMP ('hebri-upgrade-' + [Guid]::NewGuid().ToString('N'))
 $installDir = Join-Path $sandbox 'installed'
 New-Item -ItemType Directory -Path $sandbox | Out-Null
 
 $previousName = "Hebri-$PreviousVersion-win-x64.exe"
-& gh release download "v$PreviousVersion" --repo satoshilove/hebri --pattern $previousName --pattern 'SHA256SUMS.txt' --dir $sandbox
+& gh release download "v$PreviousVersion" --repo Synapsek-Labs/hebri --pattern $previousName --pattern 'SHA256SUMS.txt' --dir $sandbox
 if ($LASTEXITCODE -ne 0) { throw 'Could not download the previous release for upgrade testing.' }
 $previous = Join-Path $sandbox $previousName
 $checksumPattern = '^[0-9a-fA-F]{64}\s+\*?' + [regex]::Escape($previousName) + '$'

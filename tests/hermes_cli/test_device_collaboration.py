@@ -1,7 +1,9 @@
 """Real HTTPS pairing and request boundaries across isolated profile homes."""
 import base64
+import copy
 import json
 import secrets
+import socket
 import threading
 import time
 
@@ -38,6 +40,97 @@ def pair(host, client, allow=True):
     host.approve(pending[0]["ticket"], allow)
     assert client.finish(host.identity.id)["status"] == "approved"
     return invite
+
+
+def test_device_status_uses_local_interfaces_without_dns(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    import psutil
+    device = DeviceService(tmp_path, Fernet.generate_key().decode(), discovery=False)
+    def no_dns(*args, **kwargs):
+        raise AssertionError("Device status must not wait for hostname resolution")
+    monkeypatch.setattr(socket, "getaddrinfo", no_dns)
+    monkeypatch.setattr(psutil, "net_if_addrs", lambda: {
+        "lan": [SimpleNamespace(family=socket.AF_INET, address=value) for value in
+                ["192.168.1.2", "10.0.0.2", "127.0.0.1", "8.8.8.8", "169.254.1.2"]],
+        "vpn": [SimpleNamespace(family=socket.AF_INET, address="100.64.0.2"),
+                SimpleNamespace(family=socket.AF_INET, address="10.0.0.2"),
+                SimpleNamespace(family=socket.AF_INET6, address="::1")],
+    })
+    assert device.snapshot()["addresses"] == ["10.0.0.2", "100.64.0.2", "192.168.1.2"]
+    def unavailable():
+        raise OSError("interface enumeration unavailable")
+    monkeypatch.setattr(psutil, "net_if_addrs", unavailable)
+    assert device.snapshot()["addresses"] == []
+
+
+def test_device_start_and_pairing_do_not_require_reverse_dns(devices, monkeypatch):
+    def no_reverse_dns(*args, **kwargs):
+        raise AssertionError("Device startup must not wait for reverse DNS")
+    monkeypatch.setattr(socket, "getfqdn", no_reverse_dns)
+    host, client = devices("dns-host"), devices("dns-client")
+    pair(host, client)
+    assert client.snapshot()["peers"][0]["outgoing"] is True
+
+
+def test_failed_settings_save_preserves_memory_disk_and_running_service(devices, monkeypatch):
+    device = devices("settings")
+    before = copy.deepcopy(device.identity.data)
+    server = device.server
+    with monkeypatch.context() as failure:
+        def sharing_violation(*args):
+            raise PermissionError("injected sharing violation")
+        failure.setattr("hermes_cli.devices.identity.os.replace", sharing_violation)
+        with pytest.raises(PermissionError):
+            device.configure("Changed", False, [])
+    assert device.identity.data == before
+    assert Identity(device.home, device.identity.password).data == before
+    assert device.server is server
+    device.configure("Changed", False, [])
+    assert device.server is None
+    assert device.identity.data == Identity(device.home, device.identity.password).data
+    assert device.identity.data["name"] == "Changed"
+
+
+@pytest.mark.parametrize("operation", ["approve", "finish", "revoke", "start"])
+def test_failed_trust_save_does_not_commit_permissions_or_pairing(devices, monkeypatch, operation):
+    host, client = devices("host"), devices("client")
+    joined = client.join(host.create_invite("127.0.0.1")["invite"])
+    ticket = host.snapshot()["pending"][0]["ticket"]
+    assert joined["verification"]
+    if operation != "approve":
+        host.approve(ticket, True)
+    if operation in ("revoke", "start"):
+        client.finish(host.identity.id)
+    device = client if operation == "finish" else host
+    if operation == "start":
+        host.close()
+        host.identity.data["port"] = 0  # Ask the OS for a new port on restart.
+        host.identity.save()
+    before = copy.deepcopy(device.identity.data)
+    pending, joining = copy.deepcopy(device.pending), copy.deepcopy(device.joining)
+    actions = {
+        "approve": lambda: host.approve(ticket, True),
+        "finish": lambda: client.finish(host.identity.id),
+        "revoke": lambda: host.revoke(client.identity.id),
+        "start": host.start,
+    }
+    from hermes_cli.devices import identity
+    replace = identity.os.replace
+    with monkeypatch.context() as failure:
+        def sharing_violation(*args):
+            if str(args[1]).endswith("trust.enc"):
+                raise PermissionError("injected sharing violation")
+            return replace(*args)
+        failure.setattr("hermes_cli.devices.identity.os.replace", sharing_violation)
+        with pytest.raises(PermissionError):
+            actions[operation]()
+    assert device.identity.data == before
+    assert Identity(device.home, device.identity.password).data == before
+    assert device.pending == pending and device.joining == joining
+    if operation == "start":
+        assert device.server is None
+    actions[operation]()
+    assert device.identity.data == Identity(device.home, device.identity.password).data
 
 
 def wait_result(client, host, job_id):

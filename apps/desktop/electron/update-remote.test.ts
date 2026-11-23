@@ -28,14 +28,14 @@ import {
 } from './update-remote'
 
 test('canonicalGitHubRemote normalizes SSH and HTTPS forms to the same value', () => {
-  assert.equal(canonicalGitHubRemote('git@github.com:satoshilove/hebri.git'), OFFICIAL_REPO_CANONICAL)
-  assert.equal(canonicalGitHubRemote('git@github.com:satoshilove/hebri'), OFFICIAL_REPO_CANONICAL)
-  assert.equal(canonicalGitHubRemote('ssh://git@github.com/satoshilove/hebri.git'), OFFICIAL_REPO_CANONICAL)
-  assert.equal(canonicalGitHubRemote('https://github.com/satoshilove/hebri.git'), OFFICIAL_REPO_CANONICAL)
+  assert.equal(canonicalGitHubRemote('git@github.com:Synapsek-Labs/hebri.git'), OFFICIAL_REPO_CANONICAL)
+  assert.equal(canonicalGitHubRemote('git@github.com:Synapsek-Labs/hebri'), OFFICIAL_REPO_CANONICAL)
+  assert.equal(canonicalGitHubRemote('ssh://git@github.com/Synapsek-Labs/hebri.git'), OFFICIAL_REPO_CANONICAL)
+  assert.equal(canonicalGitHubRemote('https://github.com/Synapsek-Labs/hebri.git'), OFFICIAL_REPO_CANONICAL)
   // Case-insensitive: an uppercased owner still canonicalizes to the same repo.
-  assert.equal(canonicalGitHubRemote('git@github.com:SatoshiLove/Hebri.git'), OFFICIAL_REPO_CANONICAL)
+  assert.equal(canonicalGitHubRemote('git@github.com:SYNAPSEK-LABS/Hebri.git'), OFFICIAL_REPO_CANONICAL)
   // Trailing slashes are stripped.
-  assert.equal(canonicalGitHubRemote('https://github.com/satoshilove/hebri/'), OFFICIAL_REPO_CANONICAL)
+  assert.equal(canonicalGitHubRemote('https://github.com/Synapsek-Labs/hebri/'), OFFICIAL_REPO_CANONICAL)
 })
 
 test('canonicalGitHubRemote is empty for falsy input', () => {
@@ -53,6 +53,15 @@ test('isSshRemote detects scp-like and ssh:// forms only', () => {
 })
 
 test('isOfficialSshRemote is true only for the official repo over SSH', () => {
+  for (const url of [
+    'git@github.com:Synapsek-Labs/hebri.git',
+    'ssh://git@github.com/Synapsek-Labs/hebri.git',
+    'GIT@GITHUB.COM:SYNAPSEK-LABS/HEBRI.GIT',
+    'SSH://GIT@GITHUB.COM/SYNAPSEK-LABS/HEBRI.GIT/'
+  ]) {
+    assert.equal(isOfficialSshRemote(url), true, url)
+  }
+
   assert.equal(isOfficialSshRemote('git@github.com:satoshilove/hebri.git'), true)
   assert.equal(isOfficialSshRemote('git@github.com:satoshilove/hebri'), true)
   assert.equal(isOfficialSshRemote('ssh://git@github.com/satoshilove/hebri.git'), true)

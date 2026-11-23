@@ -90,8 +90,12 @@ class Identity:
         self.cert = self.data["cert"]
         self.id = fingerprint(self.cert)
 
-    def save(self):
-        atomic_write(self.path, self.box.encrypt(json.dumps(self.data).encode()))
+    def save(self, data=None):
+        # Publish a candidate only after the encrypted atomic replacement succeeds.
+        # Callers must not mutate the live trust records before this commit.
+        candidate = self.data if data is None else data
+        atomic_write(self.path, self.box.encrypt(json.dumps(candidate).encode()))
+        self.data = candidate
 
     def server_context(self) -> ssl.SSLContext:
         # OpenSSL needs files; only the encrypted private key is ever written.

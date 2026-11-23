@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import copy
 import hashlib
 import hmac
 import json
@@ -10,6 +11,8 @@ import socket
 import threading
 import time
 from pathlib import Path
+
+import psutil
 
 from .identity import DeviceError, Identity, fingerprint, private_address
 from .transport import PeerServer, request
@@ -48,9 +51,8 @@ class DeviceService:
             if self.server:
                 return
             self.server = PeerServer(self, self.bind)
-            self.identity.data["port"] = self.server.server_port
             try:
-                self.identity.save()
+                self.identity.save({**self.identity.data, "port": self.server.server_port})
             except Exception:
                 self.server.server_close()
                 self.server = None
@@ -87,8 +89,8 @@ class DeviceService:
         if any(not isinstance(model, str) or not 1 <= len(model) <= 200 for model in models):
             raise DeviceError("invalid_model")
         with self.lock:
-            self.identity.data.update(name=name, enabled=enabled, models=list(dict.fromkeys(models)))
-            self.identity.save()
+            self.identity.save({**self.identity.data, "name": name, "enabled": enabled,
+                                "models": list(dict.fromkeys(models))})
             for job in self.jobs.values():
                 if job["model"] not in models:
                     job["cancel"].set()
@@ -157,9 +159,10 @@ class DeviceService:
             if len(self.identity.data["peers"]) >= 32 and row["id"] not in self.identity.data["peers"]:
                 raise DeviceError("device_limit")
             token = secrets.token_urlsafe(32)
-            peer = self.identity.data["peers"].setdefault(row["id"], {"name": row["name"]})
+            candidate = copy.deepcopy(self.identity.data)
+            peer = candidate["peers"].setdefault(row["id"], {"name": row["name"]})
             peer.update(incoming=digest(token), assistance=allow_assistance)
-            self.identity.save()
+            self.identity.save(candidate)
             row["token"] = token
 
     def finish(self, peer_id):
@@ -176,17 +179,19 @@ class DeviceService:
                 raise DeviceError("pairing_expired")
             if len(self.identity.data["peers"]) >= 32 and peer_id not in self.identity.data["peers"]:
                 raise DeviceError("device_limit")
-            current = self.identity.data["peers"].setdefault(peer_id, {})
+            candidate = copy.deepcopy(self.identity.data)
+            current = candidate["peers"].setdefault(peer_id, {})
             current.update({k: peer[k] for k in ("address", "port", "cert", "name")})
             current["outgoing"] = result["token"]
-            self.identity.save()
+            self.identity.save(candidate)
             del self.joining[peer_id]
         return {"status": "approved"}
 
     def revoke(self, peer_id):
         with self.lock:
-            self.identity.data["peers"].pop(peer_id, None)
-            self.identity.save()
+            candidate = copy.deepcopy(self.identity.data)
+            candidate["peers"].pop(peer_id, None)
+            self.identity.save(candidate)
             self.pending = {k: v for k, v in self.pending.items() if v["id"] != peer_id}
             self.joining.pop(peer_id, None)
             self.outgoing_jobs = {k: v for k, v in self.outgoing_jobs.items() if v["peer"] != peer_id}
@@ -336,12 +341,13 @@ class DeviceService:
     def addresses(self):
         addresses = set()
         try:
-            rows = socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET)
+            interfaces = psutil.net_if_addrs()
         except OSError:
-            rows = []
+            interfaces = {}
+        rows = (row for entries in interfaces.values() for row in entries if row.family == socket.AF_INET)
         for row in rows:
             try:
-                address = private_address(row[4][0])
+                address = private_address(row.address)
                 if not address.startswith("127."):
                     addresses.add(address)
             except DeviceError:

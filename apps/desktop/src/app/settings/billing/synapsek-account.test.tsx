@@ -31,6 +31,7 @@ describe('Synapsek account controls', () => {
       ok: true as const,
       value: operation === 'status' ? { state: 'signed_out' as const } : null
     }))
+
     window.hermesDesktop = { ...previous, synapsekAccount: bridge } as NonNullable<typeof window.hermesDesktop>
     render(<SynapsekAccountSettings />)
     fireEvent.click(await screen.findByRole('button', { name: 'Create a Synapsek account' }))
@@ -41,49 +42,84 @@ describe('Synapsek account controls', () => {
     expect(screen.getByText(/A Synapsek plan is optional/)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Sign in with Synapsek' })).toBeTruthy()
   })
-  it.each([true, false])('Simple sign-in selects Synapsek only with inference entitlement: %s', async enabled => {
-    $interfaceMode.set('simple')
-    const onMainModelChanged = vi.fn()
+  it.each([true, false])(
+    'Simple sign-in preserves the model until explicit activation: entitlement %s',
+    async enabled => {
+      $interfaceMode.set('simple')
+      const onMainModelChanged = vi.fn()
 
-    const bridge = vi.fn(async (operation: string) => ({
-      ok: true as const,
-      value:
-        operation === 'status'
-          ? { state: 'signed_out' as const }
-          : {
-              state: 'signed_in' as const,
-              account: {
-                userId: 'test-user',
-                email: 'fixture@example.com',
-                managedInferenceEnabled: enabled,
-                billing: {
-                  plan: 'pro',
-                  sku: 'pro',
-                  status: 'active',
-                  accessSource: 'stripe',
-                  includedMonthlyCredits: 4000
+      const bridge = vi.fn(async (operation: string) => ({
+        ok: true as const,
+        value:
+          operation === 'status'
+            ? { state: 'signed_out' as const }
+            : {
+                state: 'signed_in' as const,
+                account: {
+                  userId: 'test-user',
+                  email: 'fixture@example.com',
+                  managedInferenceEnabled: enabled,
+                  billing: {
+                    plan: 'pro',
+                    sku: 'pro',
+                    status: 'active',
+                    accessSource: 'stripe',
+                    includedMonthlyCredits: 4000
+                  }
                 }
               }
-            }
-    }))
+      }))
 
-    window.hermesDesktop = { ...previous, synapsekAccount: bridge } as NonNullable<typeof window.hermesDesktop>
-    render(<SynapsekAccountSettings onMainModelChanged={onMainModelChanged} />)
-    fireEvent.click(await screen.findByText('Sign in with Synapsek'))
-    await screen.findByText('fixture@example.com')
+      window.hermesDesktop = { ...previous, synapsekAccount: bridge } as NonNullable<typeof window.hermesDesktop>
+      render(<SynapsekAccountSettings onMainModelChanged={onMainModelChanged} />)
+      fireEvent.click(await screen.findByText('Sign in with Synapsek'))
+      await screen.findByText('fixture@example.com')
 
-    if (enabled) {
-      await screen.findByText('Synapsek is ready for new chats.')
-      expect(setMainModelAssignment).toHaveBeenCalledWith(
-        { provider: 'synapsek', model: 'synapsek-auto' },
-        { connectionId: null, profile: 'default' }
-      )
-      expect(onMainModelChanged).toHaveBeenCalledWith('synapsek', 'synapsek-auto')
-    } else {
       expect(setMainModelAssignment).not.toHaveBeenCalled()
       expect(onMainModelChanged).not.toHaveBeenCalled()
-      expect(screen.queryByText('Use Synapsek for new chats')).toBeNull()
+      expect(screen.queryByText('Synapsek is ready for new chats.')).toBeNull()
+
+      if (enabled) {
+        fireEvent.click(screen.getByText('Use Synapsek for new chats'))
+        await screen.findByText('Synapsek is ready for new chats.')
+        expect(setMainModelAssignment).toHaveBeenCalledWith(
+          { provider: 'synapsek', model: 'synapsek-auto' },
+          { connectionId: null, profile: 'default' }
+        )
+        expect(onMainModelChanged).toHaveBeenCalledWith('synapsek', 'synapsek-auto')
+      } else {
+        expect(setMainModelAssignment).not.toHaveBeenCalled()
+        expect(onMainModelChanged).not.toHaveBeenCalled()
+        expect(screen.queryByText('Use Synapsek for new chats')).toBeNull()
+      }
     }
+  )
+
+  it('keeps saved-session recovery available after opening signup until status actually recovers', async () => {
+    let recovered = false
+
+    const bridge = vi.fn(async (operation: string) =>
+      operation === 'openSignup'
+        ? { ok: true as const, value: null }
+        : recovered
+          ? { ok: true as const, value: { state: 'signed_out' as const } }
+          : { ok: false as const, code: 'stored_session_unavailable' }
+    )
+
+    window.hermesDesktop = { ...previous, synapsekAccount: bridge } as NonNullable<typeof window.hermesDesktop>
+    render(<SynapsekAccountSettings />)
+    await screen.findByRole('alert')
+    const before = screen.getAllByRole('button').map(button => button.textContent)
+    fireEvent.click(screen.getByRole('button', { name: 'Create a Synapsek account' }))
+    await waitFor(() => expect(bridge).toHaveBeenCalledWith('openSignup'))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Create a Synapsek account' })).toHaveProperty('disabled', false)
+    )
+    expect(screen.getByRole('alert')).toBeTruthy()
+    expect(screen.getAllByRole('button').map(button => button.textContent)).toEqual(before)
+    recovered = true
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh account' }))
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
   })
 
   it.each(['service_unavailable', 'account_operation_failed'])(

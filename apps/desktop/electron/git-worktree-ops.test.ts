@@ -164,7 +164,8 @@ test('listBranches: empty on a non-repo path', async () => {
   try {
     assert.deepEqual(await listBranches(dir, 'git'), [])
   } finally {
-    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
+    // Completion also means both Git probes have released the directory.
+    fs.rmSync(dir, { recursive: true, force: true })
   }
 })
 

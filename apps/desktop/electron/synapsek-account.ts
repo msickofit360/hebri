@@ -301,6 +301,7 @@ export async function accountJson(url: string, init: RequestInit = {}, maxBytes 
     if (!response.ok && /^connector_[a-z_]{1,60}$/.test(String(body?.code || ''))) {
       throw new AccountError(body.code)
     }
+
     if (response.status === 401 || response.status === 403) {
       throw new AccountError('reauthentication_required')
     }
@@ -492,6 +493,10 @@ export class SynapsekAccount {
     return this.exclusive(async () => {
       const saved = loadAccount(this.storage)
 
+      if (!saved || this.tokens?.refreshToken !== saved.refreshToken) {
+        this.tokens = null
+      }
+
       if (!saved) {
         return { state: 'signed_out' }
       }
@@ -582,9 +587,21 @@ export class SynapsekAccount {
       return { state: 'signed_in', account }
     })
   }
-  async signOut(): Promise<SynapsekAccountView> {
+  async signOut(expectedUserId?: string): Promise<SynapsekAccountView> {
     return this.exclusive(async () => {
-      const saved = loadAccount(this.storage)
+      let saved = loadAccount(this.storage)
+
+      // Dashboard ownership is checked against protected local state, not a
+      // status request that may fail precisely because logout already committed.
+      if (saved && expectedUserId && saved.userId !== expectedUserId) {
+        throw new AccountError('account_mismatch')
+      }
+
+      // The durable credential is authoritative after rotation or another
+      // controller updates the store, even if our last snapshot request failed.
+      if (!saved || this.tokens?.refreshToken !== saved.refreshToken) {
+        this.tokens = null
+      }
 
       if (saved && saved.appOrigin !== this.origin) {
         throw new AccountError('reauthentication_required')
@@ -594,6 +611,7 @@ export class SynapsekAccount {
         if (!saved) {
           throw new AccountError('reauthentication_required')
         }
+
         const config = await this.config()
 
         if (saved.issuer !== config.issuer || saved.clientId !== config.clientId) {
@@ -603,6 +621,7 @@ export class SynapsekAccount {
         // Do not require an active account snapshot to finish a previously
         // partial revocation. The revoke endpoint is deliberately idempotent.
         let response: unknown
+
         try {
           response = await this.json(config.tokenUrl, {
             method: 'POST',
@@ -610,20 +629,33 @@ export class SynapsekAccount {
             body: new URLSearchParams({
               grant_type: 'refresh_token',
               client_id: config.clientId,
-              refresh_token: this.tokens?.refreshToken || saved.refreshToken
+              refresh_token: saved.refreshToken
             }).toString()
           })
         } catch (error) {
           if (!(error instanceof AccountError) || error.code !== 'refresh_token_revoked') {
             throw error
           }
+
           // A committed logout can lose its reply. Only the pinned issuer's
           // explicit missing-refresh-token response confirms recovery is safe.
           this.tokens = null
+
           return
         }
-        this.tokens = parseTokens(response)
-        saveAccount({ ...saved, refreshToken: this.tokens.refreshToken }, this.storage)
+
+        const tokens = parseTokens(response)
+        const rotated = { ...saved, refreshToken: tokens.refreshToken }
+
+        try {
+          saveAccount(rotated, this.storage)
+        } catch (error) {
+          this.tokens = null
+          throw error
+        }
+
+        saved = rotated
+        this.tokens = tokens
       }
 
       if (saved && (!this.tokens || this.tokens.expiresAt <= Date.now())) {
@@ -636,15 +668,21 @@ export class SynapsekAccount {
             method: 'POST',
             headers: { Authorization: `Bearer ${this.tokens!.accessToken}` }
           })
+
         let result
+
         try {
           result = await revoke()
         } catch (error) {
           if (!(error instanceof AccountError) || error.code !== 'reauthentication_required') {
             throw error
           }
+
           await refreshForLogout()
-          if (this.tokens) result = await revoke() // At most one refreshed retry.
+
+          if (this.tokens) {
+            result = await revoke()
+          } // At most one refreshed retry.
         }
 
         if (this.tokens && (result?.revoked !== true || result?.refreshRevoked !== true)) {
@@ -769,17 +807,22 @@ export class SynapsekAccount {
     if (!body || typeof body !== 'object' || JSON.stringify(body).length > 24_000) {
       throw new AccountError('connector_invalid_request')
     }
+
     const view = await this.status()
+
     return this.exclusive(async () => {
       const saved = loadAccount(this.storage)
+
       if (
         !saved ||
         !this.tokens ||
         view.state !== 'signed_in' ||
         view.account?.userId !== saved.userId ||
         (expectedUserId && expectedUserId !== saved.userId)
-      )
+      ) {
         throw new AccountError('account_mismatch')
+      }
+
       return this.json(
         `${this.origin}/api/hebri-connectors`,
         {

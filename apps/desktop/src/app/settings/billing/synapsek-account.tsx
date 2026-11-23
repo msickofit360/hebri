@@ -5,7 +5,6 @@ import { setupCopy } from '@/components/onboarding/setup-copy'
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/i18n'
 import { $activeConnectionId } from '@/store/connections'
-import { $interfaceMode } from '@/store/interface-mode'
 import { setMainModelAssignment } from '@/store/model-assignment'
 import { captureOnboardingScope } from '@/store/onboarding-scope'
 import { $settingsScopeProfile } from '@/store/settings-scope'
@@ -14,8 +13,8 @@ import type { SynapsekAccountView } from '../../../../electron/synapsek-account-
 
 import { billingCopy } from './billing-copy'
 import { accountCopy } from './synapsek-account-copy'
-import { synapsekStartCopy } from './synapsek-start-copy'
 import { developerCopy } from './synapsek-developer-copy'
+import { synapsekStartCopy } from './synapsek-start-copy'
 import { usageCopy } from './synapsek-usage-copy'
 
 const messages: Record<string, string> = {
@@ -39,7 +38,6 @@ export function SynapsekAccountSettings({
 }: {
   onMainModelChanged?: (provider: string, model: string) => void
 }) {
-  const simple = useStore($interfaceMode) === 'simple'
   const profile = useStore($settingsScopeProfile)
   const connectionId = useStore($activeConnectionId)
   const scopeKey = `${connectionId}:${profile}`
@@ -122,7 +120,6 @@ export function SynapsekAccountSettings({
     operation: 'status' | 'signIn' | 'signOut' | 'openBilling' | 'openCredits' | 'openSignup' | 'forgetLocal'
   ) {
     setBusy(true)
-    setError('')
     setReadyScope(null)
 
     try {
@@ -133,21 +130,8 @@ export function SynapsekAccountSettings({
       } else if (!result.ok) {
         setError(result.code)
       } else if (result.value) {
+        setError('')
         setView(result.value)
-
-        if (
-          operation === 'signIn' &&
-          simple &&
-          result.value.state === 'signed_in' &&
-          result.value.account?.managedInferenceEnabled &&
-          currentScope.current === scopeKey
-        ) {
-          try {
-            await selectSynapsek()
-          } catch {
-            setError('model_selection_failed')
-          }
-        }
       }
     } catch {
       setError('account_operation_failed')

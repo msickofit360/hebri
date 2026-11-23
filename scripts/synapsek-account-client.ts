@@ -35,13 +35,7 @@ for await (const line of input) {
     const actions: Record<string, () => Promise<unknown>> = {
       status: () => account.status(),
       login: () => account.signIn(),
-      logout: async () => {
-        if (command.expectedUserId) {
-          const view = await account.status()
-          if (view.account?.userId !== command.expectedUserId) throw new AccountError('account_mismatch')
-        }
-        return account.signOut()
-      },
+      logout: () => account.signOut(command.expectedUserId),
       models: () => account.managedRequest('models', undefined, command.requestId, command.expectedUserId),
       connectors: () => account.connectorRequest(command.body, command.expectedUserId),
       completion: () => account.managedRequest('completion', command.body, command.requestId, command.expectedUserId)

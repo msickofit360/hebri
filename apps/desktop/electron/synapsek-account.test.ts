@@ -7,6 +7,7 @@ import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  AccountError,
   accountJson,
   type AccountStorage,
   loadAccount,
@@ -94,6 +95,110 @@ function fileStore() {
 }
 
 describe('Synapsek native account', () => {
+  it('revokes the current saved session after rotation succeeds but the status reply fails', async () => {
+    const { storage } = fileStore()
+    const clock = vi.spyOn(Date, 'now')
+    let now = Date.now()
+    clock.mockImplementation(() => now)
+    let statusFails = false
+    let currentRefresh = 'initial-refresh'
+    const refreshes: string[] = []
+    const revocations: string[] = []
+
+    const server = http.createServer(async (req, res) => {
+      res.setHeader('Content-Type', 'application/json')
+
+      if (req.url?.includes('action=config')) {
+        res.end(JSON.stringify(config))
+      } else if (req.url?.includes('/oauth/token')) {
+        let body = ''
+
+        for await (const chunk of req) {
+          body += chunk
+        }
+        const token = new URLSearchParams(body).get('refresh_token') || ''
+        refreshes.push(token)
+
+        if (token !== currentRefresh) {
+          res.statusCode = 400
+          res.end(JSON.stringify({ error_code: 'refresh_token_not_found' }))
+        } else {
+          currentRefresh = `rotation-${refreshes.length}`
+          res.end(
+            JSON.stringify({
+              token_type: 'Bearer',
+              access_token: currentRefresh + '-access',
+              refresh_token: currentRefresh,
+              expires_in: 3600
+            })
+          )
+        }
+      } else if (req.url?.includes('action=revoke')) {
+        revocations.push(req.headers.authorization || '')
+        res.end(JSON.stringify({ revoked: true, refreshRevoked: true }))
+      } else if (req.url?.includes('action=bind')) {
+        res.end(JSON.stringify({ expiresAt: new Date(now + 60000).toISOString() }))
+      } else {
+        res.statusCode = statusFails ? 503 : 200
+        res.end(JSON.stringify(statusFails ? { code: 'unavailable' } : snapshot()))
+      }
+    })
+
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+    const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`
+
+    const json: typeof accountJson = (url, init, max) =>
+      accountJson(base + new URL(url).pathname + new URL(url).search, init, max)
+
+    const account = new SynapsekAccount(
+      origin,
+      storage,
+      async () => {},
+      json,
+      async () => ({ accessToken: 'initial-access', refreshToken: currentRefresh, expiresAt: now + 120000 })
+    )
+
+    try {
+      await account.signIn()
+      now += 180000
+      statusFails = true
+      await expect(account.status()).rejects.toThrow('service_unavailable')
+      expect(loadAccount(storage)?.refreshToken).toBe('rotation-1')
+      now += 4000000
+      expect(await account.signOut()).toEqual({ state: 'signed_out' })
+      expect(refreshes).toEqual(['initial-refresh', 'rotation-1'])
+      expect(revocations).toEqual(['Bearer rotation-2-access'])
+      expect(loadAccount(storage)).toBeNull()
+    } finally {
+      clock.mockRestore()
+      await new Promise<void>(resolve => server.close(() => resolve()))
+    }
+  })
+
+  it('checks logout ownership locally before recovering an already revoked dashboard session', async () => {
+    const { storage } = fileStore()
+    saveAccount(saved, storage)
+
+    const json = vi.fn<typeof accountJson>(async url => {
+      if (url.includes('action=config')) {
+        return config
+      }
+
+      if (url === config.tokenUrl) {
+        throw new AccountError('refresh_token_revoked')
+      }
+      throw new Error('Logout must not require an active account status')
+    })
+
+    const account = new SynapsekAccount(origin, storage, async () => {}, json)
+    await expect(account.signOut('different-user')).rejects.toThrow('account_mismatch')
+    expect(json).not.toHaveBeenCalled()
+    expect(loadAccount(storage)).toEqual(saved)
+    expect(await account.signOut(user)).toEqual({ state: 'signed_out' })
+    expect(loadAccount(storage)).toBeNull()
+    expect(await account.signOut(user)).toEqual({ state: 'signed_out' })
+  })
+
   it('recovers a lost logout reply only after the pinned issuer confirms the refresh token is gone', async () => {
     const { storage } = fileStore()
     let revoked = false
@@ -101,8 +206,10 @@ describe('Synapsek native account', () => {
     let refreshBody: Record<string, unknown> = { error_code: 'refresh_token_not_found' }
     let refreshes = 0
     let revocations = 0
+
     const server = http.createServer((req, res) => {
       res.setHeader('Content-Type', 'application/json')
+
       if (req.url?.includes('action=config')) {
         res.end(JSON.stringify(config))
       } else if (req.url?.includes('/oauth/token')) {
@@ -111,6 +218,7 @@ describe('Synapsek native account', () => {
         res.end(JSON.stringify(refreshBody))
       } else if (req.url?.includes('action=revoke')) {
         revocations++
+
         if (!revoked) {
           revoked = true
           req.socket.destroy() // The revoke committed, but its reply was lost.
@@ -124,12 +232,18 @@ describe('Synapsek native account', () => {
         res.end(JSON.stringify(snapshot()))
       }
     })
+
     await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
     const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`
+
     const json: typeof accountJson = (url, init, max) => {
-      if (url.endsWith('/oauth/token')) expect(url).toBe(config.tokenUrl)
+      if (url.endsWith('/oauth/token')) {
+        expect(url).toBe(config.tokenUrl)
+      }
+
       return accountJson(base + new URL(url).pathname + new URL(url).search, init, max)
     }
+
     const account = new SynapsekAccount(
       origin,
       storage,
@@ -137,6 +251,7 @@ describe('Synapsek native account', () => {
       json,
       async () => ({ accessToken: 'access', refreshToken: 'refresh', expiresAt: Date.now() + 3600000 })
     )
+
     try {
       await account.signIn()
       await expect(account.signOut()).rejects.toThrow()
@@ -179,12 +294,14 @@ describe('Synapsek native account', () => {
     const { storage } = fileStore()
     saveAccount(saved, storage)
     let calls = 0
+
     const account = new SynapsekAccount(
       origin,
       storage,
       async () => {},
       async () => {
         calls++
+
         return {
           ...config,
           issuer: 'https://other.supabase.co/auth/v1',
@@ -193,14 +310,18 @@ describe('Synapsek native account', () => {
         }
       }
     )
+
     await expect(account.signOut()).rejects.toThrow('reauthentication_required')
     expect(calls).toBe(1)
     expect(loadAccount(storage)).not.toBeNull()
+
     const server = http.createServer((_req, res) => {
       res.writeHead(400, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ error_code: 'refresh_token_not_found' }))
     })
+
     await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+
     try {
       const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`
       await expect(accountJson(`${base}/api/desktop-account?action=revoke`, { method: 'POST' })).rejects.toThrow(
@@ -245,9 +366,13 @@ describe('Synapsek native account', () => {
       if (req.url === '/api/hebri-connectors') {
         connectorCalls++
         const chunks: Buffer[] = []
-        for await (const chunk of req) chunks.push(chunk)
+
+        for await (const chunk of req) {
+          chunks.push(chunk)
+        }
         expect(JSON.parse(Buffer.concat(chunks).toString())).toEqual({ command: { action: 'catalog' } })
         res.end(JSON.stringify({ items: [] }))
+
         return
       }
 

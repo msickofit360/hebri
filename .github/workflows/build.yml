@@ -96,6 +96,13 @@ jobs:
           tests/hermes_cli/test_backup_uri_roundtrip.py
           tests/hermes_cli/test_backup_install_tree.py
           --tb=short
+      - name: Test task persistence and device trust save failures
+        shell: bash
+        run: >-
+          bash scripts/run_tests.sh
+          tests/hermes_cli/test_kanban_task_roundtrip.py
+          tests/hermes_cli/test_device_collaboration.py
+          --tb=short -v -o faulthandler_timeout=30
 
   quality:
     needs: [validate-version, context-regressions, keel-memory]

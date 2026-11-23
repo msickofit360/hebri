@@ -1,0 +1,53 @@
+name: Announce published Hebri release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing published stable release (for example v0.17.32); check Discord before replaying'
+        required: true
+        type: string
+  pull_request:
+    paths:
+      - '.github/workflows/discord-release.yml'
+      - 'scripts/ci/announce-discord-release.mjs'
+      - 'scripts/tests/discord-release.test.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: discord-release-${{ github.event.release.tag_name || inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: node --test scripts/tests/discord-release.test.mjs
+
+  announce:
+    needs: validate
+    if: >-
+      github.repository == 'Synapsek-Labs/hebri' &&
+      ((github.event_name == 'release' && !github.event.release.draft && !github.event.release.prerelease) ||
+       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify public release and post to announcements
+        env:
+          DISCORD_RELEASE_WEBHOOK_URL: ${{ secrets.DISCORD_RELEASE_WEBHOOK_URL }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          EXPECTED_RELEASE_ID: ${{ github.event.release.id }}
+        run: node scripts/ci/announce-discord-release.mjs

@@ -12,8 +12,8 @@
  * testable without booting Electron (main.ts requires('electron') at load).
  */
 
-const OFFICIAL_REPO_HTTPS_URL = 'https://github.com/satoshilove/hebri.git'
-const OFFICIAL_REPO_CANONICAL = 'github.com/satoshilove/hebri'
+const OFFICIAL_REPO_HTTPS_URL = 'https://github.com/Synapsek-Labs/hebri.git'
+const OFFICIAL_REPO_CANONICAL = 'github.com/synapsek-labs/hebri'
 
 // Normalize common GitHub remote URL forms to `host/owner/repo` (lowercased,
 // no trailing slash, no .git suffix) so SSH and HTTPS forms of the same repo
@@ -23,7 +23,7 @@ function canonicalGitHubRemote(url) {
     return ''
   }
 
-  let value = String(url).trim()
+  let value = String(url).trim().toLowerCase()
 
   if (value.startsWith('git@github.com:')) {
     value = `github.com/${value.slice('git@github.com:'.length)}`
@@ -59,7 +59,9 @@ function isSshRemote(url) {
 }
 
 function isOfficialSshRemote(url) {
-  return isSshRemote(url) && canonicalGitHubRemote(url) === OFFICIAL_REPO_CANONICAL
+  return (
+    isSshRemote(url) && [OFFICIAL_REPO_CANONICAL, 'github.com/satoshilove/hebri'].includes(canonicalGitHubRemote(url))
+  )
 }
 
 export { canonicalGitHubRemote, isOfficialSshRemote, isSshRemote, OFFICIAL_REPO_CANONICAL, OFFICIAL_REPO_HTTPS_URL }
