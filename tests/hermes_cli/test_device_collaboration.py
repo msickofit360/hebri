@@ -15,6 +15,49 @@ from hermes_cli.devices.service import DeviceService
 from hermes_cli.devices.transport import request
 
 
+def test_failed_bind_does_not_arm_sharing(tmp_path):
+    device = DeviceService(tmp_path, Fernet.generate_key().decode(), bind="127.0.0.1", discovery=False)
+    with socket.socket() as occupied:
+        occupied.bind(("127.0.0.1", 0))
+        occupied.listen()
+        device.identity.save({**device.identity.data, "port": occupied.getsockname()[1]})
+        before = copy.deepcopy(device.identity.data)
+        persisted = device.identity.path.read_bytes()
+        with pytest.raises(OSError):
+            device.configure("test", True, ["fixture"])
+        assert device.identity.data == before
+        assert device.identity.path.read_bytes() == persisted
+        assert device.server is None
+    # A background refresh after the port becomes available must not enable sharing.
+    device.refresh()
+    assert device.server is None
+
+
+def test_discovery_failure_recovers_after_restart(tmp_path, monkeypatch):
+    from hermes_cli.devices import discovery
+    device = DeviceService(tmp_path, Fernet.generate_key().decode(), bind="127.0.0.1")
+    class AvailableDiscovery:
+        def __init__(self, *args):
+            pass
+        def close(self):
+            pass
+        def snapshot(self):
+            return []
+    def unavailable(*args):
+        raise OSError("discovery unavailable")
+    try:
+        monkeypatch.setattr(discovery, "Discovery", unavailable)
+        device.configure("test", True, ["fixture"])
+        assert device.snapshot()["discovery_unavailable"] is True
+        device.close()
+        monkeypatch.setattr(discovery, "Discovery", AvailableDiscovery)
+        device.start()
+        assert device.discovery is not None
+        assert device.snapshot()["discovery_unavailable"] is False
+    finally:
+        device.close()
+
+
 @pytest.fixture
 def devices(tmp_path):
     instances = []

@@ -102,9 +102,9 @@ export function ConnectorLogo({ className, connector }: { className?: string; co
           alt=""
           aria-hidden
           className="size-full object-contain"
-          src={icon}
-          referrerPolicy="no-referrer"
           onError={() => setFailedIcon(icon)}
+          referrerPolicy="no-referrer"
+          src={icon}
         />
       ) : site ? (
         <Favicon fallback={monogramFor(label)} url={site} />

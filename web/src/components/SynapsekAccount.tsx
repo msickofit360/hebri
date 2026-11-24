@@ -9,6 +9,7 @@ interface AccountView {
   state: "signed_out" | "signed_in" | "signing_in" | "unavailable";
   authorize_url?: string;
   error?: string;
+  recoveryUserId?: string;
   account?: {
     userId: string;
     email: string;
@@ -25,6 +26,7 @@ const ERRORS: Record<string, string> = {
   sign_out_before_switching: "This Bit already has a Synapsek account. Refresh its status before switching accounts.",
   reauthentication_required: "Your account needs to sign in again.",
   revocation_incomplete: "Server sign-out is incomplete. Retry; Hebri has kept the saved session so revocation can finish.",
+  credential_save_failed: "The refreshed session could not be saved. Unlock your credential store and retry. If Hebri restarted, revoke this device from your Synapsek account before reconnecting.",
 };
 
 interface SynapsekAccountProps {
@@ -74,7 +76,7 @@ function AccountPanel({ profile, onChanged }: AccountPanelProps) {
     try {
       const result = await fetchJSON<AccountView>(path(`/${action}`), {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(action === "logout" ? { expected_user_id: view?.account?.userId } : {}),
+        body: JSON.stringify(action === "logout" ? { expected_user_id: view?.account?.userId || view?.recoveryUserId } : {}),
       });
       setView(action === "refresh" ? await read() : result);
       if (action === "logout") onChanged();
@@ -97,7 +99,7 @@ function AccountPanel({ profile, onChanged }: AccountPanelProps) {
       {(error || view?.error) && <p role="alert" className="text-destructive">{error || ERRORS[view?.error ?? ""] || `Synapsek could not complete this action (${view?.error}). Refresh or retry.`}</p>}
       <div className="flex flex-wrap gap-2">
         {view?.state !== "signed_in" && <Button disabled={busy || pending || !view} onClick={() => void act("login")}>Sign in to Synapsek</Button>}
-        {view?.state === "signed_in" && <Button outlined disabled={busy} onClick={() => void act("logout")}>Sign out of Synapsek</Button>}
+        {(view?.state === "signed_in" || view?.recoveryUserId) && <Button outlined disabled={busy} onClick={() => void act("logout")}>Sign out of Synapsek</Button>}
         <Button ghost disabled={busy} onClick={() => void act("refresh")}>Refresh account</Button>
         <a href="https://synapseklabs.org/billing" target="_blank" rel="noopener noreferrer" className="self-center text-sm underline">Manage plan</a>
       </div>

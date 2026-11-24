@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
 
@@ -70,7 +72,7 @@ test('packaged updates fail closed to stable, complete artifacts', () => {
   assert.equal(client.autoDownload, false)
   assert.equal(client.allowDowngrade, false)
   assert.deepEqual(client.setFeedURL.mock.calls[0], [
-    { provider: 'github', owner: 'satoshilove', repo: 'hebri', private: false, releaseType: 'release' }
+    { ...pkg.build.publish[0], private: false, releaseType: 'release' }
   ])
   assert.equal(client.autoInstallOnAppQuit, process.platform !== 'win32')
   assert.equal(client.allowPrerelease, false)

@@ -1,3 +1,4 @@
+import { verifyPackagedUpdateMetadata } from './verify-packaged-updater.mjs'
 // Resolve electronDist at runtime (#38673, #47917): electron-builder 26.8.x can
 // re-unpack a broken Electron.app; reusing the installed dist dodges that.
 // npm workspace hoisting is non-deterministic — require.resolve finds electron
@@ -113,5 +114,9 @@ const result = spawnSync(process.execPath, [electronBuilderCli(), ...args], {
 if (result.error) {
   console.error(`[run-electron-builder] spawn failed: ${result.error.message}`)
   process.exit(1)
+}
+if (result.status === 0 && !forwardedArgs.includes('--dir')) {
+  const files = verifyPackagedUpdateMetadata(path.resolve(import.meta.dirname, '../release'))
+  console.log(`[packaged-updater] verified ${files.length} canonical repository metadata file(s)`)
 }
 process.exit(result.status == null ? 1 : result.status)

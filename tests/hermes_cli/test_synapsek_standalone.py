@@ -37,6 +37,20 @@ def test_cli_sign_in_status_does_not_print_account_details(monkeypatch, capsys):
     assert "private-plan" not in output.out + output.err
 
 
+def test_cli_unavailable_status_does_not_claim_sign_out(monkeypatch, capsys):
+    from types import SimpleNamespace
+    from hermes_cli import synapsek_account
+    monkeypatch.setattr(synapsek_account, "run_account", lambda *args, **kwargs: {
+        "state": "unavailable", "error": "credential_save_failed", "recoveryUserId": "private-owner"})
+    with pytest.raises(SystemExit) as raised:
+        synapsek_account.cli(SimpleNamespace(synapsek_action="status"))
+    assert raised.value.code == 1
+    output = capsys.readouterr()
+    assert "Signed out" not in output.out
+    assert "credential_save_failed" in output.err
+    assert "private-owner" not in output.out + output.err
+
+
 def test_rejected_incomplete_body_cannot_hold_the_account_bridge_open(tmp_path):
     from http.client import HTTPConnection
     from hermes_cli.synapsek_bridge import start_bridge

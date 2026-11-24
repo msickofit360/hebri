@@ -108,7 +108,7 @@ export async function startSynapsekInferenceBridge(account: ManagedAccount) {
       }
 
       if (connector) {
-        if (!account.connectorRequest) throw new AccountError('connector_service_unavailable')
+        if (!account.connectorRequest) {throw new AccountError('connector_service_unavailable')}
         res.end(JSON.stringify(await account.connectorRequest(body, owner)))
         return
       }

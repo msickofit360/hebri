@@ -33,7 +33,7 @@ for await (const line of input) {
       emit({ event: 'authorize', url })
     })
     const actions: Record<string, () => Promise<unknown>> = {
-      status: () => account.status(),
+      status: () => account.status().catch(error => account.recoveryView(error)),
       login: () => account.signIn(),
       logout: () => account.signOut(command.expectedUserId),
       models: () => account.managedRequest('models', undefined, command.requestId, command.expectedUserId),

@@ -128,7 +128,14 @@ describe('Synapsek account controls', () => {
       const bridge = vi.fn(async (operation: string) =>
         operation === 'signOut'
           ? { ok: true as const, value: { state: 'signed_out' as const } }
-          : { ok: false as const, code }
+          : {
+              ok: true as const,
+              value: {
+                state: 'unavailable' as const,
+                error: code,
+                recoveryUserId: '11111111-1111-4111-8111-111111111111'
+              }
+            }
       )
 
       window.hermesDesktop = { ...previous, synapsekAccount: bridge } as NonNullable<typeof window.hermesDesktop>
@@ -137,7 +144,9 @@ describe('Synapsek account controls', () => {
       expect(screen.queryByText(/Unlock your operating system/)).toBeNull()
       expect(screen.queryByText(/not enabled for this device/)).toBeNull()
       fireEvent.click(screen.getByText('Sign out'))
-      await waitFor(() => expect(bridge).toHaveBeenCalledWith('signOut'))
+      await waitFor(() =>
+        expect(bridge).toHaveBeenCalledWith('signOut', { expectedUserId: '11111111-1111-4111-8111-111111111111' })
+      )
       await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
       expect(screen.getByText('Sign in with Synapsek')).toHaveProperty('disabled', false)
       expect(bridge).not.toHaveBeenCalledWith('forgetLocal')
@@ -278,7 +287,7 @@ describe('Synapsek account controls', () => {
     )
     expect(screen.getByText(accountCopy.en.removeNotice)).toBeTruthy()
     fireEvent.click(screen.getByText(accountCopy.en.remove))
-    await waitFor(() => expect(bridge).toHaveBeenCalledWith('forgetLocal'))
+    await waitFor(() => expect(bridge).toHaveBeenCalledWith('forgetLocal', { expectedUserId: null }))
   })
   it('explains disabled account access without offering unrelated billing or clearing credentials', async () => {
     const bridge = vi.fn(async () => ({ ok: false as const, code: 'not_available' }))

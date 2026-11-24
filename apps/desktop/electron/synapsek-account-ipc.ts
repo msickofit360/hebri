@@ -32,6 +32,18 @@ export function registerSynapsekAccountIpc(rendererUrl: () => string) {
       }
 
       const account = getSynapsekAccount()
+      if (
+        ['signOut', 'forgetLocal'].includes(String(operation)) &&
+        (!payload ||
+          typeof payload !== 'object' ||
+          !('expectedUserId' in payload) ||
+          !(
+            (operation === 'forgetLocal' && payload.expectedUserId === null) ||
+            (typeof payload.expectedUserId === 'string' && /^[a-f0-9-]{36}$/i.test(payload.expectedUserId))
+          ))
+      ) {
+        throw new AccountError('account_mismatch')
+      }
 
       if (operation === 'openSignup') {
         await account.openSignup()
@@ -44,13 +56,13 @@ export function registerSynapsekAccountIpc(rendererUrl: () => string) {
 
       const result =
         operation === 'status'
-          ? await account.status()
+          ? await account.status().catch(error => account.recoveryView(error))
           : operation === 'signIn'
             ? await account.signIn()
             : operation === 'signOut'
-              ? await account.signOut()
+              ? await account.signOut((payload as { expectedUserId: string }).expectedUserId)
               : operation === 'forgetLocal'
-                ? await account.forgetLocal()
+                ? await account.forgetLocal((payload as { expectedUserId: string | null }).expectedUserId)
                 : await account.openBilling(operation === 'openCredits' ? 'credits' : 'overview')
 
       if (['signIn', 'signOut', 'forgetLocal'].includes(String(operation))) {

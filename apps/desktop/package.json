@@ -2,13 +2,13 @@
   "name": "hebri",
   "productName": "Hebri",
   "private": true,
-  "version": "0.17.33",
+  "version": "0.17.34",
   "description": "Native desktop shell for Hebri.",
   "license": "MIT",
   "author": "Synapsek",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/satoshilove/hebri.git"
+    "url": "git+https://github.com/Synapsek-Labs/hebri.git"
   },
   "type": "module",
   "main": "dist/electron-main.mjs",
@@ -186,6 +186,7 @@
     "electron-builder": "26.18.0",
     "esbuild": "0.28.1",
     "follow-redirects": "1.16.2",
+    "js-yaml": "4.3.2",
     "jsdom": "29.1.1",
     "prettier": "3.9.5",
     "rcedit": "5.0.2",
@@ -215,7 +216,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "satoshilove",
+        "owner": "Synapsek-Labs",
         "repo": "hebri"
       }
     ],

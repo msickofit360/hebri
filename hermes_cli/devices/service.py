@@ -46,18 +46,20 @@ class DeviceService:
         self.endpoint_cache = None
         self.discovery_error = False
 
-    def start(self):
+    def start(self, settings=None):
         with self.lock:
             if self.server:
                 return
             self.server = PeerServer(self, self.bind)
             try:
-                self.identity.save({**self.identity.data, "port": self.server.server_port})
+                self.identity.save({**(settings if settings is not None else self.identity.data),
+                                    "port": self.server.server_port})
             except Exception:
                 self.server.server_close()
                 self.server = None
                 raise
             threading.Thread(target=self.server.serve_forever, daemon=True, name="hebri-device-peer").start()
+            self.discovery_error = False
             if self.use_discovery:
                 from .discovery import Discovery
                 try:
@@ -69,6 +71,7 @@ class DeviceService:
         with self.lock:
             server, discovery = self.server, self.discovery
             self.server = self.discovery = None
+            self.discovery_error = False
             self.invite = None
             self.pending.clear()
             self.joining.clear()
@@ -89,15 +92,19 @@ class DeviceService:
         if any(not isinstance(model, str) or not 1 <= len(model) <= 200 for model in models):
             raise DeviceError("invalid_model")
         with self.lock:
-            self.identity.save({**self.identity.data, "name": name, "enabled": enabled,
-                                "models": list(dict.fromkeys(models))})
+            settings = {**self.identity.data, "name": name, "enabled": enabled,
+                        "models": list(dict.fromkeys(models))}
+            # Bind first, then commit enablement and the selected port together.
+            # A failed bind must not arm sharing for a later background refresh.
+            if enabled and not self.server:
+                self.start(settings)
+            else:
+                self.identity.save(settings)
             for job in self.jobs.values():
                 if job["model"] not in models:
                     job["cancel"].set()
                     job.update(status="cancelled", result="")
-        if enabled:
-            self.start()
-        else:
+        if not enabled:
             self.close()
 
     def _expire(self):

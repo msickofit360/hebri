@@ -16,7 +16,7 @@ export type PluginCatalogLookup =
 
 export async function lookupPluginCatalogEntry(name: string): Promise<PluginCatalogLookup> {
   const trimmed = name.trim()
-  if (!PLUGIN_CATALOG_NAME_RE.test(trimmed)) return { ok: false, error: 'invalid_name' }
+  if (!PLUGIN_CATALOG_NAME_RE.test(trimmed)) {return { ok: false, error: 'invalid_name' }}
   const entry = catalog.find(row => row.name === trimmed)
   return entry ? { ok: true, entry } : { ok: false, error: 'unknown' }
 }

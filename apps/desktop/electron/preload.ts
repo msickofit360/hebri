@@ -17,8 +17,10 @@ const hudNativeDrag = hudWindowing?.nativeDrag === true
 const launchFlags = ipcRenderer.sendSync('hermes:launch-flags')
 
 contextBridge.exposeInMainWorld('hermesDesktop', {
-  synapsekAccount: (operation: 'status' | 'signIn' | 'signOut' | 'openBilling' | 'openCredits' | 'openSignup' | 'forgetLocal') =>
-    ipcRenderer.invoke('hebri:synapsek-account', operation),
+  synapsekAccount: (
+    operation: 'status' | 'signIn' | 'signOut' | 'openBilling' | 'openCredits' | 'openSignup' | 'forgetLocal',
+    payload?: { expectedUserId: string | null }
+  ) => ipcRenderer.invoke('hebri:synapsek-account', operation, payload),
   synapsekTeams: (command: unknown) => ipcRenderer.invoke('hebri:synapsek-account', 'teams', command),
   onSynapsekAccountChanged: (callback: () => void) => {
     const listener = () => callback()

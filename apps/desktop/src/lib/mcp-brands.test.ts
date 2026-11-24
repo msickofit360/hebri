@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest'
+
 import { brandFor } from './mcp-brands'
 
 it('resolves connector spellings without assigning a different vendor through a substring', () => {

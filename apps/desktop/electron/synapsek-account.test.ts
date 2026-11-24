@@ -95,6 +95,108 @@ function fileStore() {
 }
 
 describe('Synapsek native account', () => {
+  it('keeps explicit local recovery available after the configured portal changes', async () => {
+    const { storage } = fileStore()
+    saveAccount({ ...saved, appOrigin: 'https://previous.example' }, storage)
+    const json = vi.fn<typeof accountJson>()
+    const account = new SynapsekAccount(origin, storage, async () => {}, json)
+    await expect(account.signOut(user)).rejects.toThrow('reauthentication_required')
+    expect(json).not.toHaveBeenCalled()
+    const recovery = account.recoveryView(new AccountError('reauthentication_required'))
+    expect(recovery.recoveryUserId).toBe(user)
+    expect(await account.forgetLocal(recovery.recoveryUserId)).toEqual({ state: 'signed_out' })
+  })
+  it('preserves a replacement credential written while remote revocation is in flight', async () => {
+    const { storage } = fileStore()
+    saveAccount(saved, storage)
+    const replacement = { ...saved, userId: '22222222-2222-4222-8222-222222222222', refreshToken: 'other-session' }
+    const account = new SynapsekAccount(
+      origin,
+      storage,
+      async () => {},
+      async url => {
+        if (url.includes('action=config')) {
+          return config
+        }
+        if (url === config.tokenUrl) {
+          return { token_type: 'Bearer', access_token: 'access', refresh_token: 'rotated', expires_in: 3600 }
+        }
+        if (url.includes('action=revoke')) {
+          saveAccount(replacement, storage)
+          return { revoked: true, refreshRevoked: true }
+        }
+        return snapshot()
+      }
+    )
+    await expect(account.signOut(user)).rejects.toThrow('account_mismatch')
+    expect(loadAccount(storage)).toEqual(replacement)
+  })
+  it('does not let stale recovery controls clear a different saved account', async () => {
+    const { storage } = fileStore()
+    saveAccount(saved, storage)
+    const account = new SynapsekAccount(origin, storage, async () => {})
+    await expect(account.forgetLocal('22222222-2222-4222-8222-222222222222')).rejects.toThrow('account_mismatch')
+    await expect(account.forgetLocal(null)).rejects.toThrow('account_mismatch')
+    expect(loadAccount(storage)).toEqual(saved)
+    expect(await account.forgetLocal(user)).toEqual({ state: 'signed_out' })
+  })
+  it.each(['retry', 'logout', 'restart'])(
+    'retains rotation ownership after a failed credential write: %s',
+    async action => {
+      const { storage } = fileStore()
+      saveAccount(saved, storage)
+      const write = storage.write
+      let rejectWrites = false
+      storage.write = text => {
+        if (rejectWrites) {
+          throw new Error('disk unavailable')
+        }
+        write(text)
+      }
+      let current = saved.refreshToken
+      let rotations = 0
+      const revokes: string[] = []
+      const json = async (url: string, init?: RequestInit) => {
+        if (url.includes('action=config')) {
+          return config
+        }
+        if (url === config.tokenUrl) {
+          if (new URLSearchParams(String(init?.body)).get('refresh_token') !== current) {
+            throw new AccountError('refresh_token_revoked')
+          }
+          current = 'rotated-secret'
+          rotations++
+          rejectWrites = true // The issuer rotated before durable storage failed.
+          return { token_type: 'Bearer', access_token: 'fresh-access', refresh_token: current, expires_in: 3600 }
+        }
+        if (url.includes('action=revoke')) {
+          revokes.push((init?.headers as Record<string, string>).Authorization)
+          return { revoked: true, refreshRevoked: true }
+        }
+        return snapshot()
+      }
+      const account = new SynapsekAccount(origin, storage, async () => {}, json)
+      await expect(account.status()).rejects.toThrow('credential_save_failed')
+      expect(loadAccount(storage)?.rotationPending).toBe(true)
+      expect(account.recoveryView(new AccountError('credential_save_failed')).recoveryUserId).toBe(user)
+      if (action === 'logout') {
+        expect(await account.signOut(user)).toEqual({ state: 'signed_out' })
+        expect(revokes).toEqual(['Bearer fresh-access'])
+      } else if (action === 'retry') {
+        rejectWrites = false
+        expect((await account.status()).state).toBe('signed_in')
+        expect(loadAccount(storage)?.refreshToken).toBe(current)
+        expect(rotations).toBe(1)
+      } else {
+        rejectWrites = false
+        const restarted = new SynapsekAccount(origin, storage, async () => {}, json)
+        await expect(restarted.signOut(user)).rejects.toThrow('credential_save_failed')
+        expect(loadAccount(storage)).not.toBeNull()
+        expect(revokes).toEqual([])
+      }
+    }
+  )
+
   it('revokes the current saved session after rotation succeeds but the status reply fails', async () => {
     const { storage } = fileStore()
     const clock = vi.spyOn(Date, 'now')
@@ -194,7 +296,13 @@ describe('Synapsek native account', () => {
     await expect(account.signOut('different-user')).rejects.toThrow('account_mismatch')
     expect(json).not.toHaveBeenCalled()
     expect(loadAccount(storage)).toEqual(saved)
-    expect(await account.signOut(user)).toEqual({ state: 'signed_out' })
+    // Reloading the dashboard performs status first. A rejected refresh must
+    // preserve enough durable state for a separate helper to finish logout.
+    await expect(account.status()).rejects.toThrow('refresh_token_revoked')
+    expect(loadAccount(storage)).toEqual(saved)
+    const reloaded = new SynapsekAccount(origin, storage, async () => {}, json)
+    expect(reloaded.recoveryView(new AccountError('refresh_token_revoked')).recoveryUserId).toBe(user)
+    expect(await reloaded.signOut(user)).toEqual({ state: 'signed_out' })
     expect(loadAccount(storage)).toBeNull()
     expect(await account.signOut(user)).toEqual({ state: 'signed_out' })
   })

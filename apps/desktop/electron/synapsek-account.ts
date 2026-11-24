@@ -28,6 +28,7 @@ interface SavedAccount {
   clientId: string
   userId: string
   refreshToken: string
+  rotationPending?: boolean
 }
 interface Tokens {
   accessToken: string
@@ -434,6 +435,7 @@ export function synapsekBrowserLogin(
 
 export class SynapsekAccount {
   private tokens: Tokens | null = null
+  private pendingRotation: { previous: SavedAccount; saved: SavedAccount; tokens: Tokens } | null = null
   private queue: Promise<unknown> = Promise.resolve()
   constructor(
     private readonly origin: string,
@@ -450,6 +452,73 @@ export class SynapsekAccount {
   }
   private async config() {
     return parseAccountConfig(await this.json(`${this.origin}/api/desktop-account?action=config`), this.origin)
+  }
+  recoveryView(error: unknown): SynapsekAccountView {
+    const saved = loadAccount(this.storage)
+    return {
+      state: saved ? 'unavailable' : 'signed_out',
+      ...(saved ? { recoveryUserId: saved.userId } : {}),
+      error: error instanceof AccountError ? error.code : 'account_unavailable'
+    }
+  }
+  private persistRotation() {
+    const pending = this.pendingRotation
+    if (!pending) {
+      return
+    }
+    const current = loadAccount(this.storage)
+    if (
+      !current ||
+      current.appOrigin !== pending.previous.appOrigin ||
+      current.issuer !== pending.previous.issuer ||
+      current.clientId !== pending.previous.clientId ||
+      current.userId !== pending.previous.userId ||
+      current.refreshToken !== pending.previous.refreshToken
+    ) {
+      this.pendingRotation = null
+      this.tokens = null
+      throw new AccountError('account_mismatch')
+    }
+    try {
+      saveAccount(pending.saved, this.storage)
+    } catch {
+      // Keep the only usable rotation in memory for retry/revocation. The durable
+      // marker prevents a restarted helper from treating its old token as logout.
+      throw new AccountError('credential_save_failed')
+    }
+    this.tokens = pending.tokens
+    this.pendingRotation = null
+  }
+  private async rotate(saved: SavedAccount, config: AccountConfig) {
+    saveAccount({ ...saved, rotationPending: true }, this.storage)
+    let response
+    try {
+      response = await this.json(config.tokenUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          client_id: config.clientId,
+          refresh_token: saved.refreshToken
+        }).toString()
+      })
+    } catch (error) {
+      // An explicit rejection did not rotate this token. Restore the preceding
+      // state so a status refresh cannot poison lost-logout-reply recovery.
+      // Preserve a pre-existing marker: that earlier exchange is still unknown.
+      if (error instanceof AccountError && error.code === 'refresh_token_revoked' && !saved.rotationPending) {
+        saveAccount(saved, this.storage)
+      }
+      throw error
+    }
+    const tokens = parseTokens(response)
+    this.pendingRotation = {
+      previous: saved,
+      saved: { ...saved, refreshToken: tokens.refreshToken, rotationPending: false },
+      tokens
+    }
+    this.persistRotation()
+    return tokens
   }
   private async snapshot(tokens: Tokens) {
     return parseAccountSnapshot(
@@ -491,6 +560,7 @@ export class SynapsekAccount {
   }
   status(): Promise<SynapsekAccountView> {
     return this.exclusive(async () => {
+      this.persistRotation()
       const saved = loadAccount(this.storage)
 
       if (!saved || this.tokens?.refreshToken !== saved.refreshToken) {
@@ -514,25 +584,7 @@ export class SynapsekAccount {
       let tokens = this.tokens
 
       if (!tokens || tokens.expiresAt < Date.now() + 60_000) {
-        tokens = parseTokens(
-          await this.json(config.tokenUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-              grant_type: 'refresh_token',
-              client_id: config.clientId,
-              refresh_token: saved.refreshToken
-            }).toString()
-          })
-        )
-
-        // Persist rotation before another request can reuse the old credential.
-        try {
-          saveAccount({ ...saved, refreshToken: tokens.refreshToken }, this.storage)
-        } catch (error) {
-          this.tokens = null
-          throw error
-        }
+        tokens = await this.rotate(saved, config)
       }
 
       const account = await this.snapshot(tokens)
@@ -603,6 +655,22 @@ export class SynapsekAccount {
         this.tokens = null
       }
 
+      if (this.pendingRotation) {
+        const pending = this.pendingRotation
+        if (
+          !saved ||
+          saved.appOrigin !== pending.previous.appOrigin ||
+          saved.issuer !== pending.previous.issuer ||
+          saved.clientId !== pending.previous.clientId ||
+          saved.userId !== pending.previous.userId ||
+          saved.refreshToken !== pending.previous.refreshToken
+        ) {
+          throw new AccountError('account_mismatch')
+        }
+        // Sign-out can revoke the fresh token even while its disk write fails.
+        this.tokens = pending.tokens
+      }
+
       if (saved && saved.appOrigin !== this.origin) {
         throw new AccountError('reauthentication_required')
       }
@@ -620,21 +688,14 @@ export class SynapsekAccount {
 
         // Do not require an active account snapshot to finish a previously
         // partial revocation. The revoke endpoint is deliberately idempotent.
-        let response: unknown
-
         try {
-          response = await this.json(config.tokenUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-              grant_type: 'refresh_token',
-              client_id: config.clientId,
-              refresh_token: saved.refreshToken
-            }).toString()
-          })
+          await this.rotate(saved, config)
         } catch (error) {
           if (!(error instanceof AccountError) || error.code !== 'refresh_token_revoked') {
             throw error
+          }
+          if (saved.rotationPending) {
+            throw new AccountError('credential_save_failed')
           }
 
           // A committed logout can lose its reply. Only the pinned issuer's
@@ -643,19 +704,7 @@ export class SynapsekAccount {
 
           return
         }
-
-        const tokens = parseTokens(response)
-        const rotated = { ...saved, refreshToken: tokens.refreshToken }
-
-        try {
-          saveAccount(rotated, this.storage)
-        } catch (error) {
-          this.tokens = null
-          throw error
-        }
-
-        saved = rotated
-        this.tokens = tokens
+        saved = loadAccount(this.storage)
       }
 
       if (saved && (!this.tokens || this.tokens.expiresAt <= Date.now())) {
@@ -690,8 +739,21 @@ export class SynapsekAccount {
         }
       }
 
+      const current = loadAccount(this.storage)
+      if (
+        current &&
+        (!saved ||
+          current.userId !== saved.userId ||
+          current.refreshToken !== saved.refreshToken ||
+          current.appOrigin !== saved.appOrigin ||
+          current.clientId !== saved.clientId ||
+          current.issuer !== saved.issuer)
+      ) {
+        throw new AccountError('account_mismatch')
+      }
       this.storage.clear() // Authoritative failures surface; no false logout.
       this.tokens = null
+      this.pendingRotation = null
 
       return { state: 'signed_out' }
     })
@@ -834,10 +896,31 @@ export class SynapsekAccount {
       )
     })
   }
-  forgetLocal(): Promise<SynapsekAccountView> {
+  forgetLocal(expectedUserId?: string | null): Promise<SynapsekAccountView> {
     return this.exclusive(async () => {
+      if (expectedUserId !== undefined) {
+        let saved: SavedAccount | null = null
+        try {
+          saved = loadAccount(this.storage)
+        } catch (error) {
+          // The explicit recovery action also supports an unreadable credential.
+          if (
+            !(error instanceof AccountError) ||
+            !['stored_session_unavailable', 'secure_storage_unavailable'].includes(error.code)
+          ) {
+            throw error
+          }
+          if (expectedUserId !== null) {
+            throw new AccountError('account_mismatch')
+          }
+        }
+        if (saved && saved.userId !== expectedUserId) {
+          throw new AccountError('account_mismatch')
+        }
+      }
       this.storage.clear()
       this.tokens = null
+      this.pendingRotation = null
 
       return { state: 'signed_out' }
     })

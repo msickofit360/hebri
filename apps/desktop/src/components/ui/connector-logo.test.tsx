@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
+
 import { ConnectorLogo, connectorLogoSource } from './connector-logo'
 
 vi.mock('./favicon', () => ({ Favicon: ({ url }: { url: string }) => <span data-testid="vendor-favicon">{url}</span> }))

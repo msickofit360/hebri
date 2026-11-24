@@ -30,7 +30,10 @@ const messages: Record<string, string> = {
   session_binding_required: 'This device needs fresh account consent. Sign out, then sign in again.',
   invalid_response: 'The account service returned an unexpected response. Retry without removing your saved session.',
   invalid_account_response: 'The account details could not be read. Retry without removing your saved session.',
-  forbidden: 'This window could not access the account service. Restart Hebri and retry.'
+  forbidden: 'This window could not access the account service. Restart Hebri and retry.',
+  account_mismatch: 'The account changed in another window. Refresh before signing out.',
+  credential_save_failed:
+    'The refreshed session could not be saved. Unlock your credential store and retry. If you restarted Hebri, revoke this device from your Synapsek account before reconnecting.'
 }
 
 export function SynapsekAccountSettings({
@@ -69,6 +72,7 @@ export function SynapsekAccountSettings({
           if (result.ok && result.value) {
             setAvailable(true)
             setView(result.value)
+            setError(result.value.error || '')
           } else if (!result.ok) {
             setAvailable(true)
             setError(result.code)
@@ -123,14 +127,22 @@ export function SynapsekAccountSettings({
     setReadyScope(null)
 
     try {
-      const result = await bridge!(operation)
+      const expectedUserId = view.account?.userId || view.recoveryUserId
+      if (operation === 'signOut' && !expectedUserId) {
+        setError('account_mismatch')
+        return
+      }
+      const result =
+        operation === 'signOut' || operation === 'forgetLocal'
+          ? await bridge!(operation, { expectedUserId: expectedUserId || null })
+          : await bridge!(operation)
 
       if (!result.ok && result.code === 'not_available') {
         setError(result.code)
       } else if (!result.ok) {
         setError(result.code)
       } else if (result.value) {
-        setError('')
+        setError(result.value.error || '')
         setView(result.value)
       }
     } catch {
@@ -258,7 +270,7 @@ export function SynapsekAccountSettings({
           {copy.refresh}
         </Button>
         {error && error !== 'not_available' && view.state !== 'signed_in' && (
-          <Button disabled={busy} onClick={() => void run('signOut')} variant="outline">
+          <Button disabled={busy || !view.recoveryUserId} onClick={() => void run('signOut')} variant="outline">
             {copy.signOut}
           </Button>
         )}

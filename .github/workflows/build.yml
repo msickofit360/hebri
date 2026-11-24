@@ -54,8 +54,8 @@ jobs:
         run: |
           python3 -m venv .venv
           .venv/bin/python -m pip install -e . pytest==9.1.1
-      - name: Test managed sign-in with existing model configurations
-        run: bash scripts/run_tests.sh tests/hermes_cli/test_synapsek_standalone.py -k managed_login --tb=short
+      - name: Test standalone account recovery and existing model configurations
+        run: bash scripts/run_tests.sh tests/hermes_cli/test_synapsek_standalone.py --tb=short
       - name: Test profile isolation and real context-engine lifecycle
         run: bash scripts/run_tests.sh tests/agent/test_context_floor_profiles.py tests/plugins/test_local_context_engines.py --tb=short
       - name: Test managed connector discovery and execution
@@ -152,6 +152,8 @@ jobs:
             }
             sleep $((attempt * 5))
           done
+      - name: Verify release signing boundaries
+        run: node --test scripts/tests/release-signing.test.mjs
       - name: Type-check desktop application
         working-directory: apps/desktop
         run: npm run typecheck
@@ -161,6 +163,9 @@ jobs:
       - name: Test desktop renderer
         working-directory: apps/desktop
         run: npm run test:ui
+      - name: Test dashboard account recovery
+        working-directory: web
+        run: npm test -- src/components/SynapsekAccount.test.tsx src/components/SynapsekAccount.recovery.test.tsx
 
   windows:
     needs: [validate-version, quality]
@@ -339,7 +344,56 @@ jobs:
 
   macos:
     needs: [validate-version, quality]
-    if: always() && needs.quality.result == 'success' && (needs.validate-version.result == 'success' || needs.validate-version.result == 'skipped')
+    if: always() && !startsWith(github.ref, 'refs/tags/v') && needs.quality.result == 'success' && (needs.validate-version.result == 'success' || needs.validate-version.result == 'skipped')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            artifact-name: hebri-macos-arm64
+          - os: macos-15-intel
+            artifact-name: hebri-macos-x64
+    runs-on: ${{ matrix.os }}
+    # PR and branch packages exercise the native app without Apple credentials.
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+          cache: npm
+      - name: Install workspace dependencies
+        run: npm ci
+      - name: Validate macOS entitlement property lists
+        working-directory: apps/desktop
+        run: plutil -lint electron/entitlements.mac.plist electron/entitlements.mac.inherit.plist
+      - name: Build unsigned macOS installers (DMG + ZIP)
+        working-directory: apps/desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          NODE_OPTIONS: --max-old-space-size=16384
+        run: npm run dist:mac -- --publish never -c.mac.identity=null -c.mac.notarize=false
+      - name: Validate packaged macOS application
+        working-directory: apps/desktop
+        run: HERMES_DESKTOP_SKIP_BUILD=1 npm run test:desktop:all
+      - name: List artifacts
+        working-directory: apps/desktop
+        run: ls -lh release/*.dmg release/*.zip 2>/dev/null || ls -lh release/
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: |
+            apps/desktop/release/Hebri-*-mac-*.dmg
+            apps/desktop/release/Hebri-*-mac-*.zip
+            apps/desktop/release/Hebri-*-mac-*.dmg.blockmap
+            apps/desktop/release/Hebri-*-mac-*.zip.blockmap
+            apps/desktop/release/latest-mac.yml
+          if-no-files-found: error
+
+  macos-release:
+    needs: [validate-version, quality]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'Synapsek-Labs/hebri' && needs.validate-version.result == 'success' && needs.quality.result == 'success'
+    environment: macos-signing
     strategy:
       fail-fast: false
       matrix:
@@ -390,9 +444,6 @@ jobs:
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          # electron-builder intentionally skips signing pull requests. Same-repository
-          # branches are trusted collaborator code; forks receive neither this opt-in nor secrets.
-          CSC_FOR_PULL_REQUEST: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && 'true' || '' }}
           NODE_OPTIONS: --max-old-space-size=16384
         run: npm run dist:mac -- --publish never
       - name: Validate packaged macOS application
@@ -489,7 +540,7 @@ jobs:
   release:
     permissions:
       contents: write
-    needs: [windows-release, macos, linux]
+    needs: [windows-release, macos-release, linux]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     timeout-minutes: 15

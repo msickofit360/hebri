@@ -114,7 +114,7 @@ export function createReleaseUpdater(options: ReleaseUpdaterOptions): ReleaseUpd
   updater.disableWebInstaller = true
   updater.setFeedURL({
     provider: 'github',
-    owner: 'satoshilove',
+    owner: 'Synapsek-Labs',
     repo: 'hebri',
     private: false,
     releaseType: 'release'

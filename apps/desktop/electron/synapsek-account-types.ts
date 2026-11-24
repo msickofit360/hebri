@@ -17,4 +17,6 @@ export interface AccountSnapshot {
 export interface SynapsekAccountView {
   state: 'signed_out' | 'signed_in' | 'unavailable'
   account?: AccountSnapshot
+  recoveryUserId?: string
+  error?: string
 }

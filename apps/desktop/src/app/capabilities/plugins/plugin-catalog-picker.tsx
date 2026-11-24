@@ -24,18 +24,18 @@ export function PluginCatalogPicker({ profile }: { profile: null | string }) {
     <div className="flex h-full min-h-0 flex-col gap-2 p-3" data-testid="plugin-catalog-picker">
       <SearchField
         aria-label={p.catalogSearch}
-        placeholder={p.catalogSearch}
-        value={query}
         onChange={value => {
           setQuery(value)
           setLimit(40)
         }}
+        placeholder={p.catalogSearch}
+        value={query}
       />
       <p className="text-xs text-(--ui-text-tertiary)">{p.catalogNotice}</p>
-      <div className="min-h-0 flex-1 overflow-y-auto" aria-label={p.catalogTitle}>
+      <div aria-label={p.catalogTitle} className="min-h-0 flex-1 overflow-y-auto">
         {rows.length === 0 && <p className="py-3 text-sm text-(--ui-text-tertiary)">{p.catalogEmpty}</p>}
         {rows.slice(0, limit).map(entry => (
-          <article key={entry.name} className="flex items-start gap-3 py-3">
+          <article className="flex items-start gap-3 py-3" key={entry.name}>
             <div className="min-w-0 flex-1">
               <h3 className="text-sm font-medium break-words">{entry.name}</h3>
               <p className="text-xs text-(--ui-text-tertiary)">
@@ -48,17 +48,17 @@ export function PluginCatalogPicker({ profile }: { profile: null | string }) {
               </p>
             </div>
             <Button
-              size="xs"
-              variant="secondary"
               aria-label={`${p.catalogReview}: ${entry.name}`}
               onClick={() => openCatalogPluginInstall(entry, profile)}
+              size="xs"
+              variant="secondary"
             >
               {p.catalogReview}
             </Button>
           </article>
         ))}
         {rows.length > limit && (
-          <Button size="xs" variant="text" onClick={() => setLimit(value => value + 40)}>
+          <Button onClick={() => setLimit(value => value + 40)} size="xs" variant="text">
             {p.catalogMore}
           </Button>
         )}

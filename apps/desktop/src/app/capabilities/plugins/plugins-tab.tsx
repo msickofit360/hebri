@@ -49,9 +49,9 @@ import { PanelEmpty } from '../../overlays/panel'
 import { Pill } from '../../settings/primitives'
 import { useDeepLinkHighlight } from '../../settings/use-deep-link-highlight'
 
+import { PluginCatalogPicker } from './plugin-catalog-picker'
 import { mergePluginPackages, type PackageKind, type PluginPackage } from './plugin-packages'
 import { PluginSettingsForm } from './plugin-settings-form'
-import { PluginCatalogPicker } from './plugin-catalog-picker'
 
 // Catalog metadata ships with Hebri; the website is introductory only.
 

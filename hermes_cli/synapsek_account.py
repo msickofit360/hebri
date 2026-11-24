@@ -143,6 +143,8 @@ def cli(args):
             webbrowser.open(url)
     try:
         view = run_account(action, on_authorize=authorize)
+        if view.get("state") == "unavailable":
+            raise AccountError(view.get("error") or "account_unavailable")
         if action == "login" and view.get("account", {}).get("managedInferenceEnabled"):
             select_synapsek()
         if view.get("state") == "signed_in":
