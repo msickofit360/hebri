@@ -56,6 +56,10 @@ jobs:
           .venv/bin/python -m pip install -e . pytest==9.1.1
       - name: Test standalone account recovery and existing model configurations
         run: bash scripts/run_tests.sh tests/hermes_cli/test_synapsek_standalone.py --tb=short
+      - name: Test signing-secret migration with disposable encryption keys
+        run: |
+          .venv/bin/python -m pip install --require-hashes --only-binary=:all: -r scripts/ci/signing-migration-requirements.txt
+          bash scripts/run_tests.sh tests/scripts/test_signing_secret_migration.py --tb=short
       - name: Test profile isolation and real context-engine lifecycle
         run: bash scripts/run_tests.sh tests/agent/test_context_floor_profiles.py tests/plugins/test_local_context_engines.py --tb=short
       - name: Test managed connector discovery and execution
