@@ -1,0 +1,7 @@
+# The reconstruction manifest hashes exact bytes, including binary notices.
+files/** -text
+manifest.json text eol=lf
+redactions.json text eol=lf
+materialize.py text eol=lf
+UPSTREAM-LICENSE.txt -text
+BOTS-LICENSE.txt -text

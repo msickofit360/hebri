@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Conversation layout · Hebri Lab</title>
+<style>
+  :root { color-scheme:light; --paper:#f9f8f3; --side:#eeede5; --ink:#272e27; --muted:#60695e; --rule:#d9dbcf; --green:#3d5844; --light:#e3eadb; --white:#fffefa; font:15px/1.5 "Segoe UI",system-ui,sans-serif; color:var(--ink); background:var(--paper); }
+  * { box-sizing:border-box }
+  body { margin:0 }
+  button,textarea { font:inherit; color:inherit }
+  button { cursor:pointer }
+  button:focus-visible,textarea:focus-visible, [tabindex="-1"]:focus-visible { outline:3px solid #6a8b71; outline-offset:3px }
+  button { border:0; background:none }
+  svg { width:1.15rem; height:1.15rem; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
+  [hidden] { display:none!important }
+  .shell { display:grid; grid-template-columns:13rem minmax(0,1fr); height:100dvh; min-height:0 }
+  .rail { background:var(--side); border-right:1px solid var(--rule); padding:1.4rem .85rem 1rem; display:flex; flex-direction:column; gap:1.9rem; min-height:0 }
+  .brand { display:flex; align-items:center; gap:.6rem; padding:0 .45rem; font:600 1.27rem/1 Georgia,serif }
+  .mark { display:grid; place-items:center; width:1.9rem; height:1.9rem; border-radius:.55rem; background:var(--green); color:#fff }
+  .mark svg { width:1.4rem; height:1.4rem; stroke-width:2 }
+  .new { display:flex; gap:.55rem; align-items:center; padding:.55rem .85rem; border:1px solid #b9c3b4; background:#f7f8f0; border-radius:.65rem; color:var(--green); font-weight:600; }
+  .new:hover,.starter:hover,.file:hover { background:var(--light) }
+  .history { min-height:0; overflow:auto; }
+  .history h2 { font-size:.77rem; font-weight:600; margin:0 0 .55rem .64rem; color:var(--muted) }
+  .rows { display:grid; grid-template-columns:minmax(0,1fr); gap:.25rem }
+  .rows button { display:flex; align-items:center; gap:.55rem; text-align:start; padding:.5rem .65rem; border-radius:.45rem; font-size:.9rem; }
+  .rows button span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .rows button:hover,.rows button[aria-current=true] { background:#e0e4d7 }
+  .rows svg { color:var(--muted); width:1rem }
+  .preview { margin:auto .55rem 0; color:var(--muted); font-size:.76rem; display:flex; align-items:center; gap:.45rem }
+  .preview::before { content:''; width:.42rem; height:.42rem; border-radius:100%; background:#8b9b76 }
+  .stage { display:flex; min-width:0; min-height:0; position:relative }
+  .workspace { min-width:0; min-height:0; flex:1; display:flex; flex-direction:column }
+  .bar { display:flex; flex-shrink:0; align-items:center; padding:.8rem 1.4rem; gap:.6rem; min-height:3.65rem }
+  .bar-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted); font-size:.86rem }
+  .icon { width:2.25rem; height:2.25rem; border-radius:.55rem; display:grid; place-items:center; color:var(--muted) }
+  .icon:hover { background:var(--side) }
+  .file { margin-left:auto; display:flex; align-items:center; gap:.4rem; color:var(--green); padding:.3rem .6rem; border-radius:.45rem; font-size:.8rem }
+  .mobile-nav { display:none }
+  .canvas { flex:1; min-height:0; overflow:auto; display:flex; flex-direction:column; padding:1.2rem clamp(1rem,4vw,4rem) 2rem; }
+  .writer { width:min(100%,40rem); margin: auto; }
+  .greeting { margin:0 0 1.65rem; text-align:center; font:normal clamp(2rem,4.2vw,3.5rem)/1.13 Georgia,"Times New Roman",serif; letter-spacing:-.045em; text-wrap:balance }
+  .composer { background:var(--white); border:1px solid #c9cebf; border-radius:1rem; padding:.9rem 1rem .7rem; box-shadow:0 3px 15px #32392009; }
+  .composer:focus-within { border-color:#789077; box-shadow:0 0 0 2px #7790741c }
+  textarea { border:0; background:transparent; width:100%; display:block; resize:vertical; min-height:3.65rem; max-height:9rem; line-height:1.5; }
+  textarea:focus-visible { outline:0 }
+  textarea::placeholder { color:#7c8379; opacity:1 }
+  .composer-foot { display:flex; align-items:center; justify-content:space-between; gap:.5rem; }
+  .composer-foot small { color:var(--muted); font-size:.75rem }
+  .send { display:grid; place-items:center; background:var(--green); color:white; width:2.2rem; height:2.2rem; border-radius:.7rem }
+  .send:disabled { cursor:default; background:#d8dfd1; color:#697361 }
+  .starters { display:flex; flex-wrap:wrap; gap:.45rem; justify-content:center; margin-top:.95rem }
+  .starter { display:flex; align-items:center; gap:.45rem; padding:.41rem .8rem; border:1px solid var(--rule); border-radius:2rem; color:var(--green); font-size:.83rem; }
+  .starter svg { width:1rem;height:1rem }
+  .conversation { width:min(100%,40rem); margin:0 auto; padding:1rem 0 2.25rem }
+  .conversation p { overflow-wrap:anywhere; white-space:pre-wrap; margin:.4rem 0 0; }
+  .message { margin:0 0 1.6rem }
+  .message.user { width:fit-content; max-width:88%; margin-left:auto; background:var(--side); padding:.7rem 1rem; border-radius:.8rem; }
+  .author { font-size:.78rem; font-weight:650; color:var(--green); }
+  .chatting .canvas { padding-bottom:.6rem }
+  .chatting .writer { margin:0 auto; padding:.55rem clamp(1rem,4vw,4rem) 1rem; width:min(100%,48rem) }
+  .document { background:#fffefa; border-left:1px solid var(--rule); width:clamp(17rem,31vw,28rem); min-height:0; overflow:auto; }
+  .doc-bar { display:flex; align-items:center; justify-content:space-between; padding:.65rem 1rem; color:var(--muted); font-size:.8rem; border-bottom:1px solid var(--rule) }
+  .doc-bar span { display:flex; align-items:center; gap:.4rem }
+  .sheet { padding:1.8rem clamp(1.1rem,2.5vw,2.4rem) }
+  .sheet h2 { font:normal 2rem/1.15 Georgia,serif; margin:0 0 1.8rem; letter-spacing:-.04em; }
+  .sheet ol { list-style:none; padding:0; margin:0 }
+  .sheet li { padding:1rem 0; border-top:1px solid var(--rule) }
+  .sheet li:first-child { border-top:0; padding-top:0 }
+  .sheet strong { font-weight:600 }
+  .sheet p { margin:.2rem 0 0; color:var(--muted); font-size:.92rem }
+  .shade { display:none }
+  @media(max-width:880px) {
+    .shell { grid-template-columns:11rem minmax(0,1fr) }
+    .document { position:absolute; inset:0 0 0 auto; width:min(27rem,100%); z-index:2; box-shadow:-8px 0 25px #2633260b; }
+  }
+  @media(max-width:620px) {
+    .shell { display:block }
+    .stage { height:100% }
+    .mobile-nav { display:grid }
+    .bar { padding:.55rem .7rem }
+    .rail { position:fixed; inset:0 auto 0 0; width:15rem; z-index:4 }
+    .shell:not(.nav-open) .rail { display:none }
+    .nav-open .shade { display:block; position:fixed; inset:0; background:#23282544; z-index:3 }
+    .starters { gap:.4rem }
+    .starter { padding:.35rem .65rem }
+  }
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"><defs>
+  <symbol id="mark" viewBox="0 0 24 24"><path d="M5 18V6m14 12V6M5 12h14M9 15l6-6"/></symbol>
+  <symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="chat" viewBox="0 0 24 24"><path d="M4 5h16v12H9l-5 4V5Z"/></symbol>
+  <symbol id="doc" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v5h4M9 12h6m-6 4h6"/></symbol>
+  <symbol id="list" viewBox="0 0 24 24"><path d="m3 6 1 1 2-3m3 2h11M3 12l1 1 2-3m3 2h11M4 18h2m3 0h11"/></symbol>
+  <symbol id="pen" viewBox="0 0 24 24"><path d="m4 20 4-1 12-12-3-3L5 16zM14 7l3 3"/></symbol>
+  <symbol id="book" viewBox="0 0 24 24"><path d="M12 6c-3-2-6-2-9-2v14c3 0 6 0 9 2 3-2 6-2 9-2V4c-3 0-6 0-9 2zm0 0v14"/></symbol>
+  <symbol id="arrow" viewBox="0 0 24 24"><path d="M12 19V5m-6 6 6-6 6 6"/></symbol>
+  <symbol id="close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+  <symbol id="menu" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></symbol>
+</defs></svg>
+<div class="shell" id="shell">
+  <aside class="rail" id="rail" aria-label="Chats">
+    <div class="brand"><span class="mark"><svg aria-hidden="true"><use href="#mark"/></svg></span>Hebri Lab</div>
+    <button class="new" id="new" type="button"><svg aria-hidden="true"><use href="#plus"/></svg>New chat</button>
+    <nav class="history" aria-labelledby="recent"><h2 id="recent">Your chats</h2><div class="rows" id="rows"></div></nav>
+    <div class="preview">Offline layout preview</div>
+  </aside>
+  <button id="shade" class="shade" aria-label="Close chats" tabindex="-1"></button>
+  <main class="stage">
+    <div class="workspace" id="workspace">
+      <header class="bar">
+        <button id="menuButton" class="icon mobile-nav" aria-label="Show chats" aria-controls="rail" aria-expanded="false"><svg aria-hidden="true"><use href="#menu"/></svg></button>
+        <span class="bar-name" id="barName">New chat</span>
+        <button class="file" id="openDoc" aria-controls="documentPanel" aria-expanded="false" aria-label="Open weekly plan"><svg aria-hidden="true"><use href="#doc"/></svg>Weekly plan</button>
+      </header>
+      <div class="canvas" id="canvas">
+        <div id="conversation" class="conversation" aria-label="Conversation" role="log" hidden></div>
+        <div class="writer" id="writer">
+          <h1 class="greeting" id="greeting">What’s on your mind?</h1>
+          <form class="composer" id="composer">
+            <textarea id="draft" rows="2" aria-label="Message" placeholder="Ask a question or describe a task…"></textarea>
+            <div class="composer-foot"><small>Sample replies · offline</small><button id="send" type="submit" class="send" aria-label="Send" disabled><svg aria-hidden="true"><use href="#arrow"/></svg></button></div>
+          </form>
+          <div class="starters" id="starters" aria-label="Starting points"></div>
+        </div>
+      </div>
+    </div>
+    <aside class="document" id="documentPanel" aria-labelledby="docTitle" hidden>
+      <div class="doc-bar"><span><svg aria-hidden="true"><use href="#doc"/></svg>Document</span><button id="closeDoc" class="icon" aria-label="Close document"><svg aria-hidden="true"><use href="#close"/></svg></button></div>
+      <article class="sheet"><h2 id="docTitle" tabindex="-1">Weekly plan</h2><ol>
+        <li><strong>Monday · Choose priorities</strong><p>List three outcomes you want by Friday. Pick the most important one.</p></li>
+        <li><strong>Tuesday–Thursday · Make time</strong><p>Reserve one focused hour each morning. Leave afternoons for calls and smaller tasks.</p></li>
+        <li><strong>Friday · Review</strong><p>Write down what you finished and choose one thing to carry into next week.</p></li>
+      </ol></article>
+    </aside>
+  </main>
+</div>
+<script>
+'use strict'
+const byId = id => document.getElementById(id)
+const samples = [
+  { label:'Plan my week', icon:'list', draft:'Help me make a simple plan for next week.', reply:'Start with three outcomes you want by Friday. Block time for the most important one first. I’ve opened a sample weekly plan beside our chat.' },
+  { label:'Draft a message', icon:'pen', draft:'Help me write a short welcome message for a new teammate.', reply:'Welcome to the team! We’re glad you’re here. If you’d like, let’s grab a few minutes this week so I can show you around and answer any questions.' },
+  { label:'Explain an idea', icon:'book', draft:'Explain what an AI assistant does using an everyday example.', reply:'Think of planning dinner. You can ask an AI assistant to suggest a meal from the ingredients you have. You choose the recipe, check anything important, and decide what to do next.' }
+]
+const chats = [
+  { title:'Weekly plan', turns:[[samples[0].draft,samples[0].reply]], draft:'' },
+  { title:'Welcome note', turns:[[samples[1].draft,samples[1].reply]], draft:'' }
+]
+let active = null
+let newDraft = ''
+const ns = 'http://www.w3.org/2000/svg'
+function icon(name) {
+  const svg = document.createElementNS(ns, 'svg')
+  const use = document.createElementNS(ns, 'use')
+  svg.setAttribute('aria-hidden', 'true')
+  use.setAttribute('href', '#' + name)
+  svg.append(use)
+  return svg
+}
+function nav(open) {
+  byId('shell').classList.toggle('nav-open', open)
+  byId('menuButton').setAttribute('aria-expanded', String(open))
+  if (open) byId('new').focus()
+}
+function showDocument(open, focus = true) {
+  byId('documentPanel').hidden = !open
+  byId('openDoc').setAttribute('aria-expanded', String(open))
+  if (focus) (open ? byId('docTitle') : byId('openDoc')).focus()
+}
+function saveDraft() {
+  const text = byId('draft').value
+  if (active) active.draft = text
+  else newDraft = text
+  byId('send').disabled = !text.trim()
+}
+function choose(chat) {
+  active = chat
+  nav(false)
+  showDocument(false, false)
+  render()
+  byId('draft').focus()
+}
+function render() {
+  const chatting = active !== null
+  const log = byId('conversation')
+  byId('workspace').classList.toggle('chatting', chatting)
+  byId('greeting').hidden = chatting
+  byId('starters').hidden = chatting
+  log.hidden = !chatting
+  const draftHost = chatting ? byId('workspace') : byId('canvas')
+  if (byId('writer').parentElement !== draftHost) draftHost.append(byId('writer'))
+  byId('barName').textContent = active?.title ?? 'New chat'
+  byId('draft').value = active?.draft ?? newDraft
+  byId('send').disabled = !byId('draft').value.trim()
+  byId('rows').replaceChildren(...chats.map(chat => {
+    const button = document.createElement('button')
+    const name = document.createElement('span')
+    name.textContent = chat.title
+    button.append(icon('chat'), name)
+    if (active === chat) button.setAttribute('aria-current', 'true')
+    button.addEventListener('click', () => choose(chat))
+    return button
+  }))
+  log.replaceChildren()
+  for (const turn of active?.turns ?? []) {
+    for (const [index, message] of turn.entries()) {
+      const article = document.createElement('article')
+      article.className = index === 0 ? 'message user' : 'message'
+      const author = document.createElement('div')
+      author.className = 'author'
+      author.textContent = index === 0 ? 'You' : 'Hebri Lab'
+      const p = document.createElement('p')
+      p.textContent = message
+      article.append(author, p)
+      log.append(article)
+    }
+  }
+  byId('canvas').scrollTop = byId('canvas').scrollHeight
+}
+for (const sample of samples) {
+  const button = document.createElement('button')
+  button.className = 'starter'
+  button.append(icon(sample.icon), document.createTextNode(sample.label))
+  button.addEventListener('click', () => {
+    const draft = byId('draft')
+    draft.value = [draft.value.trimEnd(), sample.draft].filter(Boolean).join('\n\n')
+    saveDraft()
+    draft.focus()
+    draft.setSelectionRange(draft.value.length, draft.value.length)
+  })
+  byId('starters').append(button)
+}
+byId('draft').addEventListener('input', saveDraft)
+byId('draft').addEventListener('keydown', event => {
+  if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+    event.preventDefault()
+    byId('composer').requestSubmit()
+  }
+})
+byId('composer').addEventListener('submit', event => {
+  event.preventDefault()
+  const text = byId('draft').value.trim()
+  if (!text) return
+  const sample = /\b(week|plan)\b/i.test(text) ? samples[0] : /\b(message|teammate|write)\b/i.test(text) ? samples[1] : /\b(explain|idea|assistant)\b/i.test(text) ? samples[2] : null
+  if (!active) {
+    active = { title:text, turns:[], draft:'' }
+    chats.unshift(active)
+    newDraft = ''
+  }
+  active.draft = ''
+  active.turns.push([text, sample?.reply ?? 'This offline preview has sample replies for planning a week, drafting a message, and explaining an idea. Try asking me about one of those.'])
+  render()
+  if (sample === samples[0]) showDocument(true)
+  else byId('draft').focus()
+})
+byId('new').addEventListener('click', () => choose(null))
+byId('openDoc').addEventListener('click', () => showDocument(true))
+byId('closeDoc').addEventListener('click', () => showDocument(false))
+byId('menuButton').addEventListener('click', () => nav(true))
+byId('shade').addEventListener('click', () => { nav(false); byId('menuButton').focus() })
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape') return
+  if (byId('shell').classList.contains('nav-open')) { nav(false); byId('menuButton').focus() }
+  else if (!byId('documentPanel').hidden) showDocument(false)
+})
+render()
+</script>
+</body>
+</html>

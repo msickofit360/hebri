@@ -1,0 +1,151 @@
+/**
+ * The Sessions sidebar pane registers at module import, before `I18nProvider`
+ * has fetched `display.language`, so its string `title` is whatever English
+ * `translateNow` sampled then. The strip label must come from `tabTitle`,
+ * which subscribes to the live locale.
+ */
+import { render } from '@testing-library/react'
+import type { ReactNode } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { describe, expect, it } from 'vitest'
+
+import { findGroupOfPane, group, split } from '@/components/pane-shell/tree/model'
+import { $layoutTree, adoptContributedPanes } from '@/components/pane-shell/tree/store'
+import { $workspaceOwnerLabels } from '@/components/pane-shell/workspace-scope'
+import { I18nProvider, setRuntimeI18nLocale } from '@/i18n'
+import { $botChatScopes, readBotChatScopes, restoreBotChatOwnerLabels } from '@/store/bot-chat-scopes'
+import { $draftTitles } from '@/store/composer'
+import { $selectedStoredSessionId, $sessions } from '@/store/session'
+
+const { registry } = await import('@/contrib/registry')
+
+await import('./controller')
+
+it('adds Extensions to the existing Chats strip and preserves the selected tab when restoring a layout', () => {
+  const original = $layoutTree.get()
+  const savedSidebar = group(['sessions', 'team', 'hermes-bots:pane'], { id: 'custom-side', active: 'team' })
+
+  try {
+    $layoutTree.set(split('row', [group(['workspace']), savedSidebar]))
+    adoptContributedPanes()
+
+    const sidebar = findGroupOfPane($layoutTree.get()!, 'extensions')!
+    expect(sidebar.id).toBe(savedSidebar.id)
+    expect(sidebar.active).toBe('team')
+    expect(sidebar.panes).toEqual([...savedSidebar.panes, 'extensions'])
+  } finally {
+    $layoutTree.set(original)
+  }
+})
+
+describe('the main chat tab identity', () => {
+  it('labels hidden canonical chats by their own Bit while preserving fresh draft titles', () => {
+    const original = {
+      selected: $selectedStoredSessionId.get(),
+      sessions: $sessions.get(),
+      scopes: $botChatScopes.get(),
+      labels: $workspaceOwnerLabels.get(),
+      drafts: $draftTitles.get()
+    }
+
+    const caption = () => {
+      const pane = registry.getArea('panes').find(c => c.id === 'workspace')!
+      const tabTitle = (pane.data as { tabTitle?: () => ReactNode }).tabTitle
+
+      if (!tabTitle) {
+        return pane.title
+      }
+
+      const view = render(<>{tabTitle()}</>)
+      const title = view.container.textContent
+      view.unmount()
+
+      return title
+    }
+
+    try {
+      $sessions.set([])
+      $workspaceOwnerLabels.set({ 'bot:alpha': 'Alpha', 'bot:beta': 'Beta' })
+      $botChatScopes.set({
+        'hidden-alpha': { workspaceMode: 'bots', workspaceOwnerKey: 'bot:alpha', workspaceTabTitle: 'Bot Chat', ownerRoute: { connectionId: 'local', profile: 'alpha' } },
+        'hidden-beta': { workspaceMode: 'bots', workspaceOwnerKey: 'bot:beta', workspaceTabTitle: 'Bot Chat', ownerRoute: { connectionId: 'local', profile: 'beta' } }
+      })
+      // Cold startup on Team Chat has neither session rows nor a mounted Bits roster.
+      const restored = readBotChatScopes()
+      $botChatScopes.set({})
+      $workspaceOwnerLabels.set({})
+      $botChatScopes.set(restored)
+      restoreBotChatOwnerLabels()
+      $draftTitles.set({ 'hidden-alpha': 'Unsent follow-up', 'fresh-draft': 'Plan the trip' })
+
+      for (const [id, label] of [['hidden-alpha', 'Alpha'], ['hidden-beta', 'Beta'], ['hidden-alpha', 'Alpha']]) {
+        $selectedStoredSessionId.set(id)
+        expect(caption()).toBe(label)
+      }
+
+      $workspaceOwnerLabels.set({ 'bot:alpha': 'Renamed Alpha', 'bot:beta': 'Beta' })
+      expect(caption()).toBe('Renamed Alpha')
+      expect(readBotChatScopes()['hidden-alpha'].workspaceOwnerLabel).toBe('Renamed Alpha')
+      restoreBotChatOwnerLabels(restored)
+      expect(caption()).toBe('Renamed Alpha')
+      $selectedStoredSessionId.set('fresh-draft')
+      expect(caption()).toBe('Plan the trip')
+    } finally {
+      $draftTitles.set(original.drafts)
+      $botChatScopes.set(original.scopes)
+      $workspaceOwnerLabels.set(original.labels)
+      $sessions.set(original.sessions)
+      $selectedStoredSessionId.set(original.selected)
+    }
+  })
+})
+
+describe('the Sessions pane tab label', () => {
+  it('follows the live locale instead of the register-time title', () => {
+    const sessions = registry.getArea('panes').find(c => c.id === 'sessions')!
+    const tabTitle = (sessions.data as { tabTitle: () => ReactNode }).tabTitle
+
+    const inLocale = (locale: string) =>
+      renderToStaticMarkup(
+        <I18nProvider configClient={null} initialLocale={locale}>
+          {tabTitle()}
+        </I18nProvider>
+      )
+
+    expect(inLocale('ru')).not.toBe(inLocale('en'))
+  })
+
+  it('is joined by every other string-titled chrome pane, with a string twin for the zone menu / drag ghost', () => {
+    const chrome = (id: string) =>
+      registry.getArea('panes').find(c => c.id === id)!.data as {
+        tabTitle: () => ReactNode
+        tabTitleText: () => string
+      }
+
+    const inLocale = (id: string, locale: string) =>
+      renderToStaticMarkup(
+        <I18nProvider configClient={null} initialLocale={locale}>
+          {chrome(id).tabTitle()}
+        </I18nProvider>
+      )
+
+    for (const id of ['terminal', 'files', 'extensions']) {
+      expect(inLocale(id, 'ru')).not.toBe(inLocale(id, 'en'))
+    }
+
+    const ruSessions = inLocale('sessions', 'ru')
+    const ruFiles = inLocale('files', 'ru')
+
+    // The non-React readers (zone menu Show/Hide rows, drag ghost chip) call
+    // the string twin at menu-open / drag-start, so it follows the runtime
+    // locale set after registration — not the English `title` sampled at import.
+    setRuntimeI18nLocale('ru')
+
+    try {
+      expect(chrome('sessions').tabTitleText()).toBe(ruSessions)
+      expect(chrome('files').tabTitleText()).toBe(ruFiles)
+    } finally {
+      setRuntimeI18nLocale('en')
+    }
+  })
+})

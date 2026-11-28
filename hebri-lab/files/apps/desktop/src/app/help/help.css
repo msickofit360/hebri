@@ -1,0 +1,204 @@
+.help-centre,
+.bitbot-window {
+  color: var(--ui-text-primary);
+  background: var(--ui-chat-surface-background, var(--background));
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.help-centre {
+  height: 100%;
+}
+.help-header,
+.bitbot-header,
+.bitbot-footer,
+.bitbot-modes,
+.bitbot-compose {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
+.help-header {
+  flex-wrap: wrap;
+  justify-content: space-between;
+  padding: 0.85rem 1.1rem;
+  border-bottom: 1px solid var(--ui-stroke-tertiary);
+}
+.help-header h1 {
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+.help-page-content {
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
+  padding: clamp(0.75rem, 2vw, 1.5rem);
+}
+.help-page-chat,
+.bitbot-conversation {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+.help-page-chat {
+  width: min(100%, 52rem);
+  align-self: center;
+  padding: 0.75rem;
+}
+.bitbot-messages {
+  overflow: auto;
+  overscroll-behavior: contain;
+  flex: 1;
+  min-height: 0;
+  padding: 0.75rem;
+}
+.bitbot-welcome {
+  padding: 0.5rem 0.25rem;
+  max-width: 36rem;
+}
+.bitbot-welcome h2 {
+  font-size: 1.12rem;
+  font-weight: 600;
+  margin: 0.5rem 0 0.25rem;
+}
+.bitbot-welcome p,
+.bitbot-answer {
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+.bitbot-welcome p {
+  color: var(--ui-text-secondary);
+}
+.bitbot-mark {
+  color: var(--ui-text-primary);
+}
+.bitbot-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.7rem;
+}
+.bitbot-suggestions button {
+  white-space: normal;
+  text-align: start;
+}
+.bitbot-exchange {
+  margin-bottom: 1rem;
+  overflow-wrap: anywhere;
+}
+.bitbot-question {
+  margin-inline-start: auto;
+  width: fit-content;
+  max-width: 88%;
+  border: 1px solid var(--ui-stroke-tertiary);
+  border-radius: 0.65rem;
+  background: var(--ui-control-active-background);
+  padding: 0.45rem 0.65rem;
+  font-size: 0.875rem;
+}
+.bitbot-answer {
+  white-space: pre-line;
+  margin-top: 0.7rem;
+}
+.bitbot-answer strong {
+  display: block;
+  margin-bottom: 0.2rem;
+}
+.bitbot-compose {
+  margin: 0.35rem 0.6rem 0.65rem;
+  border: 1px solid var(--ui-stroke-secondary);
+  border-radius: 0.5rem;
+  padding: 0.35rem;
+}
+.bitbot-compose:focus-within {
+  outline: 2px solid var(--ring);
+}
+.bitbot-compose input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.35rem;
+  outline: 0;
+  background: transparent;
+  font-size: 0.875rem;
+}
+.bitbot-launcher,
+.bitbot-window {
+  position: fixed;
+  z-index: 55;
+  border: 1px solid var(--ui-stroke-secondary);
+  border-radius: 0.65rem;
+  background: var(--ui-chat-surface-background, var(--background));
+  box-shadow: 0 0.35rem 1.35rem rgb(0 0 0 / 0.15);
+  -webkit-app-region: no-drag;
+}
+.bitbot-launcher {
+  right: max(0.65rem, env(safe-area-inset-right));
+  bottom: max(2.55rem, env(safe-area-inset-bottom));
+  display: flex;
+  gap: 0.2rem;
+  align-items: center;
+  padding: 0.22rem;
+}
+.bitbot-window {
+  overflow: hidden;
+}
+.bitbot-header {
+  padding: 0.28rem 0.45rem;
+  border-bottom: 1px solid var(--ui-stroke-tertiary);
+}
+.bitbot-header h2 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  flex: 1;
+}
+.bitbot-grip {
+  cursor: move;
+  touch-action: none;
+}
+.bitbot-modes {
+  padding: 0.4rem 0.6rem 0.2rem;
+  flex-wrap: wrap;
+}
+.bitbot-library {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0.35rem;
+  overflow: auto;
+  padding: 0.6rem;
+}
+.bitbot-footer {
+  padding: 0.3rem 1.7rem 0.4rem 0.4rem;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--ui-stroke-tertiary);
+}
+.bitbot-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+.bitbot-resize i {
+  transform: rotate(45deg);
+}
+.bitbot-switch-value {
+  padding: 0 0.3rem;
+  border: 1px solid var(--ui-stroke-secondary);
+  border-radius: 0.25rem;
+}
+@media (max-width: 420px) {
+  .bitbot-launcher {
+    right: 0.4rem;
+    bottom: 2.25rem;
+  }
+  .help-header {
+    padding: 0.6rem;
+  }
+}
